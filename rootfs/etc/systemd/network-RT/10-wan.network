@@ -1,0 +1,15 @@
+[Match]
+Name=wan aux
+
+[Link]
+RequiredForOnline=no
+
+[Network]
+BindCarrier=eth0
+Bridge=brlan
+
+[BridgeVLAN]
+VLAN=99
+PVID=99
+EgressUntagged=99
+

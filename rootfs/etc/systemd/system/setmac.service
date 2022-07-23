@@ -1,0 +1,24 @@
+[Unit]
+Description=Setup MAC addresses
+DefaultDependencies=no
+Conflicts=shutdown.target
+Before=basic.target shutdown.target
+#RefuseManualStop=yes
+
+[Service]
+SyslogIdentifier=setmac
+Type=oneshot
+RemainAfterExit=yes
+# Make sure there are 'nr' available mac addresses: nr=16/32/64
+ExecStart=bash -c "mac=$(cat /etc/mac.eth0.txt);nr=${mac:18};mac=${mac::17} ;\
+maceth1=$(cat /etc/mac.eth1.txt);maceth1=${maceth1::17} ;\
+for i in 0 8; do declare mac$i=${mac::-2}$(printf %%02X $(((16#${mac: -2}&-$nr)+$i))); done ;\
+d=/run/systemd/network ; mkdir -p $d ;\
+echo -e '[Match]\nOriginalName=eth0 brlan lan* wan aux\n\n[Link]\nMACAddress='$mac0 >$d/10-eth0.link ;\
+echo -e '[Match]\nOriginalName=eth1\n\n[Link]\nMACAddress='$maceth1                 >$d/10-eth1.link ;\
+echo -e '[Match]\nOriginalName=wlan0\n\n[Link]\nMACAddress='$mac8                   >$d/10-wlan0.link ;\
+"
+
+[Install]
+WantedBy=basic.target
+

@@ -1,0 +1,15 @@
+[Match]
+# Replace 'none' with lan port to use as trunk port. 
+# Also remove it from 10-lan.network
+Name=none
+
+[Link]
+RequiredForOnline=no
+
+[Network]
+BindCarrier=eth0
+Bridge=brlan
+
+[BridgeVLAN]
+VLAN=1-3
+

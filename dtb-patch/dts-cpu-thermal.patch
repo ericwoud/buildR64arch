@@ -1,0 +1,21 @@
+--- a/boot/dtbs/mt7622-bananapi-bpi-r64.dts	2021-09-15 09:27:26.875953005 +0200
++++ b/boot/dtbs/mt7622-bananapi-bpi-r64.dts	2021-09-15 09:23:25.597138058 +0200
+@@ -191,14 +191,14 @@
+    cooling-maps {
+     map0 {
+      trip = <&cpu_passive>;
+-     cooling-device = <&cpu0 (~0) (~0)>,
+-        <&cpu1 (~0) (~0)>;
++     cooling-device = <&cpu0 0 0>,
++        <&cpu1 0 0>;
+     };
+ 
+     map1 {
+      trip = <&cpu_active>;
+-     cooling-device = <&cpu0 (~0) (~0)>,
+-        <&cpu1 (~0) (~0)>;
++     cooling-device = <&cpu0 0 0>,
++        <&cpu1 0 0>;
+     };
+ 
+     map2 {
