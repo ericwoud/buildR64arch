@@ -2,6 +2,8 @@
 
 Install a minimal Arch-Linux on Banana Pi R64 from scratch. 
 
+Downloadable image for quick test located [HERE](https://github.com/ericwoud/buildR64arch/releases/download/v1.0/bpir64-sdmmc.img.xz)
+
 Based on: [buildR64ubuntu](https://github.com/ericwoud/buildR64ubuntu.git)
 , [frank-w's atf](https://github.com/frank-w/BPI-R64-ATF)
 and [frank-w's kernel](https://github.com/frank-w/BPI-R2-4.14/tree/5.12-main)
@@ -94,6 +96,15 @@ Make sure your internet connection is working on the R64. Ping 8.8.8.8 should wo
 
 Now build the whole image, same as before.
 
+
+## Using pre-build images for a quick try-out
+
+On github you will find downloadable images at the release branches.
+
+Write the image file for sd-card to the appropriate device, MAKE SURE YOU HAVE THE CORRECT DEVICE!
+```
+xz -dcv ~/Downloads/bpir64-sdmmc.img.xz | sudo dd of=/dev/sda
+```
 
 ## Using port 5 of the dsa switch
 

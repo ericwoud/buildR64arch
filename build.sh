@@ -79,8 +79,9 @@ function formatsd {
   lsblkrootdev=($(lsblk -prno name,pkname,partlabel | grep $rootdev))
   [ -z $lsblkrootdev ] && exit
   realrootdev=${lsblkrootdev[1]}
+  [ "$l" = true ] && skip="" || skip='\|^loop'
   readarray -t options < <(lsblk --nodeps -no name,serial,size \
-                    | grep -v "^"${realrootdev/"/dev/"/}'\|^loop' \
+                    | grep -v "^"${realrootdev/"/dev/"/}$skip \
                     | grep -v 'boot0 \|boot1 \|boot2 ')
   PS3="Choose device to format: "
   select dev in "${options[@]}" "Quit" ; do
@@ -230,7 +231,7 @@ fi
 [ $USER = "root" ] && sudo="" || sudo="sudo -s"
 [[ $# == 0 ]] && args=""|| args=$@
 cd $(dirname $BASH_SOURCE)
-while getopts ":raRSD" opt $args; do declare "${opt}=true" ; done
+while getopts ":ralRSD" opt $args; do declare "${opt}=true" ; done
 trap finish EXIT
 shopt -s extglob
 $sudo true
@@ -295,3 +296,13 @@ exit
 
 # kernelcmdline: block2mtd.block2mtd=/dev/mmcblk0p2,128KiB,MyMtd cmdlinepart.mtdparts=MyMtd:1M(mtddata)ro
 
+# sudo dd if=/dev/zero of=~/bpir64-sdmmc.img bs=1M count=2336 status=progress
+# sudo udisksctl loop-setup -f ~/bpir64-sdmmc.img
+# ./build.sh -lSD
+# ./build.sh -r
+# ./build.sh
+# rm -vrf /tmp/*
+# pacman -Scc
+# exit
+# sudo udisksctl loop-delete --block-device /dev/loop0
+# xz --keep --force --verbose ~/bpir64-sdmmc.img
