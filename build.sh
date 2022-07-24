@@ -223,8 +223,10 @@ if [ $bpir64 != "true" ]; then # Not running on BPI-R64
     S1=':qemu-aarch64:M::\x7fELF\x02\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\xb7'
     S2=':\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff:/usr/local/bin/qemu-aarch64-static:CF'
     echo -n $S1$S2| $sudo tee /lib/binfmt.d/05-local-qemu-aarch64-static.conf
+    echo
     $sudo systemctl restart systemd-binfmt.service
 fi
+exit
 }
 
 # INIT VARIABLES
