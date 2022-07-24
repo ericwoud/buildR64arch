@@ -106,6 +106,14 @@ Write the image file for sd-card to the appropriate device, MAKE SURE YOU HAVE T
 xz -dcv ~/Downloads/bpir64-sdmmc.img.xz | sudo dd of=/dev/sda
 ```
 
+## Changing kernel commandline options or devicetree patches
+
+When changing the kernel commandline options in `/boot/bootcfg/cmdline` or changing/adding/removing patches in `/boot/dtb-patch`
+you should run the folling command on the bpir64 to write the changees so that they will be activated on the next boot:
+```
+bpir64-writefip
+```
+
 ## Using port 5 of the dsa switch
 
 Note: This does not work when running from emmc and the bootswitch is set to try from sdmmc first, position 1. Only onder these two conditions combined, it seems eth1 does not get initialised correctly. The eth1 gmac works fine running from emmc, with sw1 set to 0, try boot from emmc first.
