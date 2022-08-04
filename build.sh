@@ -6,9 +6,9 @@ QEMU="https://github.com/multiarch/qemu-user-static/releases/download/v5.2.0-11/
 
 ARCHBOOTSTRAP="https://raw.githubusercontent.com/tokland/arch-bootstrap/master/arch-bootstrap.sh"
 
-PKGURL="https://github.com/ericwoud/buildR64arch/releases/download/packages"
-
-PREBUILTPKG="bpir64-mkimage bpir64-atf-git linux-bpir64-git linux-bpir64-git-headers yay mmc-utils-git"
+REPOKEY="BCF574990829687185CC072BD41842407A2A5FA2"
+REPOURL='ftp://ftp.woudstra.mywire.org/repo/$arch'
+BACKUPREPOURL="https://github.com/ericwoud/buildR64arch/releases/download/packages"
 
 KERNELDTB="mt7622-bananapi-bpi-r64"
 
@@ -36,10 +36,12 @@ ROOTFS_LABEL="BPI-ROOT"
 
 NEEDED_PACKAGES="base hostapd openssh wireless-regdb iproute2 nftables f2fs-tools dtc mkinitcpio patch"
 EXTRA_PACKAGES="vim nano screen"
+PREBUILT_PACKAGES="bpir64-mkimage bpir64-atf-git linux-bpir64-git linux-bpir64-git-headers yay mmc-utils-git"
 SCRIPT_PACKAGES="git wget ca-certificates udisks2 parted gzip bc"
 SCRIPT_PACKAGES_ARCHLX="base-devel      uboot-tools  ncurses        openssl    f2fs-tools asp"
 SCRIPT_PACKAGES_AUR="mmc-utils-git"
 SCRIPT_PACKAGES_DEBIAN="build-essential u-boot-tools libncurses-dev libssl-dev f2fs-tools flex bison "
+
 
 SETUP="RT"   # Setup as RouTer
 #SETUP="AP"  # Setup as Access Point
@@ -144,7 +146,14 @@ function rootfs {
   echo "--- End of package list"
   $schroot pacman-key --init
   $schroot pacman-key --populate archlinuxarm
-  $schroot pacman -Syu --needed --noconfirm $NEEDED_PACKAGES $EXTRA_PACKAGES
+  $schroot pacman-key --recv-keys $REPOKEY
+  $schroot pacman-key --finger     $REPOKEY
+  $schroot pacman-key --lsign-key $REPOKEY
+  if [ -z "$(cat $rootfsdir/etc/pacman.conf | grep -oP '^\[ericwoud\]')" ]; then
+    echo -e "\n[ericwoud]\nServer = $REPOURL\nServer = $BACKUPREPOURL" | \
+               $sudo tee -a $rootfsdir/etc/pacman.conf
+  fi
+  $schroot pacman -Syu --needed --noconfirm $NEEDED_PACKAGES $EXTRA_PACKAGES $PREBUILT_PACKAGES
   $schroot useradd --create-home --user-group \
                --groups audio,games,log,lp,optical,power,scanner,storage,video,wheel \
                -s /bin/bash $USERNAME
@@ -200,11 +209,6 @@ function rootfs {
   echo ${KERNELDTB} |                                 $sudo tee $rootfsdir/boot/bootcfg/dtb
   echo $KERNELBOOTARGS |                              $sudo tee $rootfsdir/boot/bootcfg/cmdline
   echo ${ATFDEVICE} |                                 $sudo tee $rootfsdir/boot/bootcfg/device
-  for pkg in $PREBUILTPKG; do
-    wget  --no-verbose --no-clobber -P ./ "$PKGURL/$pkg.pkg.tar.xz"
-    $sudo cp -vf "./$pkg.pkg.tar.xz" $rootfsdir/tmp/
-    $schroot pacman -U --needed --noconfirm "/tmp/$pkg.pkg.tar.xz"
-  done
 }
 
 function installscript {
