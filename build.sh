@@ -37,11 +37,9 @@ ROOTFS_LABEL="BPI-ROOT"
 NEEDED_PACKAGES="base hostapd openssh wireless-regdb iproute2 nftables f2fs-tools dtc mkinitcpio patch"
 EXTRA_PACKAGES="vim nano screen"
 PREBUILT_PACKAGES="bpir64-mkimage bpir64-atf-git linux-bpir64-git linux-bpir64-git-headers yay mmc-utils-git"
-SCRIPT_PACKAGES="git wget ca-certificates udisks2 parted gzip bc"
-SCRIPT_PACKAGES_ARCHLX="base-devel      uboot-tools  ncurses        openssl    f2fs-tools asp"
-SCRIPT_PACKAGES_AUR="mmc-utils-git"
-SCRIPT_PACKAGES_DEBIAN="build-essential u-boot-tools libncurses-dev libssl-dev f2fs-tools flex bison "
-
+SCRIPT_PACKAGES="wget ca-certificates udisks2 parted gzip bc f2fs-tools"
+SCRIPT_PACKAGES_ARCHLX="base-devel      uboot-tools  ncurses        openssl"
+SCRIPT_PACKAGES_DEBIAN="build-essential u-boot-tools libncurses-dev libssl-dev flex bison "
 
 SETUP="RT"   # Setup as RouTer
 #SETUP="AP"  # Setup as Access Point
@@ -130,7 +128,6 @@ function formatsd {
   $sudo lsblk -o name,mountpoint,label,size,uuid "${device}"
 }
 
-
 function bootstrap {
   if [ ! -d "$rootfsdir/etc" ]; then
     rm -f /tmp/downloads/$(basename $ARCHBOOTSTRAP)
@@ -140,6 +137,7 @@ function bootstrap {
     $sudo cp -vf /usr/local/bin/qemu-aarch64-static $rootfsdir/usr/local/bin/qemu-aarch64-static
   fi
 }
+
 function rootfs {
   echo "--- Following packages are installed:"
   $schroot pacman -Qe
@@ -195,15 +193,8 @@ function rootfs {
     echo $mac | $sudo tee $rootfsdir/etc/mac.eth1.txt
   else echo "Macs on eth0 and eth1 already configured."  
   fi
-  $sudo mkdir -p $rootfsdir/root/buildR64arch
-  $sudo cp -rfv --no-dereference rootfs/    $rootfsdir/root/buildR64arch/
-  $sudo cp -rfv --no-dereference dtb-patch/ $rootfsdir/root/buildR64arch/
-  $sudo cp -rfv --no-dereference uboot-*/   $rootfsdir/root/buildR64arch/
-  $sudo cp -rfv --no-dereference atf-*/     $rootfsdir/root/buildR64arch/
-  $sudo cp -fv                   build.sh   $rootfsdir/root/buildR64arch/
-  $sudo mkdir -p "$rootfsdir/boot"
+  $sudo mkdir -p $rootfsdir/boot/bootcfg/
   $sudo cp -vrf ./dtb-patch $rootfsdir/boot/
-  $sudo mkdir -p $rootfsdir//boot/bootcfg/
   echo /boot/Image |                                  $sudo tee $rootfsdir/boot/bootcfg/linux
   echo /boot/initramfs-linux-bpir64-git.img |         $sudo tee $rootfsdir/boot/bootcfg/initrd
   echo ${KERNELDTB} |                                 $sudo tee $rootfsdir/boot/bootcfg/dtb
@@ -212,16 +203,15 @@ function rootfs {
 }
 
 function installscript {
-if [ ! -f "/etc/arch-release" ]; then ### Ubuntu / Debian
-  $sudo apt-get install --yes         $SCRIPT_PACKAGES $SCRIPT_PACKAGES_DEBIAN
-  [ $bpir64 != "true" ] && $sudo apt-get install --yes gcc-aarch64-linux-gnu
-else
-  $sudo pacman -Syu --needed --noconfirm $SCRIPT_PACKAGES $SCRIPT_PACKAGES_ARCHLX
-  ./rootfs/usr/local/sbin/aurinstall $SCRIPT_PACKAGES_AUR
-  [ $bpir64 != "true" ] &&  $sudo pacman -Syu --needed --noconfirm aarch64-linux-gnu-gcc
-fi
-# On all linux's
-if [ $bpir64 != "true" ]; then # Not running on BPI-R64
+  if [ ! -f "/etc/arch-release" ]; then ### Ubuntu / Debian
+    $sudo apt-get install --yes         $SCRIPT_PACKAGES $SCRIPT_PACKAGES_DEBIAN
+    [ $bpir64 != "true" ] && $sudo apt-get install --yes gcc-aarch64-linux-gnu
+  else
+    $sudo pacman -Syu --needed --noconfirm $SCRIPT_PACKAGES $SCRIPT_PACKAGES_ARCHLX
+    [ $bpir64 != "true" ] &&  $sudo pacman -Syu --needed --noconfirm aarch64-linux-gnu-gcc
+  fi
+  # On all linux's
+  if [ $bpir64 != "true" ]; then # Not running on BPI-R64
     wget --no-verbose $QEMU          --no-clobber -P ./
     $sudo tar -xf $(basename $QEMU) -C /usr/local/bin
     S1=':qemu-aarch64:M::\x7fELF\x02\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\xb7'
@@ -229,11 +219,10 @@ if [ $bpir64 != "true" ]; then # Not running on BPI-R64
     echo -n $S1$S2| $sudo tee /lib/binfmt.d/05-local-qemu-aarch64-static.conf
     echo
     $sudo systemctl restart systemd-binfmt.service
-fi
-exit
+  fi
+  exit
 }
 
-# INIT VARIABLES
 [ $USER = "root" ] && sudo="" || sudo="sudo -s"
 [[ $# == 0 ]] && args=""|| args=$@
 cd $(dirname $BASH_SOURCE)
@@ -275,7 +264,7 @@ else
   [[ $? != 0 ]] && exit
 fi
 
-echo OPTIONS: rootfs=$r boot=$b kernel=$k tar=$t apt=$a 
+echo OPTIONS: rootfs=$r apt=$a
 if [ "$R" = true ] ; then
   echo Removing rootfs...
   $sudo rm -rf $rootfsdir/*
