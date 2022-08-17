@@ -2,8 +2,8 @@
 Name=brlan
 
 [Link]
-#RequiredForOnline=degraded-carrier
-RequiredForOnline=no
+RequiredForOnline=degraded-carrier
+#RequiredForOnline=no
 
 [Network]
 IPForward=yes
@@ -20,4 +20,3 @@ DNS=8.8.8.8
 VLAN=1
 PVID=1
 EgressUntagged=1
-
