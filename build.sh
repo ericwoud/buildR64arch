@@ -66,12 +66,19 @@ function finish {
       echo "Unmounting...DO NOT REMOVE!"
       $sudo umount -R $rootfsdir
       sleep 0.1
-    done    
+    done
     $sudo rm -rf $rootfsdir
     $sudo sync
     echo -e "Done. You can remove the card now.\n"
   fi
   unset rootfsdir
+}
+
+function waitdevlink {
+  while [ ! -L "$1" ]; do
+    echo "WAIT!"
+    sleep 0.1
+  done
 }
 
 function formatsd {
@@ -89,16 +96,16 @@ function formatsd {
       break
     else exit
     fi
-  done    
+  done
   device="/dev/"${dev%% *}
   for PART in `df -k | awk '{ print $1 }' | grep "${device}"` ; do $sudo umount $PART; done
   $sudo parted -s "${device}" unit MiB print
-  echo -e "\nAre you sure you want to format "$device"???" 
+  echo -e "\nAre you sure you want to format "$device"???"
   read -p "Type <format> to format: " prompt
   [[ $prompt != "format" ]] && exit
   minimalrootstart=$(( $ATF_END_KB + ($MINIMAL_SIZE_FIP_MB * 1024) ))
   rootstart=0
-  while [[ $rootstart -lt $minimalrootstart ]]; do 
+  while [[ $rootstart -lt $minimalrootstart ]]; do
     rootstart=$(( $rootstart + ($SD_ERASE_SIZE_MB * 1024) ))
   done
   $sudo dd of="${device}" if=/dev/zero bs=1024 count=$rootstart
@@ -113,11 +120,9 @@ function formatsd {
     print
   $sudo partprobe "${device}"
   lsblkdev=""
-  while [ ! -L "/dev/disk/by-partlabel/bpir64-${ATFDEVICE}-root" ]; do
-    echo "WAIT!"
-    sleep 0.1
-  done
+  waitdevlink "/dev/disk/by-partlabel/bpir64-${ATFDEVICE}-root"
   $sudo blkdiscard -fv "/dev/disk/by-partlabel/bpir64-${ATFDEVICE}-root"
+  waitdevlink "/dev/disk/by-partlabel/bpir64-${ATFDEVICE}-root"
   nrseg=$(( $SD_ERASE_SIZE_MB / 2 )); [[ $nrseg -lt 1 ]] && nrseg=1
   $sudo mkfs.f2fs -w $(( $SD_BLOCK_SIZE_KB * 1024 )) -s $nrseg \
                   -f -l $ROOTFS_LABEL "/dev/disk/by-partlabel/bpir64-${ATFDEVICE}-root"
@@ -191,7 +196,7 @@ function rootfs {
     done
     mac=$mac:$(printf %02X $(($RANDOM%256)) )
     echo $mac | $sudo tee $rootfsdir/etc/mac.eth1.txt
-  else echo "Macs on eth0 and eth1 already configured."  
+  else echo "Macs on eth0 and eth1 already configured."
   fi
   $sudo mkdir -p $rootfsdir/boot/bootcfg/
   $sudo cp -vrf ./dtb-patch $rootfsdir/boot/

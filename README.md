@@ -1,6 +1,6 @@
 # buildR64arch
 
-Install a minimal Arch-Linux on Banana Pi R64 from scratch. 
+Install a minimal Arch-Linux on Banana Pi R64 from scratch.
 
 Downloadable image for quick test located [HERE](https://github.com/ericwoud/buildR64arch/releases/download/v1.0/bpir64-sdmmc.img.xz)
 
@@ -11,9 +11,9 @@ and [frank-w's kernel](https://github.com/frank-w/BPI-R2-4.14/tree/5.12-main)
 Now includes a patch so that temperature is regulated at 87 instead of 47 degrees!
 Delete the file dtb-patch/dts-cpu-thermal.patch before building, if you do not want to.
 
-The script can be run from Arch Linux and Debian/Ubuntu (debian/ubuntu currently untested).
+The script can be run from Arch Linux and Debian/Ubuntu.
 
-The script only formats the SD card and installs packages and configures them. Nothing needs to be build. 
+The script only formats the SD card and installs packages and configures them. Nothing needs to be build.
 Everything that is build, is installed with prebuild packages. These packages can be updated through the AUR.
 
 The script is in development and uses sudo. Any bug may possibly delete everything permanently!
@@ -92,7 +92,7 @@ Change ATFDEVICE=`sdmmc` in the script to `emmc`. Now format the emmc:
 ./build.sh -SD
 ```
 
-Make sure your internet connection is working on the R64. Ping 8.8.8.8 should work. 
+Make sure your internet connection is working on the R64. Ping 8.8.8.8 should work.
 
 Now build the whole image, same as before.
 
@@ -118,7 +118,7 @@ bpir64-writefip
 
 Note: This does not work when running from emmc and the bootswitch is set to try from sdmmc first, position 1. Only onder these two conditions combined, it seems eth1 does not get initialised correctly. The eth1 gmac works fine running from emmc, with sw1 set to 0, try boot from emmc first.
 
-Follow the steps below if you want to use a Router setup and run on emmc with sw1 set to 1. You will then not be using eth1 and port 5 of the dsa switch 
+Follow the steps below if you want to use a Router setup and run on emmc with sw1 set to 1. You will then not be using eth1 and port 5 of the dsa switch
 
 Port 5 is available and named aux. Wan and aux port are in a separate vlan. Eth1 is setup as outgoing port instead of wan port.
 
@@ -138,13 +138,13 @@ If you don't like this trick, then:
 
 ## Setup as Access Point
 
-When using a second or third R64ubuntu as Access Point, and connecting router-lan-port to AP-lan-port, do the following: 
+When using a second or third R64ubuntu as Access Point, and connecting router-lan-port to AP-lan-port, do the following:
 
 Change SETUP="RT" to SETUP="AP".
 
 The Access Point has network address 192.168.1.33.
 
-For vlan setup the lan ports which connect router and AP as lan-trunk port on both router and AP. 
+For vlan setup the lan ports which connect router and AP as lan-trunk port on both router and AP.
 
 Some DSA drivers have a problem with this setup, but some are recently fixed with a fix wireless roaming fix in the kernel. You will need very recent drivers on all routers/switches and access points on your network
 
@@ -173,4 +173,3 @@ Command line options:
 * [mtk-openwrt-atf](https://github.com/mtk-openwrt/arm-trusted-firmware)
 * [u-boot](https://github.com/u-boot/u-boot)
 * [McDebian](https://github.com/Chadster766/McDebian)
-
