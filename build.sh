@@ -83,7 +83,7 @@ function waitdevlink {
 
 function formatsd {
   echo ROOTDEV: $rootdev
-  lsblkrootdev=($(lsblk -prno name,pkname,partlabel | grep $rootdev))
+  lsblkrootdev=($(lsblk -prno name,pkname,partlabel | grep "$rootdev"))
   [ -z $lsblkrootdev ] && exit
   realrootdev=${lsblkrootdev[1]}
   [ "$l" = true ] && skip="" || skip='\|^loop'
@@ -108,7 +108,7 @@ function formatsd {
   while [[ $rootstart -lt $minimalrootstart ]]; do
     rootstart=$(( $rootstart + ($SD_ERASE_SIZE_MB * 1024) ))
   done
-  $sudo dd of="${device}" if=/dev/zero bs=1024 count=$rootstart
+  $sudo dd of="${device}" if=/dev/zero bs=1024 count=$rootstart status=progress
   $sudo parted -s -- "${device}" unit kiB \
     mklabel gpt \
     mkpart primary $rootstart 100% \
@@ -138,7 +138,7 @@ function bootstrap {
     rm -f /tmp/downloads/$(basename $ARCHBOOTSTRAP)
     wget --no-verbose $ARCHBOOTSTRAP --no-clobber -P /tmp/downloads/
     $sudo bash /tmp/downloads/$(basename $ARCHBOOTSTRAP) -q -a aarch64 -r $ALARM_MIRROR $rootfsdir #####  2>&0
-    ls $rootfsdir
+    ls -al $rootfsdir
     $sudo cp -vf /usr/local/bin/qemu-aarch64-static $rootfsdir/usr/local/bin/qemu-aarch64-static
   fi
 }
@@ -150,7 +150,7 @@ function rootfs {
   $schroot pacman-key --init
   $schroot pacman-key --populate archlinuxarm
   $schroot pacman-key --recv-keys $REPOKEY
-  $schroot pacman-key --finger     $REPOKEY
+  $schroot pacman-key --finger $REPOKEY
   $schroot pacman-key --lsign-key $REPOKEY
   if [ -z "$(cat $rootfsdir/etc/pacman.conf | grep -oP '^\[ericwoud\]')" ]; then
     echo -e "\n[ericwoud]\nServer = $REPOURL\nServer = $BACKUPREPOURL" | \

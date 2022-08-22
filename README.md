@@ -31,6 +31,13 @@ You need:
 
 Take a look with the script at the original formatting of the SD card. We use this info to determine it's page/erase size.
 
+Your host's `/etc/resolv.conf` needs to contain a valid DNS nameserver entry, because it is used as base by [`ARCHBOOTSTRAP`](https://raw.githubusercontent.com/tokland/arch-bootstrap/master/arch-bootstrap.sh). If you don't use it on your host, then you can temporarily add one, e. g. by:
+```
+echo "nameserver 8.8.8.8" | sudo tee -a /etc/resolv.conf
+```
+
+You need to use the `bash` as shell (e. g. with the `zsh` you will run into trouble).
+
 ### Installing
 
 
