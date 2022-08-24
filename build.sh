@@ -34,7 +34,7 @@ MINIMAL_SIZE_FIP_MB=62             # Minimal size of fip partition
 
 ROOTFS_LABEL="BPI-ROOT"
 
-NEEDED_PACKAGES="base hostapd openssh wireless-regdb iproute2 nftables f2fs-tools dtc mkinitcpio patch"
+NEEDED_PACKAGES="base hostapd openssh wireless-regdb iproute2 nftables f2fs-tools dtc mkinitcpio patch sudo"
 EXTRA_PACKAGES="vim nano screen"
 PREBUILT_PACKAGES="bpir64-mkimage bpir64-atf-git linux-bpir64-git linux-bpir64-git-headers yay mmc-utils-git"
 SCRIPT_PACKAGES="wget ca-certificates udisks2 parted gzip bc f2fs-tools"
@@ -144,6 +144,13 @@ function bootstrap {
 }
 
 function rootfs {
+  $sudo mkdir -p $rootfsdir/boot/bootcfg/
+  $sudo cp -vrf ./dtb-patch $rootfsdir/boot/
+  echo /boot/Image |                                  $sudo tee $rootfsdir/boot/bootcfg/linux
+  echo /boot/initramfs-linux-bpir64-git.img |         $sudo tee $rootfsdir/boot/bootcfg/initrd
+  echo ${KERNELDTB} |                                 $sudo tee $rootfsdir/boot/bootcfg/dtb
+  echo $KERNELBOOTARGS |                              $sudo tee $rootfsdir/boot/bootcfg/cmdline
+  echo ${ATFDEVICE} |                                 $sudo tee $rootfsdir/boot/bootcfg/device
   echo "--- Following packages are installed:"
   $schroot pacman -Qe
   echo "--- End of package list"
@@ -198,13 +205,6 @@ function rootfs {
     echo $mac | $sudo tee $rootfsdir/etc/mac.eth1.txt
   else echo "Macs on eth0 and eth1 already configured."
   fi
-  $sudo mkdir -p $rootfsdir/boot/bootcfg/
-  $sudo cp -vrf ./dtb-patch $rootfsdir/boot/
-  echo /boot/Image |                                  $sudo tee $rootfsdir/boot/bootcfg/linux
-  echo /boot/initramfs-linux-bpir64-git.img |         $sudo tee $rootfsdir/boot/bootcfg/initrd
-  echo ${KERNELDTB} |                                 $sudo tee $rootfsdir/boot/bootcfg/dtb
-  echo $KERNELBOOTARGS |                              $sudo tee $rootfsdir/boot/bootcfg/cmdline
-  echo ${ATFDEVICE} |                                 $sudo tee $rootfsdir/boot/bootcfg/device
 }
 
 function installscript {
