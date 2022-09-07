@@ -1,0 +1,19 @@
+/dts-v1/;
+/plugin/;
+
+&mdio {
+  switch@0 {
+    ports {
+      port@5 {
+        reg = <5>;
+        label = "aux";
+        phy-mode = "rgmii";
+        fixed-link {
+          speed = <1000>;
+          full-duplex;
+          pause;
+        };
+      };
+    };
+  };
+};

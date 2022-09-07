@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# xz -e -k -9 -C crc32 $$< --stdout > $$@
+
 ALARM_MIRROR="http://de.mirror.archlinuxarm.org"
 
 QEMU="https://github.com/multiarch/qemu-user-static/releases/download/v5.2.0-11/x86_64_qemu-aarch64-static.tar.gz"
@@ -36,7 +38,7 @@ ROOTFS_LABEL="BPI-ROOT"
 
 NEEDED_PACKAGES="base hostapd openssh wireless-regdb iproute2 nftables f2fs-tools dtc mkinitcpio patch sudo"
 EXTRA_PACKAGES="vim nano screen"
-PREBUILT_PACKAGES="bpir64-mkimage bpir64-atf-git linux-bpir64-git linux-bpir64-git-headers yay mmc-utils-git"
+PREBUILT_PACKAGES="bpir64-atf-git linux-bpir64-git linux-bpir64-git-headers bpir64-mkimage yay mmc-utils-git"
 SCRIPT_PACKAGES="wget ca-certificates udisks2 parted gzip bc f2fs-tools"
 SCRIPT_PACKAGES_ARCHLX="base-devel      uboot-tools  ncurses        openssl"
 SCRIPT_PACKAGES_DEBIAN="build-essential u-boot-tools libncurses-dev libssl-dev flex bison "
@@ -137,7 +139,8 @@ function bootstrap {
   if [ ! -d "$rootfsdir/etc" ]; then
     rm -f /tmp/downloads/$(basename $ARCHBOOTSTRAP)
     wget --no-verbose $ARCHBOOTSTRAP --no-clobber -P /tmp/downloads/
-    $sudo bash /tmp/downloads/$(basename $ARCHBOOTSTRAP) -q -a aarch64 -r $ALARM_MIRROR $rootfsdir #####  2>&0
+    $sudo bash /tmp/downloads/$(basename $ARCHBOOTSTRAP) -q -a aarch64 \
+          -r $ALARM_MIRROR $rootfsdir #####  2>&0
     ls -al $rootfsdir
     $sudo cp -vf /usr/local/bin/qemu-aarch64-static $rootfsdir/usr/local/bin/qemu-aarch64-static
   fi
@@ -145,7 +148,7 @@ function bootstrap {
 
 function rootfs {
   $sudo mkdir -p $rootfsdir/boot/bootcfg/
-  $sudo cp -vrf ./dtb-patch $rootfsdir/boot/
+  $sudo cp -rf --dereference -v ./rootfs/boot $rootfsdir
   echo /boot/Image |                                  $sudo tee $rootfsdir/boot/bootcfg/linux
   echo /boot/initramfs-linux-bpir64-git.img |         $sudo tee $rootfsdir/boot/bootcfg/initrd
   echo ${KERNELDTB} |                                 $sudo tee $rootfsdir/boot/bootcfg/dtb
@@ -174,9 +177,10 @@ function rootfs {
   sudo sed -i 's/.*PermitRootLogin.*/PermitRootLogin yes/' $rootfsdir/etc/ssh/sshd_config
   sudo sed -i 's/.*UsePAM.*/UsePAM no/' $rootfsdir/etc/ssh/sshd_config
   sudo sed -i '/'$LC'/s/^#//g' $rootfsdir/etc/locale.gen
+  sudo sed -i 's/.*#IgnorePkg.*/IgnorePkg = bpir64-atf-git/' $rootfsdir/etc/pacman.conf
   [ -z $($schroot localectl list-locales | grep --ignore-case $LC) ] && $schroot locale-gen
   $schroot localectl set-locale LANG=en_US.UTF-8
-  $sudo cp -r --remove-destination --dereference -v rootfs/. $rootfsdir
+  $sudo cp -rfv --dereference rootfs/. $rootfsdir
   $sudo rm -rf $rootfsdir/etc/systemd/network
   $sudo mv -vf $rootfsdir/etc/systemd/network-$SETUP $rootfsdir/etc/systemd/network
   $sudo rm -rf $rootfsdir/etc/systemd/network-*
@@ -225,6 +229,9 @@ function installscript {
     echo
     $sudo systemctl restart systemd-binfmt.service
   fi
+  if [ -z "$(cat /etc/resolv.conf | grep -oP '^nameserver')" ]; then
+    echo "nameserver 8.8.8.8" | $sudo tee -a /etc/resolv.conf
+  fi
   exit
 }
 
@@ -261,7 +268,8 @@ if [ "$rootdev" == "$mountdev" ];then
   schroot=""
 else
   rootfsdir=/mnt/bpirootfs
-  schroot="$sudo unshare --mount --fork chroot $rootfsdir"
+  ####################  schroot="$sudo unshare --mount --fork chroot $rootfsdir"
+  schroot="$sudo unshare --mount --fork --kill-child --pid --root=$rootfsdir"
   $sudo umount $mountdev
   [ -d $rootfsdir ] || $sudo mkdir $rootfsdir
   $sudo mount --source $mountdev --target $rootfsdir \

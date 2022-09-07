@@ -1,0 +1,19 @@
+/dts-v1/;
+/plugin/;
+
+&pio {
+  asm_sel {
+    output-low;
+    /* remove from main .dtb as overlay file cannot delete a property */
+    //fdtput -d /pinctrl@10211000/asm_sel output-high
+  };
+};
+
+&sata {
+  status = "okay";
+};
+&sata_phy {
+  status = "okay";
+};
+
+

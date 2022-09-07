@@ -1,0 +1,13 @@
+/dts-v1/;
+/plugin/;
+
+&cpu_thermal {
+  cooling-maps {
+    map0 {
+      cooling-device = <&cpu0 0 0>, <&cpu1 0 0>;
+    };
+    map1 {
+      cooling-device = <&cpu0 0 0>, <&cpu1 0 0>;
+    };
+  };
+};
