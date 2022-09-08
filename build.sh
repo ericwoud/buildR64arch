@@ -234,11 +234,20 @@ function installscript {
   fi
   exit
 }
+function removescript {
+  # On all linux's
+  if [ $bpir64 != "true" ]; then # Not running on BPI-R64
+    $sudo rm -f /usr/local/bin/qemu-aarch64-static
+    $sudo rm -f /lib/binfmt.d/05-local-qemu-aarch64-static.conf
+    $sudo systemctl restart systemd-binfmt.service
+  fi
+  exit
+}
 
 [ $USER = "root" ] && sudo="" || sudo="sudo -s"
 [[ $# == 0 ]] && args=""|| args=$@
 cd $(dirname $BASH_SOURCE)
-while getopts ":ralRSD" opt $args; do declare "${opt}=true" ; done
+while getopts ":ralRASD" opt $args; do declare "${opt}=true" ; done
 trap finish EXIT
 shopt -s extglob
 $sudo true
@@ -253,6 +262,7 @@ else
 fi
 
 [ "$a" = true ] && installscript
+[ "$A" = true ] && removescript
 
 rootdev=$(lsblk -pilno name,type,mountpoint | grep -G 'part /$')
 rootdev=${rootdev%% *}
@@ -313,4 +323,6 @@ exit
 # pacman -Scc
 # exit
 # sudo udisksctl loop-delete --block-device /dev/loop0
+# sudo dd of=/dev/mmcblk0 if=~/bpir64-sdmmc.img bs=1M count=2336 status=progress
+# sync
 # xz --keep --force --verbose ~/bpir64-sdmmc.img
