@@ -46,7 +46,6 @@ SCRIPT_PACKAGES_DEBIAN="build-essential u-boot-tools libncurses-dev libssl-dev f
 SETUP="RT"   # Setup as RouTer
 #SETUP="AP"  # Setup as Access Point
 
-LC="en_US.utf8"                      # Locale
 TIMEZONE="Europe/Paris"              # Timezone
 USERNAME="user"
 USERPWD="admin"
@@ -176,10 +175,7 @@ function rootfs {
   $schroot ln -sf /usr/share/zoneinfo/${TIMEZONE} /etc/localtime
   sudo sed -i 's/.*PermitRootLogin.*/PermitRootLogin yes/' $rootfsdir/etc/ssh/sshd_config
   sudo sed -i 's/.*UsePAM.*/UsePAM no/' $rootfsdir/etc/ssh/sshd_config
-  sudo sed -i '/'$LC'/s/^#//g' $rootfsdir/etc/locale.gen
   sudo sed -i 's/.*#IgnorePkg.*/IgnorePkg = bpir64-atf-git/' $rootfsdir/etc/pacman.conf
-  [ -z $($schroot localectl list-locales | grep --ignore-case $LC) ] && $schroot locale-gen
-  $schroot localectl set-locale LANG=en_US.UTF-8
   $sudo cp -rfv --dereference rootfs/. $rootfsdir
   $sudo rm -rf $rootfsdir/etc/systemd/network
   $sudo mv -vf $rootfsdir/etc/systemd/network-$SETUP $rootfsdir/etc/systemd/network
