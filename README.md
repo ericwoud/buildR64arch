@@ -2,7 +2,7 @@
 
 Install a minimal Arch-Linux on Banana Pi R64 from scratch.
 
-Downloadable image for quick test located [HERE](https://github.com/ericwoud/buildR64arch/releases/download/v1.0/bpir64-sdmmc.img.xz)
+Downloadable image for quick test located [HERE](https://github.com/ericwoud/buildR64arch/releases/download/v1.1/bpir64-sdmmc.img.xz)
 
 Based on: [buildR64ubuntu](https://github.com/ericwoud/buildR64ubuntu.git)
 , [frank-w's atf](https://github.com/frank-w/BPI-R64-ATF)

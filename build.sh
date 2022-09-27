@@ -214,10 +214,8 @@ function rootfs {
 function installscript {
   if [ ! -f "/etc/arch-release" ]; then ### Ubuntu / Debian
     $sudo apt-get install --yes         $SCRIPT_PACKAGES $SCRIPT_PACKAGES_DEBIAN
-    [ $bpir64 != "true" ] && $sudo apt-get install --yes gcc-aarch64-linux-gnu
   else
     $sudo pacman -Syu --needed --noconfirm $SCRIPT_PACKAGES $SCRIPT_PACKAGES_ARCHLX
-    [ $bpir64 != "true" ] &&  $sudo pacman -Syu --needed --noconfirm aarch64-linux-gnu-gcc
   fi
   # On all linux's
   if [ $bpir64 != "true" ]; then # Not running on BPI-R64
@@ -244,7 +242,7 @@ function removescript {
   exit
 }
 
-[ $USER = "root" ] && sudo="" || sudo="sudo -s"
+[ $USER = "root" ] && sudo="" || sudo="sudo"
 [[ $# == 0 ]] && args=""|| args=$@
 cd $(dirname $BASH_SOURCE)
 while getopts ":ralRASD" opt $args; do declare "${opt}=true" ; done
@@ -278,13 +276,7 @@ if [ "$rootdev" == "$mountdev" ];then
   schroot=""
 else
   rootfsdir=/mnt/bpirootfs
-  ####################  schroot="$sudo unshare --mount --fork chroot $rootfsdir"
   schroot="$sudo unshare --mount --fork --kill-child --pid --root=$rootfsdir"
-  $sudo umount $mountdev
-  [ -d $rootfsdir ] || $sudo mkdir $rootfsdir
-  $sudo mount --source $mountdev --target $rootfsdir \
-              -o exec,dev,noatime,nodiratime
-  [[ $? != 0 ]] && exit
 fi
 
 echo OPTIONS: rootfs=$r apt=$a
@@ -298,6 +290,11 @@ echo "Rootfsdir="$rootfsdir
 echo "Mountdev="$mountdev
 
 if [ ! -z $rootfsdir ]; then
+  $sudo umount $mountdev
+  [ -d $rootfsdir ] || $sudo mkdir $rootfsdir
+  $sudo mount --source $mountdev --target $rootfsdir \
+              -o exec,dev,noatime,nodiratime
+  [[ $? != 0 ]] && exit
   [ "$r" = true ] && bootstrap
   $sudo mount -t proc               /proc $rootfsdir/proc
   [[ $? != 0 ]] && exit
