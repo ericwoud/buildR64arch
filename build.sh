@@ -239,9 +239,9 @@ function removescript {
 }
 
 [ $USER = "root" ] && sudo="" || sudo="sudo"
-[[ $# == 0 ]] && args=""|| args=$@
+[[ $# == 0 ]] && args="-c"|| args=$@
 cd $(dirname $BASH_SOURCE)
-while getopts ":ralRASD" opt $args; do declare "${opt}=true" ; done
+while getopts ":ralcRASD" opt $args; do declare "${opt}=true" ; done
 trap finish EXIT
 shopt -s extglob
 $sudo true
@@ -300,7 +300,8 @@ if [ ! -z $rootfsdir ]; then
   [[ $? != 0 ]] && exit
   $sudo mount --rbind --make-rslave /run  $rootfsdir/run
   [[ $? != 0 ]] && exit
-  [ "$r" = true ] && rootfs || $schroot
+  [ "$r" = true ] && rootfs
+  [ "$c" = true ] && $schroot
 fi
 
 exit
