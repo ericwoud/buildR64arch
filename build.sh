@@ -8,7 +8,7 @@ QEMU="https://github.com/multiarch/qemu-user-static/releases/download/v5.2.0-11/
 
 ARCHBOOTSTRAP="https://raw.githubusercontent.com/tokland/arch-bootstrap/master/arch-bootstrap.sh"
 
-REPOKEY="BCF574990829687185CC072BD41842407A2A5FA2"
+REPOKEY="DD73724DCA27796790D33E98798137154FE1474C"
 REPOURL='ftp://ftp.woudstra.mywire.org/repo/$arch'
 BACKUPREPOURL="https://github.com/ericwoud/buildR64arch/releases/download/packages"
 
@@ -141,7 +141,6 @@ function bootstrap {
     $sudo bash /tmp/downloads/$(basename $ARCHBOOTSTRAP) -q -a aarch64 \
           -r $ALARM_MIRROR $rootfsdir #####  2>&0
     ls -al $rootfsdir
-    $sudo cp -vf /usr/local/bin/qemu-aarch64-static $rootfsdir/usr/local/bin/qemu-aarch64-static
   fi
 }
 
