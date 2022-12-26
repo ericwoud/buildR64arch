@@ -84,9 +84,8 @@ function waitdevlink {
 
 function formatsd {
   echo ROOTDEV: $rootdev
-  lsblkrootdev=($(lsblk -prno name,pkname,partlabel | grep "$rootdev"))
-  [ -z $lsblkrootdev ] && exit
-  realrootdev=${lsblkrootdev[1]}
+  realrootdev=$(lsblk -prno pkname $rootdev)
+  [ -z $realrootdev ] && exit
   [ "$l" = true ] && skip="" || skip='\|^loop'
   readarray -t options < <(lsblk --nodeps -no name,serial,size \
                     | grep -v "^"${realrootdev/"/dev/"/}$skip \
@@ -120,7 +119,6 @@ function formatsd {
     name 3 bpir64-${ATFDEVICE}-atf \
     print
   $sudo partprobe "${device}"
-  lsblkdev=""
   waitdevlink "/dev/disk/by-partlabel/bpir64-${ATFDEVICE}-root"
   $sudo blkdiscard -fv "/dev/disk/by-partlabel/bpir64-${ATFDEVICE}-root"
   waitdevlink "/dev/disk/by-partlabel/bpir64-${ATFDEVICE}-root"
