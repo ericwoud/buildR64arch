@@ -73,6 +73,7 @@ function finish {
     echo -e "Done. You can remove the card now.\n"
   fi
   unset rootfsdir
+  [ -v sudoPID ] && kill -TERM $sudoPID
 }
 
 function waitdevlink {
@@ -241,7 +242,12 @@ cd $(dirname $BASH_SOURCE)
 while getopts ":ralcRASD" opt $args; do declare "${opt}=true" ; done
 trap finish EXIT
 shopt -s extglob
-$sudo true
+
+if [ -n "$sudo" ]; then
+  sudo -v
+  ( while true; do sudo -v; sleep 40; done ) &
+  sudoPID=$!
+fi
 
 echo "Target device="$ATFDEVICE
 if [ "$(tr -d '\0' 2>/dev/null </proc/device-tree/model)" != "Bananapi BPI-R64" ]; then
