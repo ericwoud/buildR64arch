@@ -1,0 +1,8 @@
+/dts-v1/;
+/plugin/;
+
+&cpu_opp_table {
+  opp-300000000 {
+    opp-hz = /bits/ 64 <300000000>;
+  };
+};
