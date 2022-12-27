@@ -205,6 +205,12 @@ function rootfs {
   fi
 }
 
+function chrootfs {
+  echo "Entering chroot on image. Enter commands as if running on the target:"
+  echo "Type <exit> to exit from the chroot environment."
+  $schroot
+}
+
 function installscript {
   if [ ! -f "/etc/arch-release" ]; then ### Ubuntu / Debian
     $sudo apt-get install --yes         $SCRIPT_PACKAGES $SCRIPT_PACKAGES_DEBIAN
@@ -304,7 +310,7 @@ if [ ! -z $rootfsdir ]; then
   $sudo mount --rbind --make-rslave /run  $rootfsdir/run
   [[ $? != 0 ]] && exit
   [ "$r" = true ] && rootfs
-  [ "$c" = true ] && $schroot
+  [ "$c" = true ] && chrootfs
 fi
 
 exit
