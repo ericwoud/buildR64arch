@@ -110,6 +110,8 @@ function formatsd {
     rootstart=$(( $rootstart + ($SD_ERASE_SIZE_MB * 1024) ))
   done
   $sudo dd of="${device}" if=/dev/zero bs=1024 count=$rootstart status=progress
+  $sudo sync
+  $sudo partprobe "${device}"
   $sudo parted -s -- "${device}" unit kiB \
     mklabel gpt \
     mkpart primary $rootstart 100% \
@@ -130,7 +132,7 @@ function formatsd {
   if [ -b ${device}"boot0" ] && [ $bpir64 == "true" ]; then
     $sudo mmc bootpart enable 7 1 ${device}
   fi
-  $sudo lsblk -o name,mountpoint,label,size,uuid "${device}"
+  $sudo lsblk -o name,mountpoint,label,partlabel,size,uuid "${device}"
 }
 
 function bootstrap {
@@ -169,11 +171,11 @@ function rootfs {
                -s /bin/bash $USERNAME
   echo $USERNAME:$USERPWD | $schroot chpasswd
   echo      root:$ROOTPWD | $schroot chpasswd
-  echo "%wheel ALL=(ALL) ALL" | sudo tee $rootfsdir/etc/sudoers.d/wheel
+  echo "%wheel ALL=(ALL) ALL" | $sudo tee $rootfsdir/etc/sudoers.d/wheel
   $schroot ln -sf /usr/share/zoneinfo/${TIMEZONE} /etc/localtime
-  sudo sed -i 's/.*PermitRootLogin.*/PermitRootLogin yes/' $rootfsdir/etc/ssh/sshd_config
-  sudo sed -i 's/.*UsePAM.*/UsePAM no/' $rootfsdir/etc/ssh/sshd_config
-  sudo sed -i 's/.*#IgnorePkg.*/IgnorePkg = bpir64-atf-git/' $rootfsdir/etc/pacman.conf
+  $sudo sed -i 's/.*PermitRootLogin.*/PermitRootLogin yes/' $rootfsdir/etc/ssh/sshd_config
+  $sudo sed -i 's/.*UsePAM.*/UsePAM no/' $rootfsdir/etc/ssh/sshd_config
+  $sudo sed -i 's/.*#IgnorePkg.*/IgnorePkg = bpir64-atf-git/' $rootfsdir/etc/pacman.conf
   $sudo cp -rfv --dereference rootfs/. $rootfsdir
   $sudo rm -rf $rootfsdir/etc/systemd/network
   $sudo mv -vf $rootfsdir/etc/systemd/network-$SETUP $rootfsdir/etc/systemd/network
@@ -244,6 +246,7 @@ function removescript {
 
 [ $USER = "root" ] && sudo="" || sudo="sudo"
 [[ $# == 0 ]] && args="-c"|| args=$@
+echo "BASH_SOURCE:" $BASH_SOURCE
 cd $(dirname $BASH_SOURCE)
 while getopts ":ralcRASD" opt $args; do declare "${opt}=true" ; done
 trap finish EXIT
@@ -255,6 +258,7 @@ if [ -n "$sudo" ]; then
   sudoPID=$!
 fi
 
+echo "Current dir:" $(realpath .)
 echo "Target device="$ATFDEVICE
 if [ "$(tr -d '\0' 2>/dev/null </proc/device-tree/model)" != "Bananapi BPI-R64" ]; then
   echo "Not running on Bananapi BPI-R64"
