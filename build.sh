@@ -247,7 +247,7 @@ function removescript {
 [ $USER = "root" ] && sudo="" || sudo="sudo"
 [[ $# == 0 ]] && args="-c"|| args=$@
 echo "BASH_SOURCE: ${BASH_SOURCE[0]}"
-cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
+cd "$(dirname -- "$(realpath -- "${BASH_SOURCE[0]}")")"
 while getopts ":ralcRASD" opt $args; do declare "${opt}=true" ; done
 trap finish EXIT
 shopt -s extglob
