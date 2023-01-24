@@ -9,7 +9,7 @@ Based on: [buildR64ubuntu](https://github.com/ericwoud/buildR64ubuntu.git)
 and [frank-w's kernel](https://github.com/frank-w/BPI-R2-4.14/tree/5.12-main)
 
 Now includes a patch so that temperature is regulated at 87 instead of 47 degrees!
-Delete the file dtb-patch/dts-cpu-thermal.patch before building, if you do not want to.
+Delete the file rootfs/boot/dtbos/cpu-thermal.dts before building, if you do not want to.
 
 The script can be run from Arch Linux and Debian/Ubuntu.
 
@@ -109,14 +109,14 @@ xz -dcv ~/Downloads/bpir64-sdmmc.img.xz | sudo dd of=/dev/sda
 ## Changing kernel commandline options or devicetree patches
 
 When changing the kernel commandline options in `/boot/bootcfg/cmdline` or changing/adding/removing patches in `/boot/dtb-patch`
-you should run the folling command on the bpir64 to write the changees so that they will be activated on the next boot:
+you should run the folling command on the bpir64 to write the changes so that they will be activated on the next boot:
 ```
 bpir64-writefip
 ```
 
 ## Using port 5 of the dsa switch
 
-Note: This does not work when running from emmc and the bootswitch is set to try from sdmmc first, position 1. Only onder these two conditions combined, it seems eth1 does not get initialised correctly. The eth1 gmac works fine running from emmc, with sw1 set to 0, try boot from emmc first.
+Note: This does not work when running from emmc and the bootswitch is set to try from sdmmc first, position 1. Only under these two conditions combined, it seems eth1 does not get initialised correctly. The eth1 gmac works fine running from emmc, with sw1 set to 0, try boot from emmc first.
 
 Follow the steps below if you want to use a Router setup and run on emmc with sw1 set to 1. You will then not be using eth1 and port 5 of the dsa switch
 
@@ -138,7 +138,7 @@ If you don't like this trick, then:
 
 ## Setup as Access Point
 
-When using a second or third R64ubuntu as Access Point, and connecting router-lan-port to AP-lan-port, do the following:
+When using a second or third R64 as Access Point, and connecting router-lan-port to AP-lan-port, do the following:
 
 Change SETUP="RT" to SETUP="AP".
 
