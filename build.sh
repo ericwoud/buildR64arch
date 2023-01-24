@@ -321,7 +321,8 @@ exit
 
 # kernelcmdline: block2mtd.block2mtd=/dev/mmcblk0p2,128KiB,MyMtd cmdlinepart.mtdparts=MyMtd:1M(mtddata)ro
 
-# sudo dd if=/dev/zero of=~/bpir64-sdmmc.img bs=1M count=2336 status=progress
+# sudo dd if=/dev/zero of=~/bpir64-sdmmc.img bs=1M count=3360 status=progress
+# sync
 # sudo udisksctl loop-setup -f ~/bpir64-sdmmc.img
 # ./build.sh -lSD
 # ./build.sh -r
@@ -330,6 +331,4 @@ exit
 # pacman -Scc
 # exit
 # sudo udisksctl loop-delete --block-device /dev/loop0
-# sudo dd of=/dev/mmcblk0 if=~/bpir64-sdmmc.img bs=1M count=2336 status=progress
-# sync
 # xz --keep --force --verbose ~/bpir64-sdmmc.img
