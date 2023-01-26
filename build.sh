@@ -63,7 +63,7 @@ function finish {
     echo Running exit function to clean up...
     $sudo sync
     echo $(mountpoint $rootfsdir)
-    while [[ $(mountpoint $rootfsdir) =~ "(is a mountpoint)" ]]; do
+    while [[ "$(mountpoint $rootfsdir)" =~ "(is a mountpoint)" ]]; do
       echo "Unmounting...DO NOT REMOVE!"
       $sudo umount -R $rootfsdir
       sleep 0.1
