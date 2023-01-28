@@ -220,7 +220,7 @@ function installscript {
     $sudo pacman -Syu --needed --noconfirm $SCRIPT_PACKAGES $SCRIPT_PACKAGES_ARCHLX
   fi
   # On all linux's
-  if [ $bpir64 != "true" ]; then # Not running on BPI-R64
+  if [ $hostarch == "x86_64" ]; then # Script running on x86_64 so install qemu
     wget --no-verbose $QEMU          --no-clobber -P ./
     $sudo tar -xf $(basename $QEMU) -C /usr/local/bin
     S1=':qemu-aarch64:M::\x7fELF\x02\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\xb7'
@@ -236,7 +236,7 @@ function installscript {
 }
 function removescript {
   # On all linux's
-  if [ $bpir64 != "true" ]; then # Not running on BPI-R64
+  if [ $hostarch == "x86_64" ]; then # Script running on x86_64 so remove qemu
     $sudo rm -f /usr/local/bin/qemu-aarch64-static
     $sudo rm -f /lib/binfmt.d/05-local-qemu-aarch64-static.conf
     $sudo systemctl restart systemd-binfmt.service
@@ -267,6 +267,8 @@ else
   echo "Running on Bananapi BPI-R64"
   bpir64="true"
 fi
+hostarch=$(uname -m)
+echo "Host Arch:" $hostarch
 
 [ "$a" = true ] && installscript
 [ "$A" = true ] && removescript
