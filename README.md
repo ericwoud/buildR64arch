@@ -159,10 +159,15 @@ Some DSA drivers have a problem with this setup, but some are recently fixed wit
 Command line options:
 
 * -a   : Install necessairy packages.
+* -A   : Remove necessairy packages.
 * -SD  : Format SD card
+* -l   : Add this option to `-SD` if you want to format a loop-device
 * -r   : Build RootFS.
+* -c   : Execute chroot
 * -R   : Delete RootFS.
-* none : Enter chroot
+* -b   : Create backup of rootfs
+* -B   : Restore backup of rootfs
+* none : Enter chroot, same as option `-c`
 
 * Other variables to tweak also at top of build script.
 

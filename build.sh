@@ -2,6 +2,9 @@
 
 # xz -e -k -9 -C crc32 $$< --stdout > $$@
 
+BACKUPFILE="./bpir64-rootfs.tar"
+#BACKUPFILE="/run/media/$USER/backup/bpir64-rootfs.tar"
+
 ALARM_MIRROR="http://de.mirror.archlinuxarm.org"
 
 QEMU="https://github.com/multiarch/qemu-user-static/releases/download/v5.2.0-11/x86_64_qemu-aarch64-static.tar.gz"
@@ -213,6 +216,20 @@ function chrootfs {
   $schroot
 }
 
+function backuprootfs {
+  $sudo tar -vcf "${BACKUPFILE}" -C $rootfsdir .
+}
+
+function restorerootfs {
+  if [ -z "$(ls $rootfsdir)" ] || [ "$(ls $rootfsdir)" = "boot" ]; then
+    $sudo tar -vxf "${BACKUPFILE}" -C $rootfsdir
+    echo "Run ./build.sh and execute 'pacman -Sy bpir64-atf-git' to write the" \
+         "new atf-boot! Then type 'exit'."
+  else
+    echo "Root partition not empty!"
+  fi
+}
+
 function installscript {
   if [ ! -f "/etc/arch-release" ]; then ### Ubuntu / Debian
     $sudo apt-get install --yes         $SCRIPT_PACKAGES $SCRIPT_PACKAGES_DEBIAN
@@ -245,10 +262,9 @@ function removescript {
 }
 
 [ $USER = "root" ] && sudo="" || sudo="sudo"
-[[ $# == 0 ]] && args="-c"|| args=$@
-echo "BASH_SOURCE: ${BASH_SOURCE[0]}"
+[[ $# == 0 ]] && args="-c"|| args=$@	
 cd "$(dirname -- "$(realpath -- "${BASH_SOURCE[0]}")")"
-while getopts ":ralcRASD" opt $args; do declare "${opt}=true" ; done
+while getopts ":ralcbRASDB" opt $args; do declare "${opt}=true" ; done
 trap finish EXIT
 shopt -s extglob
 
@@ -291,11 +307,6 @@ else
 fi
 
 echo OPTIONS: rootfs=$r apt=$a
-if [ "$R" = true ] ; then
-  echo Removing rootfs...
-  $sudo rm -rf $rootfsdir/*
-  exit
-fi
 echo "SETUP="$SETUP
 echo "Rootfsdir="$rootfsdir
 echo "Mountdev="$mountdev
@@ -303,9 +314,17 @@ echo "Mountdev="$mountdev
 if [ ! -z $rootfsdir ]; then
   $sudo umount $mountdev
   [ -d $rootfsdir ] || $sudo mkdir $rootfsdir
+  [ "$b" = true ] && ro=",ro" || ro=""
   $sudo mount --source $mountdev --target $rootfsdir \
-              -o exec,dev,noatime,nodiratime
+              -o exec,dev,noatime,nodiratime$ro
   [[ $? != 0 ]] && exit
+  if [ "$R" = true ] ; then
+    echo Removing rootfs...
+    $sudo rm -rf $rootfsdir/{*,.*}
+    exit
+  fi
+  if [ "$b" = true ] ; then backuprootfs; exit; fi
+  if [ "$B" = true ] ; then restorerootfs; exit; fi
   [ "$r" = true ] && bootstrap
   $sudo mount -t proc               /proc $rootfsdir/proc
   [[ $? != 0 ]] && exit
