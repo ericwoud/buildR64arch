@@ -3,7 +3,7 @@
 # xz -e -k -9 -C crc32 $$< --stdout > $$@
 
 BACKUPFILE="./bpir64-rootfs.tar"
-#BACKUPFILE="/run/media/$USER/backup/bpir64-rootfs.tar"
+BACKUPFILE="/run/media/$USER/DATA/bpir64-rootfs.tar"
 
 ALARM_MIRROR="http://de.mirror.archlinuxarm.org"
 
@@ -180,6 +180,7 @@ function rootfs {
   $sudo sed -i 's/.*UsePAM.*/UsePAM no/' $rootfsdir/etc/ssh/sshd_config
   $sudo sed -i 's/.*#IgnorePkg.*/IgnorePkg = bpir64-atf-git/' $rootfsdir/etc/pacman.conf
   $sudo cp -rfv --dereference rootfs/. $rootfsdir
+  $sudo sed -i "s/\bdummy\b/PARTLABEL=bpir64-${ATFDEVICE}-root/g" $rootfsdir/etc/
   $sudo rm -rf $rootfsdir/etc/systemd/network
   $sudo mv -vf $rootfsdir/etc/systemd/network-$SETUP $rootfsdir/etc/systemd/network
   $sudo rm -rf $rootfsdir/etc/systemd/network-*
@@ -319,7 +320,8 @@ if [ ! -z $rootfsdir ]; then
               -o exec,dev,noatime,nodiratime$ro
   [[ $? != 0 ]] && exit
   if [ "$R" = true ] ; then
-    echo Removing rootfs...
+    read -p "Type <remove> to delete everything from the card: " prompt
+    [[ $prompt != "remove" ]] && exit
     $sudo rm -rf $rootfsdir/{*,.*}
     exit
   fi
