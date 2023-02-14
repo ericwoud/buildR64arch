@@ -3,7 +3,8 @@
 # xz -e -k -9 -C crc32 $$< --stdout > $$@
 
 BACKUPFILE="./bpir64-rootfs.tar"
-BACKUPFILE="/run/media/$USER/DATA/bpir64-rootfs.tar"
+#BACKUPFILE="/run/media/$USER/DATA/bpir64-rootfs.tar"
+BACKUPFILE="/run/media/eric/CRLIN-ROOT/tmp/bpir64-AP-rootfs.tar"
 
 ALARM_MIRROR="http://de.mirror.archlinuxarm.org"
 
@@ -112,6 +113,8 @@ function formatsd {
   while [[ $rootstart -lt $minimalrootstart ]]; do
     rootstart=$(( $rootstart + ($SD_ERASE_SIZE_MB * 1024) ))
   done
+  $sudo wipefs --all --force "${device}"
+  $sudo sync
   $sudo dd of="${device}" if=/dev/zero bs=1024 count=$rootstart status=progress
   $sudo sync
   $sudo partprobe "${device}"
