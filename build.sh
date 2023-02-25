@@ -37,6 +37,8 @@ SD_ERASE_SIZE_MB=4                   # in Mega bytes
 
 ATF_END_KB=1024                   # End of atf partition
 MINIMAL_SIZE_FIP_MB=62             # Minimal size of fip partition
+ROOT_END_MB=100%                     # Size of root partition
+#ROOT_END_MB=$(( 4*1024  ))        # Size 4GiB 
 
 ROOTFS_LABEL="BPI-ROOT"
 
@@ -113,6 +115,12 @@ function formatsd {
   while [[ $rootstart -lt $minimalrootstart ]]; do
     rootstart=$(( $rootstart + ($SD_ERASE_SIZE_MB * 1024) ))
   done
+  if [[ "$ROOT_END_MB" =~ "%" ]]; then
+    root_end_kb=$ROOT_END_MB
+  else
+    root_end_kb=$(( ($ROOT_END_MB/$SD_ERASE_SIZE_MB*$SD_ERASE_SIZE_MB)*1024))
+    echo $root_end_kb
+  fi
   $sudo wipefs --all --force "${device}"
   $sudo sync
   $sudo dd of="${device}" if=/dev/zero bs=1024 count=$rootstart status=progress
@@ -120,7 +128,7 @@ function formatsd {
   $sudo partprobe "${device}"
   $sudo parted -s -- "${device}" unit kiB \
     mklabel gpt \
-    mkpart primary $rootstart 100% \
+    mkpart primary $rootstart $root_end_kb \
     mkpart primary $ATF_END_KB $rootstart \
     mkpart primary 0% $ATF_END_KB \
     name 1 bpir64-${ATFDEVICE}-root \
