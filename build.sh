@@ -191,20 +191,20 @@ function rootfs {
   $sudo sed -i 's/.*UsePAM.*/UsePAM no/' $rootfsdir/etc/ssh/sshd_config
   $sudo sed -i 's/.*#IgnorePkg.*/IgnorePkg = bpir64-atf-git/' $rootfsdir/etc/pacman.conf
   $sudo cp -rfv --dereference rootfs/. $rootfsdir
-  $sudo sed -i "s/\bdummy\b/PARTLABEL=bpir64-${ATFDEVICE}-root/g" $rootfsdir/etc/
+  $sudo sed -i "s/\bdummy\b/PARTLABEL=bpir64-${ATFDEVICE}-root/g" $rootfsdir/etc/fstab
   $sudo rm -rf $rootfsdir/etc/systemd/network
   $sudo mv -vf $rootfsdir/etc/systemd/network-$SETUP $rootfsdir/etc/systemd/network
   $sudo rm -rf $rootfsdir/etc/systemd/network-*
-  $schroot systemctl reenable systemd-timesyncd.service
-  $schroot systemctl reenable sshd.service
-  $schroot systemctl reenable systemd-resolved.service
-  $schroot systemctl reenable hostapd.service
-  if [ $SETUP == "RT" ]; then $schroot systemctl reenable nftables.service
-  else                        $schroot systemctl disable nftables.service
+  $sudo systemctl --root=$rootfsdir reenable systemd-timesyncd.service
+  $sudo systemctl --root=$rootfsdir reenable sshd.service
+  $sudo systemctl --root=$rootfsdir reenable systemd-resolved.service
+  $sudo systemctl --root=$rootfsdir reenable hostapd.service
+  if [ $SETUP == "RT" ]; then $sudo systemctl --root=$rootfsdir reenable nftables.service
+  else                        $sudo systemctl --root=$rootfsdir disable nftables.service
   fi
-  $schroot systemctl reenable systemd-networkd.service
+  $sudo systemctl --root=$rootfsdir reenable systemd-networkd.service
   find -L "rootfs/etc/systemd/system" -name "*.service"| while read service ; do
-    $schroot systemctl reenable $(basename $service)
+    $sudo systemctl --root=$rootfsdir reenable  $(basename $service)
   done
   if [ ! -f "$rootfsdir/etc/mac.eth0.txt" ] || [ ! -f "$rootfsdir/etc/mac.eth1.txt" ]; then
     nr=16 # Make sure there are 16 available mac addresses: nr=16/32/64
