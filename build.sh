@@ -140,8 +140,8 @@ function formatsd {
   $sudo blkdiscard -fv "/dev/disk/by-partlabel/bpir64-${ATFDEVICE}-root"
   waitdevlink "/dev/disk/by-partlabel/bpir64-${ATFDEVICE}-root"
   nrseg=$(( $SD_ERASE_SIZE_MB / 2 )); [[ $nrseg -lt 1 ]] && nrseg=1
-  $sudo mkfs.f2fs -w $(( $SD_BLOCK_SIZE_KB * 1024 )) -s $nrseg \
-                  -f -l $ROOTFS_LABEL "/dev/disk/by-partlabel/bpir64-${ATFDEVICE}-root"
+  $sudo mkfs.f2fs -w $(( $SD_BLOCK_SIZE_KB * 1024 )) -s $nrseg -t 0 \
+       -f -l $ROOTFS_LABEL "/dev/disk/by-partlabel/bpir64-${ATFDEVICE}-root"
   $sudo sync
   if [ -b ${device}"boot0" ] && [ $bpir64 == "true" ]; then
     $sudo mmc bootpart enable 7 1 ${device}
