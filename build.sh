@@ -2,9 +2,15 @@
 
 # xz -e -k -9 -C crc32 $$< --stdout > $$@
 
-BACKUPFILE="./bpir64-rootfs.tar"
-#BACKUPFILE="/run/media/$USER/DATA/bpir64-rootfs.tar"
-BACKUPFILE="/run/media/eric/CRLIN-ROOT/tmp/bpir64-AP-rootfs.tar"
+TARGET="bpir64"
+#TARGET="bpir3"
+ATFDEVICE="sdmmc"
+#ATFDEVICE="emmc"
+SETUP="RT"   # Setup as RouTer
+#SETUP="AP"  # Setup as Access Point
+
+BACKUPFILE="./${TARGET}-rootfs.tar"
+#BACKUPFILE="/run/media/$USER/DATA/${TARGET}-rootfs.tar"
 
 ALARM_MIRROR="http://de.mirror.archlinuxarm.org"
 
@@ -18,19 +24,15 @@ BACKUPREPOURL="https://github.com/ericwoud/buildR64arch/releases/download/packag
 
 KERNELDTB="mt7622-bananapi-bpi-r64"
 
-ATFDEVICE="sdmmc"
-#ATFDEVICE="emmc"
-
 KERNELBOOTARGS="console=ttyS0,115200 rw rootwait audit=0"
 
 # https://github.com/bradfa/flashbench.git, running multiple times:
 # sudo ./flashbench -a --count=64 --blocksize=1024 /dev/sda
 # Shows me that times increase at alignment of 8k
-# On f2fs it is used for wanted-sector-size, but sector size is stuck at 512
+# On f2fs it is used for wanted-sector-size, but sector size is stuck at 512,
+# so with the standard f2fs format does does not do anything. Just leave as is for now...
 SD_BLOCK_SIZE_KB=8                   # in kilo bytes
-# When the SD card was brand new, formatted by the manufacturer, parted shows partition start at 4MiB
-# 1      4,00MiB  29872MiB  29868MiB  primary  fat32        lba
-# Also, once runnig on BPIR64 execute:
+# When runnig on BPIR64 or when inserted in an /dev/mmcblkX cardreader execute:
 # bc -l <<<"$(cat /sys/block/mmcblk1/device/preferred_erase_size) /1024 /1024"
 # bc -l <<<"$(cat /sys/block/mmcblk1/queue/discard_granularity) /1024 /1024"
 SD_ERASE_SIZE_MB=4                   # in Mega bytes
@@ -49,9 +51,6 @@ SCRIPT_PACKAGES="wget ca-certificates udisks2 parted gzip bc f2fs-tools"
 SCRIPT_PACKAGES_ARCHLX="base-devel      uboot-tools  ncurses        openssl"
 SCRIPT_PACKAGES_DEBIAN="build-essential u-boot-tools libncurses-dev libssl-dev flex bison "
 
-SETUP="RT"   # Setup as RouTer
-#SETUP="AP"  # Setup as Access Point
-
 TIMEZONE="Europe/Paris"              # Timezone
 USERNAME="user"
 USERPWD="admin"
@@ -64,6 +63,7 @@ export LANG=C
 export LANGUAGE=C
 
 function finish {
+  [ -v prevautomountrules ] && $sudo rm -vf $noautomountrule
   if [ -v rootfsdir ] && [ ! -z $rootfsdir ]; then
     $sudo sync
     echo Running exit function to clean up...
@@ -89,61 +89,82 @@ function waitdevlink {
   done
 }
 
+function reinsert {
+  sync
+  bindpart=$(basename $(realpath /sys/block/$1/../..))
+  driver=$(realpath /sys/block/$1/device/driver)
+  echo -n $bindpart | $sudo tee $driver/unbind
+  echo -e "\nRe-inserting" $1
+  sleep 0.1
+  echo -n $bindpart | $sudo tee $driver/bind
+  echo
+  until lsblk /dev/$1 >/dev/null 2>/dev/null; do sleep 0.1; done
+  newdev=$(ls $driver/$bindpart/block)
+  echo "New Block Device: "$newdev
+  $sudo partprobe "/dev/"$newdev
+  sync
+}
+
 function formatsd {
   echo ROOTDEV: $rootdev
-  realrootdev=$(lsblk -prno pkname $rootdev)
-  [ -z $realrootdev ] && exit
+  pkroot=$(lsblk -rno pkname $rootdev)
+  [ -z $pkroot ] && exit
   [ "$l" = true ] && skip="" || skip='\|^loop'
-  readarray -t options < <(lsblk --nodeps -no name,serial,size \
-                    | grep -v "^"${realrootdev/"/dev/"/}$skip \
-                    | grep -v 'boot0 \|boot1 \|boot2 ')
-  PS3="Choose device to format: "
-  select dev in "${options[@]}" "Quit" ; do
-    if (( REPLY > 0 && REPLY <= ${#options[@]} )) ; then
-      break
-    else exit
+  while true ; do
+    readarray -t options < <(lsblk --nodeps -no name,serial,size \
+                      | grep -v "^"${pkroot}$skip \
+                      | grep -v 'boot0 \|boot1 \|boot2 ')
+    PS3="Choose device to format: "
+    select dev in "${options[@]}" "Quit" ; do
+      if (( REPLY > 0 && REPLY <= ${#options[@]} )) ; then
+        break
+      else exit
+      fi
+    done
+    pkdev=${dev%% *}
+    device="/dev/"$pkdev
+    for PART in `df -k | awk '{ print $1 }' | grep "${device}"` ; do $sudo umount $PART; done
+    $sudo parted -s "${device}" unit MiB print
+    echo -e "\nAre you sure you want to format "$device"???"
+    read -p "Type <format> to format: " prompt
+    [[ $prompt != "format" ]] && exit
+    minimalrootstart=$(( $ATF_END_KB + ($MINIMAL_SIZE_FIP_MB * 1024) ))
+    rootstart=0
+    while [[ $rootstart -lt $minimalrootstart ]]; do
+      rootstart=$(( $rootstart + ($SD_ERASE_SIZE_MB * 1024) ))
+    done
+    if [[ "$ROOT_END_MB" =~ "%" ]]; then
+      root_end_kb=$ROOT_END_MB
+    else
+      root_end_kb=$(( ($ROOT_END_MB/$SD_ERASE_SIZE_MB*$SD_ERASE_SIZE_MB)*1024))
+      echo $root_end_kb
     fi
+    $sudo wipefs --all --force "${device}"
+    $sudo dd of="${device}" if=/dev/zero bs=64kiB count=$(($rootstart/64)) status=progress
+    $sudo sync
+    $sudo partprobe "${device}"
+    $sudo parted -s -- "${device}" mklabel gpt
+    [[ $? == 0 ]] && break # Succes creating GPT table
+    echo -e "\nFailed to format ${device} as GPT!\n"
+    reinsert $pkdev
   done
-  device="/dev/"${dev%% *}
-  for PART in `df -k | awk '{ print $1 }' | grep "${device}"` ; do $sudo umount $PART; done
-  $sudo parted -s "${device}" unit MiB print
-  echo -e "\nAre you sure you want to format "$device"???"
-  read -p "Type <format> to format: " prompt
-  [[ $prompt != "format" ]] && exit
-  minimalrootstart=$(( $ATF_END_KB + ($MINIMAL_SIZE_FIP_MB * 1024) ))
-  rootstart=0
-  while [[ $rootstart -lt $minimalrootstart ]]; do
-    rootstart=$(( $rootstart + ($SD_ERASE_SIZE_MB * 1024) ))
-  done
-  if [[ "$ROOT_END_MB" =~ "%" ]]; then
-    root_end_kb=$ROOT_END_MB
-  else
-    root_end_kb=$(( ($ROOT_END_MB/$SD_ERASE_SIZE_MB*$SD_ERASE_SIZE_MB)*1024))
-    echo $root_end_kb
-  fi
-  $sudo wipefs --all --force "${device}"
-  $sudo sync
-  $sudo dd of="${device}" if=/dev/zero bs=1024 count=$rootstart status=progress
-  $sudo sync
-  $sudo partprobe "${device}"
   $sudo parted -s -- "${device}" unit kiB \
-    mklabel gpt \
     mkpart primary $rootstart $root_end_kb \
     mkpart primary $ATF_END_KB $rootstart \
     mkpart primary 0% $ATF_END_KB \
-    name 1 bpir64-${ATFDEVICE}-root \
-    name 2 bpir64-${ATFDEVICE}-fip \
-    name 3 bpir64-${ATFDEVICE}-atf \
+    name 1 ${TARGET}-${ATFDEVICE}-root \
+    name 2 ${TARGET}-${ATFDEVICE}-fip \
+    name 3 ${TARGET}-${ATFDEVICE}-atf \
     print
   $sudo partprobe "${device}"
-  waitdevlink "/dev/disk/by-partlabel/bpir64-${ATFDEVICE}-root"
-  $sudo blkdiscard -fv "/dev/disk/by-partlabel/bpir64-${ATFDEVICE}-root"
-  waitdevlink "/dev/disk/by-partlabel/bpir64-${ATFDEVICE}-root"
+  waitdevlink "/dev/disk/by-partlabel/${TARGET}-${ATFDEVICE}-root"
+  $sudo blkdiscard -fv "/dev/disk/by-partlabel/${TARGET}-${ATFDEVICE}-root"
+  waitdevlink "/dev/disk/by-partlabel/${TARGET}-${ATFDEVICE}-root"
   nrseg=$(( $SD_ERASE_SIZE_MB / 2 )); [[ $nrseg -lt 1 ]] && nrseg=1
   $sudo mkfs.f2fs -w $(( $SD_BLOCK_SIZE_KB * 1024 )) -s $nrseg -t 0 \
-       -f -l $ROOTFS_LABEL "/dev/disk/by-partlabel/bpir64-${ATFDEVICE}-root"
+       -f -l $ROOTFS_LABEL "/dev/disk/by-partlabel/${TARGET}-${ATFDEVICE}-root"
   $sudo sync
-  if [ -b ${device}"boot0" ] && [ $bpir64 == "true" ]; then
+  if [ -b ${device}"boot0" ] && [ $runningontarget == "true" ]; then
     $sudo mmc bootpart enable 7 1 ${device}
   fi
   $sudo lsblk -o name,mountpoint,label,partlabel,size,uuid "${device}"
@@ -159,9 +180,14 @@ function bootstrap {
   fi
 }
 
+function selectdir {
+  $sudo rm -rf $1; $sudo mv -vf $1-$2 $1; $sudo rm -rf $1-*
+}
+
 function rootfs {
-  $sudo mkdir -p $rootfsdir/boot/bootcfg/
-  $sudo cp -rf --dereference -v ./rootfs/boot $rootfsdir
+  $sudo mkdir -p $rootfsdir/boot/bootcfg
+  $sudo cp -rfv ./rootfs/boot $rootfsdir
+  selectdir $rootfsdir/boot/dtbos ${TARGET^^}
   echo /boot/Image |                                  $sudo tee $rootfsdir/boot/bootcfg/linux
   echo /boot/initramfs-linux-bpir64-git.img |         $sudo tee $rootfsdir/boot/bootcfg/initrd
   echo ${KERNELDTB} |                                 $sudo tee $rootfsdir/boot/bootcfg/dtb
@@ -190,11 +216,10 @@ function rootfs {
   $sudo sed -i 's/.*PermitRootLogin.*/PermitRootLogin yes/' $rootfsdir/etc/ssh/sshd_config
   $sudo sed -i 's/.*UsePAM.*/UsePAM no/' $rootfsdir/etc/ssh/sshd_config
   $sudo sed -i 's/.*#IgnorePkg.*/IgnorePkg = bpir64-atf-git/' $rootfsdir/etc/pacman.conf
-  $sudo cp -rfv --dereference rootfs/. $rootfsdir
-  $sudo sed -i "s/\bdummy\b/PARTLABEL=bpir64-${ATFDEVICE}-root/g" $rootfsdir/etc/fstab
-  $sudo rm -rf $rootfsdir/etc/systemd/network
-  $sudo mv -vf $rootfsdir/etc/systemd/network-$SETUP $rootfsdir/etc/systemd/network
-  $sudo rm -rf $rootfsdir/etc/systemd/network-*
+  for d in $(ls ./rootfs/ | grep -vx boot); do $sudo cp -rfv ./rootfs/$d $rootfsdir; done
+  $sudo sed -i "s/\bdummy\b/PARTLABEL=${TARGET}-${ATFDEVICE}-root/g" $rootfsdir/etc/fstab
+  selectdir $rootfsdir/etc/systemd/network ${TARGET^^}-${SETUP}
+  selectdir $rootfsdir/etc/hostapd ${TARGET^^}
   $sudo systemctl --root=$rootfsdir reenable systemd-timesyncd.service
   $sudo systemctl --root=$rootfsdir reenable sshd.service
   $sudo systemctl --root=$rootfsdir reenable systemd-resolved.service
@@ -287,72 +312,81 @@ if [ -n "$sudo" ]; then
 fi
 
 echo "Current dir:" $(realpath .)
-echo "Target device="$ATFDEVICE
-if [ "$(tr -d '\0' 2>/dev/null </proc/device-tree/model)" != "Bananapi BPI-R64" ]; then
-  echo "Not running on Bananapi BPI-R64"
-  bpir64="false"
-else
+echo "Target=${TARGET}, ATF-device="$ATFDEVICE
+runningontarget="false"
+compatible="$(tr -d '\0' 2>/dev/null </proc/device-tree/compatible)"
+if [[ "$compatible" == *"bananapi"*"mediatek,mt7622"* ]]; then
   echo "Running on Bananapi BPI-R64"
-  bpir64="true"
+  [[ "${TARGET}" == "bpir64" ]] && runningontarget="true"
+elif [[ "$compatible" == *"bananapi"*"mediatek,mt7986"* ]]; then
+  echo "Running on Bananapi BPI-R3"
+  [[ "${TARGET}" == "bpir3" ]]  && runningontarget="true"
+else 
+  echo "Not running on Bananapi BPI-R64/R3"
 fi
 hostarch=$(uname -m)
 echo "Host Arch:" $hostarch
 
 [ "$a" = true ] && installscript
 [ "$A" = true ] && removescript
-
+ 
+set -m # send CTRL-C to children
+ 
 rootdev=$(lsblk -pilno name,type,mountpoint | grep -G 'part /$')
 rootdev=${rootdev%% *}
+noautomountrule="/run/udev/rules.d/10-no-automount.$$.rules"
+ 
 if [ "$S" = true ] && [ "$D" = true ]; then formatsd; exit; fi
-if [ -L "/dev/disk/by-partlabel/bpir64-${ATFDEVICE}-root" ]; then
-  mountdev=$(realpath "/dev/disk/by-partlabel/bpir64-${ATFDEVICE}-root")
-else
+ 
+mountdev="/dev/disk/by-partlabel/${TARGET}-${ATFDEVICE}-root"
+if [ ! -L "$mountdev" ]; then
   echo "Not inserted! (Maybe not matching the target device on the card)"
   exit
 fi
-if [ "$rootdev" == "$mountdev" ];then
-  rootfsdir="" ; r="" ; R=""     # Protect root when running from it!
-  schroot=""
-else
-  rootfsdir=/mnt/bpirootfs
-  schroot="$sudo unshare --mount --fork --kill-child --pid --root=$rootfsdir"
+if [ "$rootdev" == "$(realpath $mountdev)" ]; then
+  echo "Target device == Root device, exiting!"
+  exit
 fi
-
-echo OPTIONS: rootfs=$r apt=$a
+ 
+pkdev=$(lsblk -no pkname ${mountdev})
+rootfsdir="/tmp/bpirootfs.$$"
+schroot="$sudo unshare --mount --fork --kill-child --pid --root=$rootfsdir"
 echo "SETUP="$SETUP
 echo "Rootfsdir="$rootfsdir
-echo "Mountdev="$mountdev
-
-if [ ! -z $rootfsdir ]; then
-  $sudo umount $mountdev
-  [ -d $rootfsdir ] || $sudo mkdir $rootfsdir
-  [ "$b" = true ] && ro=",ro" || ro=""
-  $sudo mount --source $mountdev --target $rootfsdir \
-              -o exec,dev,noatime,nodiratime$ro
-  [[ $? != 0 ]] && exit
-  if [ "$R" = true ] ; then
-    read -p "Type <remove> to delete everything from the card: " prompt
-    [[ $prompt != "remove" ]] && exit
-    $sudo rm -rf $rootfsdir/{*,.*}
-    exit
-  fi
-  if [ "$b" = true ] ; then backuprootfs; exit; fi
-  if [ "$B" = true ] ; then restorerootfs; exit; fi
-  [ "$r" = true ] && bootstrap
-  $sudo mount -t proc               /proc $rootfsdir/proc
-  [[ $? != 0 ]] && exit
-  $sudo mount --rbind --make-rslave /sys  $rootfsdir/sys
-  [[ $? != 0 ]] && exit
-  $sudo mount --rbind --make-rslave /dev  $rootfsdir/dev
-  [[ $? != 0 ]] && exit
-  $sudo mount --rbind --make-rslave /run  $rootfsdir/run
-  [[ $? != 0 ]] && exit
-  [ "$r" = true ] && rootfs
-  [ "$c" = true ] && chrootfs
+echo "Mountdev="$(realpath $mountdev)
+ 
+echo -n 'KERNELS=="'${pkdev}'", ENV{UDISKS_IGNORE}="1"' | $sudo tee $noautomountrule
+## Ook in formatsd ^^^
+ 
+$sudo umount $mountdev
+[ -d $rootfsdir ] || $sudo mkdir $rootfsdir
+[ "$b" = true ] && ro=",ro" || ro=""
+$sudo mount --source $mountdev --target $rootfsdir \
+            -o exec,dev,noatime,nodiratime$ro
+[[ $? != 0 ]] && exit
+ 
+if [ "$b" = true ] ; then backuprootfs; exit; fi
+if [ "$B" = true ] ; then restorerootfs; exit; fi
+if [ "$R" = true ] ; then
+  read -p "Type <remove> to delete everything from the card: " prompt
+  [[ $prompt != "remove" ]] && exit
+  $sudo rm -rf $rootfsdir/{*,.*}
+  exit
 fi
-
+ 
+[ "$r" = true ] && bootstrap
+$sudo mount -t proc               /proc $rootfsdir/proc
+[[ $? != 0 ]] && exit
+$sudo mount --rbind --make-rslave /sys  $rootfsdir/sys
+[[ $? != 0 ]] && exit
+$sudo mount --rbind --make-rslave /dev  $rootfsdir/dev
+[[ $? != 0 ]] && exit
+$sudo mount --rbind --make-rslave /run  $rootfsdir/run
+[[ $? != 0 ]] && exit
+[ "$r" = true ] && rootfs
+[ "$c" = true ] && chrootfs
+ 
 exit
-
 # kernelcmdline: block2mtd.block2mtd=/dev/mmcblk0p2,128KiB,MyMtd cmdlinepart.mtdparts=MyMtd:1M(mtddata)ro
 
 # sudo dd if=/dev/zero of=~/bpir64-sdmmc.img bs=1M count=3360 status=progress
