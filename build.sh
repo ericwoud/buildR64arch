@@ -298,11 +298,17 @@ function removescript {
   exit
 }
 
+function ctrl_c() {
+  echo "** Trapped CTRL-C"
+  exit
+}
+
 [ $USER = "root" ] && sudo="" || sudo="sudo"
 [[ $# == 0 ]] && args="-c"|| args=$@	
 cd "$(dirname -- "$(realpath -- "${BASH_SOURCE[0]}")")"
 while getopts ":ralcbRASDB" opt $args; do declare "${opt}=true" ; done
 trap finish EXIT
+trap ctrl_c INT
 shopt -s extglob
 
 if [ -n "$sudo" ]; then
