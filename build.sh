@@ -123,6 +123,7 @@ function formatsd {
     done
     pkdev=${dev%% *}
     device="/dev/"$pkdev
+    echo -n 'KERNELS=="'${pkdev}'", ENV{UDISKS_IGNORE}="1"' | $sudo tee $noautomountrule
     for PART in `df -k | awk '{ print $1 }' | grep "${device}"` ; do $sudo umount $PART; done
     $sudo parted -s "${device}" unit MiB print
     echo -e "\nAre you sure you want to format "$device"???"
@@ -362,7 +363,6 @@ echo "Rootfsdir="$rootfsdir
 echo "Mountdev="$(realpath $mountdev)
  
 echo -n 'KERNELS=="'${pkdev}'", ENV{UDISKS_IGNORE}="1"' | $sudo tee $noautomountrule
-## Ook in formatsd ^^^
  
 $sudo umount $mountdev
 [ -d $rootfsdir ] || $sudo mkdir $rootfsdir
