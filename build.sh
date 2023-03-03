@@ -63,6 +63,8 @@ export LANG=C
 export LANGUAGE=C
 
 function finish {
+  trap 'echo got SIGINT' INT
+  trap 'echo got SIGEXIT' EXIT
   [ -v prevautomountrules ] && $sudo rm -vf $noautomountrule
   if [ -v rootfsdir ] && [ ! -z $rootfsdir ]; then
     $sudo sync
