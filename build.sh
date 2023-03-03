@@ -98,9 +98,9 @@ function reinsert {
   sleep 0.1
   echo -n $bindpart | $sudo tee $driver/bind
   echo
-  until lsblk /dev/$1 >/dev/null 2>/dev/null; do sleep 0.1; done
   newdev=$(ls $driver/$bindpart/block | head -1)
   echo "New Block Device: "$newdev
+  until lsblk /dev/$newdev >/dev/null 2>/dev/null; do sleep 0.1; done
   $sudo partprobe "/dev/"$newdev
   sync
 }
