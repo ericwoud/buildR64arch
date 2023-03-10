@@ -2,8 +2,11 @@
 
 # xz -e -k -9 -C crc32 $$< --stdout > $$@
 
-TARGET="bpir64"
+# Manual target selection
+#TARGET="bpir64"
 #TARGET="bpir3"
+# Or automatic, based on the partlabel of an inserted card
+TARGET=$(lsblk -rno partlabel | grep -E 'emmc-fip|sdmmc-fip' | head -1 | cut -d'-' -f1)
 ATFDEVICE="sdmmc"
 #ATFDEVICE="emmc"
 SETUP="RT"   # Setup as RouTer
@@ -22,9 +25,16 @@ REPOKEY="DD73724DCA27796790D33E98798137154FE1474C"
 REPOURL='ftp://ftp.woudstra.mywire.org/repo/$arch'
 BACKUPREPOURL="https://github.com/ericwoud/buildR64arch/releases/download/packages"
 
-KERNELDTB="mt7622-bananapi-bpi-r64"
-
-KERNELBOOTARGS="console=ttyS0,115200 rw rootwait audit=0"
+case $TARGET in
+  bpir64)
+    KERNELDTB="mt7622-bananapi-bpi-r64"
+    KERNELBOOTARGS="console=ttyS0,115200 rw rootwait audit=0"
+    ;;
+  bpir3)
+    KERNELDTB="mt7986a-bananapi-bpi-r3"
+    KERNELBOOTARGS="earlycon=uart8250,mmio32,0x11002000 console=ttyS0,115200 debug=7 rw rootwait audit=0"
+    ;;
+esac 
 
 # https://github.com/bradfa/flashbench.git, running multiple times:
 # sudo ./flashbench -a --count=64 --blocksize=1024 /dev/sda
@@ -65,7 +75,7 @@ export LANGUAGE=C
 function finish {
   trap 'echo got SIGINT' INT
   trap 'echo got SIGEXIT' EXIT
-  [ -v prevautomountrules ] && $sudo rm -vf $noautomountrule
+  [ -v noautomountrule ] && $sudo rm -vf $noautomountrule
   if [ -v rootfsdir ] && [ ! -z $rootfsdir ]; then
     $sudo sync
     echo Running exit function to clean up...
@@ -112,6 +122,15 @@ function formatsd {
   pkroot=$(lsblk -rno pkname $rootdev)
   [ -z $pkroot ] && exit
   [ "$l" = true ] && skip="" || skip='\|^loop'
+  PS3="Choose target to format image for: "
+  select TARGET in "bpir3  Bananapi-R3" "bpir64 Bananapi-R64" "Quit" ; do
+    if (( REPLY > 0 && REPLY <= 2 )) ; then
+      break
+    else exit
+    fi
+  done
+  TARGET=${TARGET%% *}
+  echo TARGET = $TARGET
   while true ; do
     readarray -t options < <(lsblk --nodeps -no name,serial,size \
                       | grep -v "^"${pkroot}$skip \
@@ -151,13 +170,16 @@ function formatsd {
     echo -e "\nFailed to format ${device} as GPT!\n"
     reinsert $pkdev
   done
+#    mkpart primary 34s 13311s \
+#    mkpart primary 13312s $rootstart \
   $sudo parted -s -- "${device}" unit kiB \
-    mkpart primary $rootstart $root_end_kb \
+    mkpart primary 34s $ATF_END_KB \
     mkpart primary $ATF_END_KB $rootstart \
-    mkpart primary 0% $ATF_END_KB \
-    name 1 ${TARGET}-${ATFDEVICE}-root \
+    mkpart primary $rootstart $root_end_kb \
+    set 1 legacy_boot on \
+    name 1 ${TARGET}-${ATFDEVICE}-atf \
     name 2 ${TARGET}-${ATFDEVICE}-fip \
-    name 3 ${TARGET}-${ATFDEVICE}-atf \
+    name 3 ${TARGET}-${ATFDEVICE}-root \
     print
   $sudo partprobe "${device}"
   waitdevlink "/dev/disk/by-partlabel/${TARGET}-${ATFDEVICE}-root"
@@ -167,7 +189,7 @@ function formatsd {
   $sudo mkfs.f2fs -w $(( $SD_BLOCK_SIZE_KB * 1024 )) -s $nrseg -t 0 \
        -f -l $ROOTFS_LABEL "/dev/disk/by-partlabel/${TARGET}-${ATFDEVICE}-root"
   $sudo sync
-  if [ -b ${device}"boot0" ] && [ $runningontarget == "true" ]; then
+  if [ -b ${device}"boot0" ] && [[ "$compatible" == *"bananapi"*"mediatek,mt7"* ]]; then
     $sudo mmc bootpart enable 7 1 ${device}
   fi
   $sudo lsblk -o name,mountpoint,label,partlabel,size,uuid "${device}"
@@ -184,7 +206,11 @@ function bootstrap {
 }
 
 function selectdir {
-  $sudo rm -rf $1; $sudo mv -vf $1-$2 $1; $sudo rm -rf $1-*
+  $sudo rm -rf $1
+  $sudo mkdir -p $1
+  [ -d $1-$2                ] && $sudo mv -vf $1-$2/*                $1
+  [ -d $1-$2-${ATFDEVICE^^} ] && $sudo mv -vf $1-$2-${ATFDEVICE^^}/* $1
+  $sudo rm -rf $1-*
 }
 
 function rootfs {
@@ -321,19 +347,9 @@ if [ -n "$sudo" ]; then
 fi
 
 echo "Current dir:" $(realpath .)
-echo "Target=${TARGET}, ATF-device="$ATFDEVICE
-runningontarget="false"
 compatible="$(tr -d '\0' 2>/dev/null </proc/device-tree/compatible)"
-if [[ "$compatible" == *"bananapi"*"mediatek,mt7622"* ]]; then
-  echo "Running on Bananapi BPI-R64"
-  [[ "${TARGET}" == "bpir64" ]] && runningontarget="true"
-elif [[ "$compatible" == *"bananapi"*"mediatek,mt7986"* ]]; then
-  echo "Running on Bananapi BPI-R3"
-  [[ "${TARGET}" == "bpir3" ]]  && runningontarget="true"
-else 
-  echo "Not running on Bananapi BPI-R64/R3"
-fi
 hostarch=$(uname -m)
+echo "Compatible:" $compatible
 echo "Host Arch:" $hostarch
 
 [ "$a" = true ] && installscript
@@ -343,9 +359,14 @@ set -m # send CTRL-C to children
  
 rootdev=$(lsblk -pilno name,type,mountpoint | grep -G 'part /$')
 rootdev=${rootdev%% *}
+$sudo mkdir -p "/run/udev/rules.d"
 noautomountrule="/run/udev/rules.d/10-no-automount.$$.rules"
  
 if [ "$S" = true ] && [ "$D" = true ]; then formatsd; exit; fi
+
+[ -z "$TARGET" ] && exit
+
+echo "Target=${TARGET}, ATF-device="$ATFDEVICE
  
 mountdev="/dev/disk/by-partlabel/${TARGET}-${ATFDEVICE}-root"
 if [ ! -L "$mountdev" ]; then
@@ -365,7 +386,8 @@ echo "Rootfsdir="$rootfsdir
 echo "Mountdev="$(realpath $mountdev)
  
 echo -n 'KERNELS=="'${pkdev}'", ENV{UDISKS_IGNORE}="1"' | $sudo tee $noautomountrule
- 
+echo
+
 $sudo umount $mountdev
 [ -d $rootfsdir ] || $sudo mkdir $rootfsdir
 [ "$b" = true ] && ro=",ro" || ro=""

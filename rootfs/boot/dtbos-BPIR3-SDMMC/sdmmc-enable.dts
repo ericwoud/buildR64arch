@@ -1,0 +1,9 @@
+/dts-v1/;
+/plugin/;
+
+&mmc0 {
+  bus-width = <4>;
+  max-frequency = <52000000>;
+  cap-sd-highspeed;
+  status = "okay";
+};

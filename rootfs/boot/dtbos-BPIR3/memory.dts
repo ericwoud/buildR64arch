@@ -1,0 +1,10 @@
+/dts-v1/;
+/plugin/;
+
+/* edit from main .dtb as overlay file cannot add to root */
+
+&cpu0 {};
+
+//fdtput -cts /memory
+//fdtput -ts  /memory device_type memory
+//fdtput -tx  /memory reg 0x00 0x40000000 0x00 0x80000000
