@@ -52,7 +52,7 @@ Install all necessary packages with:
 ```
 Check your SD card with the following command, write down where the original first partition starts! The script will first show you this info before formatting anything. Set `SD_BLOCK_SIZE_KB` and `SD_ERASE_SIZE_MB` in the script as described there. Don't format a brand new SD card before you find the original erase/block size. It is the best way to determine this.
 ```
-./build.sh -SD
+./build.sh -F
 ```
 Now format your SD card with the same command.
 
@@ -89,7 +89,7 @@ Detach from the session if you want, with CTRL-A + D.
 
 Change ATFDEVICE=`sdmmc` in the script to `emmc`. Now format the emmc:
 ```
-./build.sh -SD
+./build.sh -F
 ```
 
 Make sure your internet connection is working on the R64. Ping 8.8.8.8 should work.
@@ -160,7 +160,7 @@ Command line options:
 
 * -a   : Install necessairy packages.
 * -A   : Remove necessairy packages.
-* -SD  : Format SD card
+* -F   : Format SD card
 * -l   : Add this option to `-SD` if you want to format a loop-device
 * -r   : Build RootFS.
 * -c   : Execute chroot

@@ -51,6 +51,8 @@ ATF_END_KB=1024                   # End of atf partition
 MINIMAL_SIZE_FIP_MB=62             # Minimal size of fip partition
 ROOT_END_MB=100%                     # Size of root partition
 #ROOT_END_MB=$(( 4*1024  ))        # Size 4GiB 
+IMAGE_SIZE_MB=7456                # Size of image
+IMAGE_FILE="./bpir.img"
 
 ROOTFS_LABEL="BPI-ROOT"
 
@@ -76,7 +78,7 @@ function finish {
   trap 'echo got SIGINT' INT
   trap 'echo got SIGEXIT' EXIT
   [ -v noautomountrule ] && $sudo rm -vf $noautomountrule
-  if [ -v rootfsdir ] && [ ! -z $rootfsdir ]; then
+  if [ -v rootfsdir ] && [ ! -z "$rootfsdir" ]; then
     $sudo sync
     echo Running exit function to clean up...
     $sudo sync
@@ -91,6 +93,10 @@ function finish {
     echo -e "Done. You can remove the card now.\n"
   fi
   unset rootfsdir
+  if [ -v loopdev ] && [ ! -z "$loopdev" ]; then
+    $sudo losetup -d $loopdev
+  fi
+  unset loopdev
   [ -v sudoPID ] && kill -TERM $sudoPID
 }
 
@@ -131,9 +137,23 @@ function formatsd {
   done
   TARGET=${TARGET%% *}
   echo TARGET = $TARGET
-  while true ; do
+  minimalrootstart=$(( $ATF_END_KB + ($MINIMAL_SIZE_FIP_MB * 1024) ))
+  rootstart=0
+  while [[ $rootstart -lt $minimalrootstart ]]; do
+    rootstart=$(( $rootstart + ($SD_ERASE_SIZE_MB * 1024) ))
+  done
+  if [[ "$ROOT_END_MB" =~ "%" ]]; then
+    root_end_kb=$ROOT_END_MB
+  else
+    root_end_kb=$(( ($ROOT_END_MB/$SD_ERASE_SIZE_MB*$SD_ERASE_SIZE_MB)*1024))
+    echo $root_end_kb
+  fi
+  if [ "$l" = true ]; then
+    device=$loopdev
+    pkdev=${device/"/dev/"/""}
+  else
     readarray -t options < <(lsblk --nodeps -no name,serial,size \
-                      | grep -v "^"${pkroot}$skip \
+                       | grep -v "^"${pkroot}$skip \
                       | grep -v 'boot0 \|boot1 \|boot2 ')
     PS3="Choose device to format: "
     select dev in "${options[@]}" "Quit" ; do
@@ -144,32 +164,19 @@ function formatsd {
     done
     pkdev=${dev%% *}
     device="/dev/"$pkdev
-    echo -n 'KERNELS=="'${pkdev}'", ENV{UDISKS_IGNORE}="1"' | $sudo tee $noautomountrule
-    for PART in `df -k | awk '{ print $1 }' | grep "${device}"` ; do $sudo umount $PART; done
-    $sudo parted -s "${device}" unit MiB print
-    echo -e "\nAre you sure you want to format "$device"???"
-    read -p "Type <format> to format: " prompt
-    [[ $prompt != "format" ]] && exit
-    minimalrootstart=$(( $ATF_END_KB + ($MINIMAL_SIZE_FIP_MB * 1024) ))
-    rootstart=0
-    while [[ $rootstart -lt $minimalrootstart ]]; do
-      rootstart=$(( $rootstart + ($SD_ERASE_SIZE_MB * 1024) ))
-    done
-    if [[ "$ROOT_END_MB" =~ "%" ]]; then
-      root_end_kb=$ROOT_END_MB
-    else
-      root_end_kb=$(( ($ROOT_END_MB/$SD_ERASE_SIZE_MB*$SD_ERASE_SIZE_MB)*1024))
-      echo $root_end_kb
-    fi
-    $sudo wipefs --all --force "${device}"
-    $sudo dd of="${device}" if=/dev/zero bs=64kiB count=$(($rootstart/64)) status=progress
-    $sudo sync
-    $sudo partprobe "${device}"
-    $sudo parted -s -- "${device}" mklabel gpt
-    [[ $? == 0 ]] && break # Succes creating GPT table
-    echo -e "\nFailed to format ${device} as GPT!\n"
-    reinsert $pkdev
-  done
+  fi
+  echo -n 'KERNELS=="'${pkdev}'", ENV{UDISKS_IGNORE}="1"' | $sudo tee $noautomountrule
+  for PART in `df -k | awk '{ print $1 }' | grep "${device}"` ; do $sudo umount $PART; done
+  $sudo parted -s "${device}" unit MiB print
+  echo -e "\nAre you sure you want to format "$device"???"
+  read -p "Type <format> to format: " prompt
+  [[ $prompt != "format" ]] && exit
+  $sudo wipefs --all --force "${device}"
+  $sudo dd of="${device}" if=/dev/zero bs=64kiB count=$(($rootstart/64)) status=progress
+  $sudo sync
+  $sudo partprobe "${device}"
+  $sudo parted -s -- "${device}" mklabel gpt
+  [[ $? != 0 ]] && exit
 #    mkpart primary 34s 13311s \
 #    mkpart primary 13312s $rootstart \
   $sudo parted -s -- "${device}" unit kiB \
@@ -327,6 +334,11 @@ function removescript {
   exit
 }
 
+function compressimage {
+  rm -f $IMAGE_FILE".xz"
+  xz --keep --force --verbose $IMAGE_FILE
+}
+
 function ctrl_c() {
   echo "** Trapped CTRL-C"
   exit
@@ -335,7 +347,7 @@ function ctrl_c() {
 [ $USER = "root" ] && sudo="" || sudo="sudo"
 [[ $# == 0 ]] && args="-c"|| args=$@	
 cd "$(dirname -- "$(realpath -- "${BASH_SOURCE[0]}")")"
-while getopts ":ralcbRASDB" opt $args; do declare "${opt}=true" ; done
+while getopts ":ralcbRASEFBX" opt $args; do declare "${opt}=true" ; done
 trap finish EXIT
 trap ctrl_c INT
 shopt -s extglob
@@ -354,6 +366,8 @@ echo "Host Arch:" $hostarch
 
 [ "$a" = true ] && installscript
 [ "$A" = true ] && removescript
+
+if [ "$X" = true ]; then compressimage; exit; fi
  
 set -m # send CTRL-C to children
  
@@ -361,24 +375,42 @@ rootdev=$(lsblk -pilno name,type,mountpoint | grep -G 'part /$')
 rootdev=${rootdev%% *}
 $sudo mkdir -p "/run/udev/rules.d"
 noautomountrule="/run/udev/rules.d/10-no-automount.$$.rules"
- 
-if [ "$S" = true ] && [ "$D" = true ]; then formatsd; exit; fi
+
+if [ "$l" = true ]; then
+  if [ ! -f $IMAGE_FILE ]; then
+    dd if=/dev/zero of=$IMAGE_FILE bs=1M count=$IMAGE_SIZE_MB status=progress
+  fi	  
+  loopdev=$($sudo losetup --show --find  $IMAGE_FILE)
+fi 
+
+if [ "$F" = true ]; then formatsd; exit; fi
+
 
 [ -z "$TARGET" ] && exit
 
 echo "Target=${TARGET}, ATF-device="$ATFDEVICE
- 
-mountdev="/dev/disk/by-partlabel/${TARGET}-${ATFDEVICE}-root"
-if [ ! -L "$mountdev" ]; then
-  echo "Not inserted! (Maybe not matching the target device on the card)"
-  exit
+
+if [ "$l" = true ]; then
+  $sudo partprobe $loopdev
+  mountdev=$(lsblk $loopdev -prno partlabel,name | grep -- -root | cut -d' ' -f2)
+  if [ -z "$mountdev" ]; then
+    echo "Not inserted! (Maybe not matching the target device on the image)"
+    exit
+  fi
+else
+  mountdev="/dev/disk/by-partlabel/${TARGET}-${ATFDEVICE}-root"
+  if [ ! -L "$mountdev" ]; then
+    echo "Not inserted! (Maybe not matching the target device on the card)"
+    exit
+  fi
 fi
+
 if [ "$rootdev" == "$(realpath $mountdev)" ]; then
   echo "Target device == Root device, exiting!"
   exit
 fi
- 
 pkdev=$(lsblk -no pkname ${mountdev})
+
 rootfsdir="/tmp/bpirootfs.$$"
 schroot="$sudo unshare --mount --fork --kill-child --pid --root=$rootfsdir"
 echo "SETUP="$SETUP
