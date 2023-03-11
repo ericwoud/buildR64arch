@@ -56,7 +56,7 @@ ROOTFS_LABEL="BPI-ROOT"
 
 NEEDED_PACKAGES="base hostapd openssh wireless-regdb iproute2 nftables f2fs-tools dtc mkinitcpio patch sudo"
 EXTRA_PACKAGES="vim nano screen"
-PREBUILT_PACKAGES="bpir64-atf-git linux-bpir64-git linux-bpir64-git-headers bpir64-mkimage yay mmc-utils-git"
+PREBUILT_PACKAGES="bpir64-atf-git linux-bpir64-git yay mmc-utils-git"
 SCRIPT_PACKAGES="wget ca-certificates udisks2 parted gzip bc f2fs-tools"
 SCRIPT_PACKAGES_ARCHLX="base-devel      uboot-tools  ncurses        openssl"
 SCRIPT_PACKAGES_DEBIAN="build-essential u-boot-tools libncurses-dev libssl-dev flex bison "
