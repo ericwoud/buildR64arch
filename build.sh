@@ -23,7 +23,7 @@ ARCHBOOTSTRAP="https://raw.githubusercontent.com/tokland/arch-bootstrap/master/a
 
 REPOKEY="DD73724DCA27796790D33E98798137154FE1474C"
 REPOURL='ftp://ftp.woudstra.mywire.org/repo/$arch'
-BACKUPREPOURL="https://github.com/ericwoud/buildR64arch/releases/download/packages"
+BACKUPREPOURL='https://github.com/ericwoud/buildRKarch/releases/download/repo-$arch'
 
 case $TARGET in
   bpir64)
