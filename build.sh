@@ -2,18 +2,8 @@
 
 # xz -e -k -9 -C crc32 $$< --stdout > $$@
 
-# Manual target selection
-#TARGET="bpir64"
-#TARGET="bpir3"
-# Or automatic, based on the partlabel of an inserted card
-TARGET=$(lsblk -rno partlabel | grep -E 'emmc-fip|sdmmc-fip' | head -1 | cut -d'-' -f1)
-ATFDEVICE="sdmmc"
-#ATFDEVICE="emmc"
-SETUP="RT"   # Setup as RouTer
-#SETUP="AP"  # Setup as Access Point
-
-BACKUPFILE="./${TARGET}-rootfs.tar"
-#BACKUPFILE="/run/media/$USER/DATA/${TARGET}-rootfs.tar"
+BACKUPFILE="./rootfs.tar"
+#BACKUPFILE="/run/media/$USER/DATA/rootfs.tar"
 
 ALARM_MIRROR="http://de.mirror.archlinuxarm.org"
 
@@ -127,16 +117,18 @@ function formatsd {
   echo ROOTDEV: $rootdev
   pkroot=$(lsblk -rno pkname $rootdev)
   [ -z $pkroot ] && exit
-  [ "$l" = true ] && skip="" || skip='\|^loop'
   PS3="Choose target to format image for: "
   select TARGET in "bpir3  Bananapi-R3" "bpir64 Bananapi-R64" "Quit" ; do
-    if (( REPLY > 0 && REPLY <= 2 )) ; then
-      break
-    else exit
-    fi
+    if (( REPLY > 0 && REPLY <= 2 )) ; then break; else exit; fi
   done
   TARGET=${TARGET%% *}
   echo TARGET = $TARGET
+  PS3="Choose atfdevice to format image for: "
+  select ATFDEVICE in "sdmmc SD Card" "emmc  EMMC onboard" "Quit" ; do
+    if (( REPLY > 0 && REPLY <= 2 )) ; then break; else exit; fi
+  done
+  ATFDEVICE=${ATFDEVICE%% *}
+  echo ATFDEVICE = $ATFDEVICE
   minimalrootstart=$(( $ATF_END_KB + ($MINIMAL_SIZE_FIP_MB * 1024) ))
   rootstart=0
   while [[ $rootstart -lt $minimalrootstart ]]; do
@@ -153,14 +145,11 @@ function formatsd {
     pkdev=${device/"/dev/"/""}
   else
     readarray -t options < <(lsblk --nodeps -no name,serial,size \
-                       | grep -v "^"${pkroot}$skip \
+                       | grep -v "^"${pkroot} \
                       | grep -v 'boot0 \|boot1 \|boot2 ')
     PS3="Choose device to format: "
     select dev in "${options[@]}" "Quit" ; do
-      if (( REPLY > 0 && REPLY <= ${#options[@]} )) ; then
-        break
-      else exit
-      fi
+      if (( REPLY > 0 && REPLY <= 2 )) ; then break; else exit; fi
     done
     pkdev=${dev%% *}
     device="/dev/"$pkdev
@@ -385,11 +374,6 @@ fi
 
 if [ "$F" = true ]; then formatsd; exit; fi
 
-
-[ -z "$TARGET" ] && exit
-
-echo "Target=${TARGET}, ATF-device="$ATFDEVICE
-
 if [ "$l" = true ]; then
   $sudo partprobe $loopdev
   mountdev=$(lsblk $loopdev -prno partlabel,name | grep -- -root | cut -d' ' -f2)
@@ -397,19 +381,41 @@ if [ "$l" = true ]; then
     echo "Not inserted! (Maybe not matching the target device on the image)"
     exit
   fi
+  partlabelroot=$(lsblk -prno partlabel $mountdev)
 else
-  mountdev="/dev/disk/by-partlabel/${TARGET}-${ATFDEVICE}-root"
-  if [ ! -L "$mountdev" ]; then
-    echo "Not inserted! (Maybe not matching the target device on the card)"
-    exit
+  readarray -t options < <(lsblk -prno partlabel,name,pkname | grep -P '^bpir' | grep -- -root)
+  if [ ${#options[@]} -gt 1 ]; then
+    PS3="Choose root partition to work on: "
+    select choice in "${options[@]}" "Quit" ; do
+      if (( REPLY > 0 && REPLY <= 2 )) ; then break; else exit; fi
+    done
+  else
+    choice=${options[0]}
   fi
+  mountdev=$(echo $choice | cut -d' ' -f2)
+  partlabelroot=$(echo $choice | cut -d' ' -f1)
 fi
+
+TARGET=$(echo $partlabelroot | cut -d'-' -f1)
+ATFDEVICE=$(echo $partlabelroot | cut -d'-' -f2)
+[ -z "$TARGET" ] && exit
+echo "Target=${TARGET}, ATF-device="$ATFDEVICE
 
 if [ "$rootdev" == "$(realpath $mountdev)" ]; then
   echo "Target device == Root device, exiting!"
   exit
 fi
 pkdev=$(lsblk -no pkname ${mountdev})
+
+if [ "$r" = true ]; then
+  PS3="Choose setup to create root for: "
+  select SETUP in "RT  Router setup" "AP  Access Point setup" "Quit" ; do
+    if (( REPLY > 0 && REPLY <= 2 )) ; then break; else exit; fi
+  done
+  SETUP=${SETUP%% *}
+fi
+echo $SETUP
+exit
 
 rootfsdir="/tmp/bpirootfs.$$"
 schroot="$sudo unshare --mount --fork --kill-child --pid --root=$rootfsdir"
