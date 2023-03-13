@@ -245,6 +245,10 @@ function rootfs {
   $sudo sed -i "s/\bdummy\b/PARTLABEL=${TARGET}-${ATFDEVICE}-root/g" $rootfsdir/etc/fstab
   selectdir $rootfsdir/etc/systemd/network ${TARGET^^}-${SETUP}
   selectdir $rootfsdir/etc/hostapd ${TARGET^^}
+  if [ ! -z "$brlanip" ]; then
+    $sudo sed -i 's/Address=.*/Address='$brlanip'\/24/' \
+                    $rootfsdir/etc/systemd/network/10-brlan.network
+  fi
   $sudo systemctl --root=$rootfsdir reenable systemd-timesyncd.service
   $sudo systemctl --root=$rootfsdir reenable sshd.service
   $sudo systemctl --root=$rootfsdir reenable systemd-resolved.service
@@ -413,9 +417,8 @@ if [ "$r" = true ]; then
     if (( REPLY > 0 && REPLY <= 2 )) ; then break; else exit; fi
   done
   SETUP=${SETUP%% *}
+  read -p "Enter ip address for local network: " brlanip
 fi
-echo $SETUP
-exit
 
 rootfsdir="/tmp/bpirootfs.$$"
 schroot="$sudo unshare --mount --fork --kill-child --pid --root=$rootfsdir"
