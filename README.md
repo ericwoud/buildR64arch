@@ -1,15 +1,19 @@
 # buildR64arch
 
-Install a minimal Arch-Linux on Banana Pi R64 from scratch.
+Install a minimal Arch-Linux on Banana Pi R64 or R3 from scratch.
 
-Downloadable image for quick test located [HERE](https://github.com/ericwoud/buildR64arch/releases/download/v1.2/bpir64-sdmmc.img.xz)
+Old: Downloadable image for quick test located [HERE](https://github.com/ericwoud/buildR64arch/releases/download/v1.2/bpir64-sdmmc.img.xz)
 
 Based on: [buildR64ubuntu](https://github.com/ericwoud/buildR64ubuntu.git)
 , [frank-w's atf](https://github.com/frank-w/BPI-R64-ATF)
 and [frank-w's kernel](https://github.com/frank-w/BPI-R2-4.14/tree/5.12-main)
 
+R64 Notes:
 Now includes a patch so that temperature is regulated at 87 instead of 47 degrees!
 Delete the file rootfs/boot/dtbos/cpu-thermal.dts before building, if you do not want to.
+
+R3 Notes:
+Still in alfa development stage
 
 The script can be run from Arch Linux and Debian/Ubuntu.
 
@@ -24,7 +28,7 @@ USE AT YOUR OWN RISK!!!
 
 You need:
 
-  - Banana Pi R64
+  - Banana Pi R64 or R3
   - SD card
 
 ### Prerequisites
@@ -54,13 +58,8 @@ Check your SD card with the following command, write down where the original fir
 ```
 ./build.sh -F
 ```
-Now format your SD card with the same command.
+Now format your SD card with the same command. After formatting the rootfs gets build.
 
-Now build the root filesystem.
-
-```
-./build.sh -r
-```
 Optionally enter chroot environment on the SD card:
 
 ```
@@ -69,7 +68,7 @@ Optionally enter chroot environment on the SD card:
 
 ## Deployment
 
-Insert the SD card,, powerup, connect to the R64 wireless, SSID: WIFI24, password: justsomepassword. To start ssh to R64, password admin
+Insert the SD card,, powerup, connect to the R64/R3 wireless, SSID: WIFI24, password: justsomepassword. To start ssh to R64/R3, password admin
 
 ```
 ssh root@192.168.5.1
@@ -79,7 +78,7 @@ IPforward is on, the system is setup as router.
 After this, you are on your own. It is supposed to be a minimal installation of Arch Linux.
 
 
-## Build/Install emmc version
+## R64 Build/Install emmc version
 
 When building on R64 (running on sd-card) start/re-enter a screen session with:
 ```
@@ -96,6 +95,9 @@ Make sure your internet connection is working on the R64. Ping 8.8.8.8 should wo
 
 Now build the whole image, same as before.
 
+## R3 Build/Install emmc version
+
+Still in development...
 
 ## Using pre-build images for a quick try-out
 
@@ -111,10 +113,10 @@ xz -dcv ~/Downloads/bpir64-sdmmc.img.xz | sudo dd of=/dev/sda
 When changing the kernel commandline options in `/boot/bootcfg/cmdline` or changing/adding/removing patches in `/boot/dtb-patch`
 you should run the folling command on the bpir64 to write the changes so that they will be activated on the next boot:
 ```
-bpir64-writefip
+bpir-writefip
 ```
 
-## Using port 5 of the dsa switch
+## R64: Using port 5 of the dsa switch
 
 Note: This does not work when running from emmc and the bootswitch is set to try from sdmmc first, position 1. Only under these two conditions combined, it seems eth1 does not get initialised correctly. The eth1 gmac works fine running from emmc, with sw1 set to 0, try boot from emmc first.
 
@@ -138,9 +140,9 @@ If you don't like this trick, then:
 
 ## Setup as Access Point
 
-When using a second or third R64 as Access Point, and connecting router-lan-port to AP-lan-port, do the following:
+When using a second or third R64/R3 as Access Point, and connecting router-lan-port to AP-lan-port, do the following:
 
-Change SETUP="RT" to SETUP="AP".
+Choose Setup "AP" in stead od "RT".
 
 The Access Point has network address 192.168.1.33.
 
@@ -160,13 +162,14 @@ Command line options:
 
 * -a   : Install necessairy packages.
 * -A   : Remove necessairy packages.
-* -F   : Format SD card
-* -l   : Add this option to `-SD` if you want to format a loop-device
+* -F   : Format SD card or image
+* -l   : Add this option to use an image-file instead of an SD card
 * -r   : Build RootFS.
 * -c   : Execute chroot
 * -R   : Delete RootFS.
 * -b   : Create backup of rootfs
 * -B   : Restore backup of rootfs
+^ -X   : Create archive from image-file
 * none : Enter chroot, same as option `-c`
 
 * Other variables to tweak also at top of build script.

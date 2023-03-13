@@ -1,9 +1,5 @@
 #!/bin/bash
 
-# xz -e -k -9 -C crc32 $$< --stdout > $$@
-
-BACKUPFILE="./rootfs.tar"
-#BACKUPFILE="/run/media/$USER/DATA/rootfs.tar"
 
 ALARM_MIRROR="http://de.mirror.archlinuxarm.org"
 
@@ -15,32 +11,14 @@ REPOKEY="DD73724DCA27796790D33E98798137154FE1474C"
 REPOURL='ftp://ftp.woudstra.mywire.org/repo/$arch'
 BACKUPREPOURL='https://github.com/ericwoud/buildRKarch/releases/download/repo-$arch'
 
-case $TARGET in
-  bpir64)
-    KERNELDTB="mt7622-bananapi-bpi-r64"
-    KERNELBOOTARGS="console=ttyS0,115200 rw rootwait audit=0"
-    ;;
-  bpir3)
-    KERNELDTB="mt7986a-bananapi-bpi-r3"
-    KERNELBOOTARGS="earlycon=uart8250,mmio32,0x11002000 console=ttyS0,115200 debug=7 rw rootwait audit=0"
-    ;;
-esac 
 
-# https://github.com/bradfa/flashbench.git, running multiple times:
-# sudo ./flashbench -a --count=64 --blocksize=1024 /dev/sda
-# Shows me that times increase at alignment of 8k
-# On f2fs it is used for wanted-sector-size, but sector size is stuck at 512,
-# so with the standard f2fs format does does not do anything. Just leave as is for now...
-SD_BLOCK_SIZE_KB=8                   # in kilo bytes
-# When runnig on BPIR64 or when inserted in an /dev/mmcblkX cardreader execute:
-# bc -l <<<"$(cat /sys/block/mmcblk1/device/preferred_erase_size) /1024 /1024"
-# bc -l <<<"$(cat /sys/block/mmcblk1/queue/discard_granularity) /1024 /1024"
+# Standard erase size, when it cannot be determined (using /dev/sdX cardreader or loopdev)
 SD_ERASE_SIZE_MB=4                   # in Mega bytes
 
 ATF_END_KB=1024                   # End of atf partition
 MINIMAL_SIZE_FIP_MB=62             # Minimal size of fip partition
 ROOT_END_MB=100%                     # Size of root partition
-#ROOT_END_MB=$(( 4*1024  ))        # Size 4GiB 
+#ROOT_END_MB=$(( 4*1024  ))        # Size 4GiB
 IMAGE_SIZE_MB=7456                # Size of image
 IMAGE_FILE="./bpir.img"
 
@@ -58,11 +36,20 @@ USERNAME="user"
 USERPWD="admin"
 ROOTPWD="admin"                      # Root password
 
-[ -f "./override.sh" ] && source ./override.sh
-
-export LC_ALL=C
-export LANG=C
-export LANGUAGE=C
+function setupenv {
+#BACKUPFILE="/run/media/$USER/DATA/${target}-${atfdevice}-rootfs.tar"
+BACKUPFILE="./${target}-${atfdevice}-rootfs.tar"
+case ${target} in
+  bpir64)
+    KERNELDTB="mt7622-bananapi-bpi-r64"
+    KERNELBOOTARGS="console=ttyS0,115200 rw rootwait audit=0"
+    ;;
+  bpir3)
+    KERNELDTB="mt7986a-bananapi-bpi-r3"
+    KERNELBOOTARGS="earlycon=uart8250,mmio32,0x11002000 console=ttyS0,115200 debug=7 rw rootwait audit=0"
+    ;;
+esac
+} 
 
 function finish {
   trap 'echo got SIGINT' INT
@@ -90,8 +77,8 @@ function finish {
   [ -v sudoPID ] && kill -TERM $sudoPID
 }
 
-function waitdevlink {
-  while [ ! -L "$1" ]; do
+function waitdev {
+  while [ ! -b $(realpath "$1") ]; do
     echo "WAIT!"
     sleep 0.1
   done
@@ -113,65 +100,49 @@ function reinsert {
   sync
 }
 
-function formatsd {
-  echo ROOTDEV: $rootdev
-  pkroot=$(lsblk -rno pkname $rootdev)
-  [ -z $pkroot ] && exit
-  minimalrootstart=$(( $ATF_END_KB + ($MINIMAL_SIZE_FIP_MB * 1024) ))
-  rootstart=0
-  while [[ $rootstart -lt $minimalrootstart ]]; do
-    rootstart=$(( $rootstart + ($SD_ERASE_SIZE_MB * 1024) ))
+function formatimage {
+  esize_mb=$(cat /sys/block/${device/"/dev/"/""}/device/preferred_erase_size) 
+  [ -z "$esize_mb" ] && esize_mb=$SD_ERASE_SIZE_MB || esize_mb=$(( $esize_mb /1024 /1024 ))
+  echo "Erase size = $esize_mb MB"
+  minimalrootstart_kb=$(( $ATF_END_KB + ($MINIMAL_SIZE_FIP_MB * 1024) ))
+  rootstart_kb=0
+  while [[ $rootstart_kb -lt $minimalrootstart_kb ]]; do
+    rootstart_kb=$(( $rootstart_kb + ($esize_mb * 1024) ))
   done
   if [[ "$ROOT_END_MB" =~ "%" ]]; then
     root_end_kb=$ROOT_END_MB
   else
-    root_end_kb=$(( ($ROOT_END_MB/$SD_ERASE_SIZE_MB*$SD_ERASE_SIZE_MB)*1024))
+    root_end_kb=$(( ($ROOT_END_MB/$esize_mb*$esize_mb)*1024))
     echo $root_end_kb
   fi
-  if [ "$l" = true ]; then
-    device=$loopdev
-    pkdev=${device/"/dev/"/""}
-  else
-    readarray -t options < <(lsblk --nodeps -no name,serial,size \
-                       | grep -v "^"${pkroot} \
-                      | grep -v 'boot0 \|boot1 \|boot2 ')
-    PS3="Choose device to format: "
-    select dev in "${options[@]}" "Quit" ; do
-      if (( REPLY > 0 && REPLY <= 2 )) ; then break; else exit; fi
-    done
-    pkdev=${dev%% *}
-    device="/dev/"$pkdev
-  fi
-  echo -n 'KERNELS=="'${pkdev}'", ENV{UDISKS_IGNORE}="1"' | $sudo tee $noautomountrule
   for PART in `df -k | awk '{ print $1 }' | grep "${device}"` ; do $sudo umount $PART; done
   $sudo parted -s "${device}" unit MiB print
   echo -e "\nAre you sure you want to format "$device"???"
   read -p "Type <format> to format: " prompt
   [[ $prompt != "format" ]] && exit
   $sudo wipefs --all --force "${device}"
-  $sudo dd of="${device}" if=/dev/zero bs=64kiB count=$(($rootstart/64)) status=progress
+  $sudo dd of="${device}" if=/dev/zero bs=64kiB count=$(($rootstart_kb/64)) status=progress
   $sudo sync
   $sudo partprobe "${device}"
   $sudo parted -s -- "${device}" mklabel gpt
   [[ $? != 0 ]] && exit
-#    mkpart primary 34s 13311s \
-#    mkpart primary 13312s $rootstart \
   $sudo parted -s -- "${device}" unit kiB \
     mkpart primary 34s $ATF_END_KB \
-    mkpart primary $ATF_END_KB $rootstart \
-    mkpart primary $rootstart $root_end_kb \
+    mkpart primary $ATF_END_KB $rootstart_kb \
+    mkpart primary $rootstart_kb $root_end_kb \
     set 1 legacy_boot on \
-    name 1 ${TARGET}-${ATFDEVICE}-atf \
-    name 2 ${TARGET}-${ATFDEVICE}-fip \
-    name 3 ${TARGET}-${ATFDEVICE}-root \
+    name 1 ${target}-${atfdevice}-atf \
+    name 2 ${target}-${atfdevice}-fip \
+    name 3 ${target}-${atfdevice}-root \
     print
   $sudo partprobe "${device}"
-  waitdevlink "/dev/disk/by-partlabel/${TARGET}-${ATFDEVICE}-root"
-  $sudo blkdiscard -fv "/dev/disk/by-partlabel/${TARGET}-${ATFDEVICE}-root"
-  waitdevlink "/dev/disk/by-partlabel/${TARGET}-${ATFDEVICE}-root"
-  nrseg=$(( $SD_ERASE_SIZE_MB / 2 )); [[ $nrseg -lt 1 ]] && nrseg=1
-  $sudo mkfs.f2fs -w $(( $SD_BLOCK_SIZE_KB * 1024 )) -s $nrseg -t 0 \
-       -f -l $ROOTFS_LABEL "/dev/disk/by-partlabel/${TARGET}-${ATFDEVICE}-root"
+  mountdev=$(lsblk -prno partlabel,name $device | grep -P '^bpir' | grep -- -root)
+  mountdev=$(echo $mountdev | cut -d' ' -f2)
+  waitdev "${mountdev}"
+  $sudo blkdiscard -fv "${mountdev}"
+  waitdev "${mountdev}"
+  nrseg=$(( $esize_mb / 2 )); [[ $nrseg -lt 1 ]] && nrseg=1
+  $sudo mkfs.f2fs -s $nrseg -t 0 -f -l $ROOTFS_LABEL ${mountdev}
   $sudo sync
   if [ -b ${device}"boot0" ] && [[ "$compatible" == *"bananapi"*"mediatek,mt7"* ]]; then
     $sudo mmc bootpart enable 7 1 ${device}
@@ -193,19 +164,19 @@ function selectdir {
   $sudo rm -rf $1
   $sudo mkdir -p $1
   [ -d $1-$2                ] && $sudo mv -vf $1-$2/*                $1
-  [ -d $1-$2-${ATFDEVICE^^} ] && $sudo mv -vf $1-$2-${ATFDEVICE^^}/* $1
+  [ -d $1-$2-${atfdevice^^} ] && $sudo mv -vf $1-$2-${atfdevice^^}/* $1
   $sudo rm -rf $1-*
 }
 
 function rootfs {
   $sudo mkdir -p $rootfsdir/boot/bootcfg
   $sudo cp -rfv ./rootfs/boot $rootfsdir
-  selectdir $rootfsdir/boot/dtbos ${TARGET^^}
+  selectdir $rootfsdir/boot/dtbos ${target^^}
   echo /boot/Image |                                  $sudo tee $rootfsdir/boot/bootcfg/linux
   echo /boot/initramfs-linux-bpir64-git.img |         $sudo tee $rootfsdir/boot/bootcfg/initrd
   echo ${KERNELDTB} |                                 $sudo tee $rootfsdir/boot/bootcfg/dtb
   echo $KERNELBOOTARGS |                              $sudo tee $rootfsdir/boot/bootcfg/cmdline
-  echo ${ATFDEVICE} |                                 $sudo tee $rootfsdir/boot/bootcfg/device
+  echo ${atfdevice} |                                 $sudo tee $rootfsdir/boot/bootcfg/device
   echo "--- Following packages are installed:"
   $schroot pacman -Qe
   echo "--- End of package list"
@@ -230,9 +201,9 @@ function rootfs {
   $sudo sed -i 's/.*UsePAM.*/UsePAM no/' $rootfsdir/etc/ssh/sshd_config
   $sudo sed -i 's/.*#IgnorePkg.*/IgnorePkg = bpir64-atf-git/' $rootfsdir/etc/pacman.conf
   for d in $(ls ./rootfs/ | grep -vx boot); do $sudo cp -rfv ./rootfs/$d $rootfsdir; done
-  $sudo sed -i "s/\bdummy\b/PARTLABEL=${TARGET}-${ATFDEVICE}-root/g" $rootfsdir/etc/fstab
-  selectdir $rootfsdir/etc/systemd/network ${TARGET^^}-${SETUP}
-  selectdir $rootfsdir/etc/hostapd ${TARGET^^}
+  $sudo sed -i "s/\bdummy\b/PARTLABEL=${target}-${atfdevice}-root/g" $rootfsdir/etc/fstab
+  selectdir $rootfsdir/etc/systemd/network ${target^^}-${setup}
+  selectdir $rootfsdir/etc/hostapd ${target^^}
   if [ ! -z "$brlanip" ]; then
     $sudo sed -i 's/Address=.*/Address='$brlanip'\/24/' \
                     $rootfsdir/etc/systemd/network/10-brlan.network
@@ -241,7 +212,7 @@ function rootfs {
   $sudo systemctl --root=$rootfsdir reenable sshd.service
   $sudo systemctl --root=$rootfsdir reenable systemd-resolved.service
   $sudo systemctl --root=$rootfsdir reenable hostapd.service
-  if [ $SETUP == "RT" ]; then $sudo systemctl --root=$rootfsdir reenable nftables.service
+  if [ ${setup} == "RT" ]; then $sudo systemctl --root=$rootfsdir reenable nftables.service
   else                        $sudo systemctl --root=$rootfsdir disable nftables.service
   fi
   $sudo systemctl --root=$rootfsdir reenable systemd-networkd.service
@@ -268,6 +239,15 @@ function chrootfs {
   echo "Entering chroot on image. Enter commands as if running on the target:"
   echo "Type <exit> to exit from the chroot environment."
   $schroot
+}
+
+function compressimage {
+  rm -f $IMAGE_FILE".xz"
+  $sudo rm -vrf $rootfsdir/tmp/*
+  echo "Type Y + Y:"
+  yes | $schroot pacman -Scc
+  finish
+  xz --keep --force --verbose $IMAGE_FILE
 }
 
 function backuprootfs {
@@ -305,6 +285,7 @@ function installscript {
   fi
   exit
 }
+
 function removescript {
   # On all linux's
   if [ $hostarch == "x86_64" ]; then # Script running on x86_64 so remove qemu
@@ -315,20 +296,20 @@ function removescript {
   exit
 }
 
-function compressimage {
-  rm -f $IMAGE_FILE".xz"
-  xz --keep --force --verbose $IMAGE_FILE
-}
-
 function ctrl_c() {
-  echo "** Trapped CTRL-C"
+  echo "** Trapped CTRL-C **"
   exit
 }
 
+export LC_ALL=C
+export LANG=C
+export LANGUAGE=C 
+
 [ $USER = "root" ] && sudo="" || sudo="sudo"
-[[ $# == 0 ]] && args="-c"|| args=$@	
+[[ $# == 0 ]] && args="-c" || args=$@
+[[ "$args" == "-l" ]] && args="-cl"              
 cd "$(dirname -- "$(realpath -- "${BASH_SOURCE[0]}")")"
-while getopts ":ralcbRASEFBX" opt $args; do declare "${opt}=true" ; done
+while getopts ":ralcbRAFBX" opt $args; do declare "${opt}=true" ; done
 trap finish EXIT
 trap ctrl_c INT
 shopt -s extglob
@@ -340,95 +321,115 @@ if [ -n "$sudo" ]; then
 fi
 
 echo "Current dir:" $(realpath .)
+
 compatible="$(tr -d '\0' 2>/dev/null </proc/device-tree/compatible)"
-hostarch=$(uname -m)
 echo "Compatible:" $compatible
+
+hostarch=$(uname -m)
 echo "Host Arch:" $hostarch
 
 [ "$a" = true ] && installscript
 [ "$A" = true ] && removescript
 
-if [ "$X" = true ]; then compressimage; exit; fi
- 
-set -m # send CTRL-C to children
- 
 rootdev=$(lsblk -pilno name,type,mountpoint | grep -G 'part /$')
 rootdev=${rootdev%% *}
-$sudo mkdir -p "/run/udev/rules.d"
-noautomountrule="/run/udev/rules.d/10-no-automount.$$.rules"
+echo "ROOTDEV: $rootdev"
+
+pkroot=$(lsblk -rno pkname $rootdev);
+echo "pkroot=$pkroot"
+[ -z $pkroot ] && exit
 
 if [ "$l" = true ]; then
   if [ ! -f $IMAGE_FILE ]; then
+    echo -e "\nCreating image file..."
     dd if=/dev/zero of=$IMAGE_FILE bs=1M count=$IMAGE_SIZE_MB status=progress
-  fi	  
+  fi            
   loopdev=$($sudo losetup --show --find  $IMAGE_FILE)
-fi 
+  echo "Loop device = $loopdev"
+fi
 
 if [ "$F" = true ]; then
+  r=true # Setup rootfs after formatting
   PS3="Choose target to format image for: "
-  select TARGET in "bpir3  Bananapi-R3" "bpir64 Bananapi-R64" "Quit" ; do
+  select target in "bpir3  Bananapi-R3" "bpir64 Bananapi-R64" "Quit" ; do
     if (( REPLY > 0 && REPLY <= 2 )) ; then break; else exit; fi
   done
-  TARGET=${TARGET%% *}
+  target=${target%% *}
   PS3="Choose atfdevice to format image for: "
-  select ATFDEVICE in "sdmmc SD Card" "emmc  EMMC onboard" "Quit" ; do
+  select atfdevice in "sdmmc SD Card" "emmc  EMMC onboard" "Quit" ; do
     if (( REPLY > 0 && REPLY <= 2 )) ; then break; else exit; fi
   done
-  ATFDEVICE=${ATFDEVICE%% *}
-  formatsd
-  mountdev="/dev/disk/by-partlabel/${TARGET}-${ATFDEVICE}-root"
+  atfdevice=${atfdevice%% *}
+  if [ "$l" = true ]; then
+    device=$loopdev
+  else
+    readarray -t options < <(lsblk -prno name,serial,size \
+             | grep -v "^"${pkroot} | grep -v 'boot0 \|boot1 \|boot2 ')
+    PS3="Choose device to format: "
+    select device in "${options[@]}" "Quit" ; do
+      if (( REPLY > 0 && REPLY <= 2 )) ; then break; else exit; fi
+    done
+    device=${device%% *}
+  fi
 else
   if [ "$l" = true ]; then
     $sudo partprobe $loopdev
-    mountdev=$(lsblk $loopdev -prno partlabel,name | grep -- -root | cut -d' ' -f2)
-    if [ -z "$mountdev" ]; then
-      echo "Not inserted! (Maybe not matching the target device on the image)"
-      exit
-    fi
-    partlabelroot=$(lsblk -prno partlabel $mountdev)
+    device=$loopdev
   else
-    readarray -t options < <(lsblk -prno partlabel,name,pkname | grep -P '^bpir' | grep -- -root)
-    if [ ${#options[@]} -gt 1 ]; then
-      PS3="Choose root partition to work on: "
+    readarray -t options < <(lsblk -prno partlabel,pkname | grep -P '^bpir' | grep -- -root \
+                                 | grep -v ${pkroot} | grep -v 'boot0$\|boot1$\|boot2$')
+    if [ ${#options[@]} -gt 0 ]; then
+      PS3="Choose device to work on: "
       select choice in "${options[@]}" "Quit" ; do
         if (( REPLY > 0 && REPLY <= 2 )) ; then break; else exit; fi
       done
     else
       choice=${options[0]}
     fi
-    mountdev=$(echo $choice | cut -d' ' -f2)
-    partlabelroot=$(echo $choice | cut -d' ' -f1)
+    device=$(echo $choice | cut -d' ' -f2)
   fi
-  TARGET=$(echo $partlabelroot | cut -d'-' -f1)
-  ATFDEVICE=$(echo $partlabelroot | cut -d'-' -f2)
+  pr=$(lsblk -prno partlabel $device | grep -P '^bpir' | grep -- -root)
+  target=$(echo $pr | cut -d'-' -f1)
+  atfdevice=$(echo $pr | cut -d'-' -f2)
 fi
+echo "Device=${device}, Target=${target}, ATF-device="${atfdevice}
+[ -z "$device" ] && exit
+[ -z "${target}" ] && exit
+[ -z "${atfdevice}" ] && exit
 
-[ -z "$TARGET" ] && exit
-echo "Target=${TARGET}, ATF-device="$ATFDEVICE
+$sudo mkdir -p "/run/udev/rules.d"
+noautomountrule="/run/udev/rules.d/10-no-automount-bpir.rules"
+echo 'KERNELS=="'${device/"/dev/"/""}'", ENV{UDISKS_IGNORE}="1"' | $sudo tee $noautomountrule
+
+setupenv
+
+[ "$F" = true ] && formatimage
+
+mountdev=$(lsblk -prno partlabel,name $device | grep -P '^bpir' | grep -- -root)
+mountdev=$(echo $mountdev | cut -d' ' -f2)
+echo "Mountdev=$mountdev"
+[ -z "$mountdev" ] && exit
 
 if [ "$rootdev" == "$(realpath $mountdev)" ]; then
   echo "Target device == Root device, exiting!"
   exit
 fi
-pkdev=$(lsblk -no pkname ${mountdev})
 
 if [ "$r" = true ]; then
+  echo -e "\nCreate root filesystem\n"
   PS3="Choose setup to create root for: "
-  select SETUP in "RT  Router setup" "AP  Access Point setup" "Quit" ; do
+  select setup in "RT  Router setup" "AP  Access Point setup" "Quit" ; do
     if (( REPLY > 0 && REPLY <= 2 )) ; then break; else exit; fi
   done
-  SETUP=${SETUP%% *}
+  setup=${setup%% *}
+  echo "Setup="${setup}
   read -p "Enter ip address for local network: " brlanip
+  echo "IP="$brlanip
 fi
 
 rootfsdir="/tmp/bpirootfs.$$"
-schroot="$sudo unshare --mount --fork --kill-child --pid --root=$rootfsdir"
-echo "SETUP="$SETUP
+schroot="$sudo unshare --mount --mount-proc --fork --kill-child --pid --root=$rootfsdir"
 echo "Rootfsdir="$rootfsdir
-echo "Mountdev="$(realpath $mountdev)
- 
-echo -n 'KERNELS=="'${pkdev}'", ENV{UDISKS_IGNORE}="1"' | $sudo tee $noautomountrule
-echo
 
 $sudo umount $mountdev
 [ -d $rootfsdir ] || $sudo mkdir $rootfsdir
@@ -436,19 +437,18 @@ $sudo umount $mountdev
 $sudo mount --source $mountdev --target $rootfsdir \
             -o exec,dev,noatime,nodiratime$ro
 [[ $? != 0 ]] && exit
- 
+
 if [ "$b" = true ] ; then backuprootfs; exit; fi
 if [ "$B" = true ] ; then restorerootfs; exit; fi
+
 if [ "$R" = true ] ; then
   read -p "Type <remove> to delete everything from the card: " prompt
   [[ $prompt != "remove" ]] && exit
   $sudo rm -rf $rootfsdir/{*,.*}
   exit
 fi
- 
+
 [ "$r" = true ] && bootstrap
-$sudo mount -t proc               /proc $rootfsdir/proc
-[[ $? != 0 ]] && exit
 $sudo mount --rbind --make-rslave /sys  $rootfsdir/sys
 [[ $? != 0 ]] && exit
 $sudo mount --rbind --make-rslave /dev  $rootfsdir/dev
@@ -457,18 +457,10 @@ $sudo mount --rbind --make-rslave /run  $rootfsdir/run
 [[ $? != 0 ]] && exit
 [ "$r" = true ] && rootfs
 [ "$c" = true ] && chrootfs
- 
-exit
-# kernelcmdline: block2mtd.block2mtd=/dev/mmcblk0p2,128KiB,MyMtd cmdlinepart.mtdparts=MyMtd:1M(mtddata)ro
+[ "$X" = true ] && compressimage
 
-# sudo dd if=/dev/zero of=~/bpir64-sdmmc.img bs=1M count=3360 status=progress
-# sync
-# sudo udisksctl loop-setup -f ~/bpir64-sdmmc.img
-# ./build.sh -lSD
-# ./build.sh -r
-# ./build.sh
-# rm -vrf /tmp/*
-# pacman -Scc
-# exit
-# sudo udisksctl loop-delete --block-device /dev/loop0
-# xz --keep --force --verbose ~/bpir64-sdmmc.img
+exit
+
+# xz -e -k -9 -C crc32 $$< --stdout > $$@
+
+# kernelcmdline: block2mtd.block2mtd=/dev/mmcblk0p2,128KiB,MyMtd cmdlinepart.mtdparts=MyMtd:1M(mtddata)ro
