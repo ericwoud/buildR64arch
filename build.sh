@@ -117,18 +117,6 @@ function formatsd {
   echo ROOTDEV: $rootdev
   pkroot=$(lsblk -rno pkname $rootdev)
   [ -z $pkroot ] && exit
-  PS3="Choose target to format image for: "
-  select TARGET in "bpir3  Bananapi-R3" "bpir64 Bananapi-R64" "Quit" ; do
-    if (( REPLY > 0 && REPLY <= 2 )) ; then break; else exit; fi
-  done
-  TARGET=${TARGET%% *}
-  echo TARGET = $TARGET
-  PS3="Choose atfdevice to format image for: "
-  select ATFDEVICE in "sdmmc SD Card" "emmc  EMMC onboard" "Quit" ; do
-    if (( REPLY > 0 && REPLY <= 2 )) ; then break; else exit; fi
-  done
-  ATFDEVICE=${ATFDEVICE%% *}
-  echo ATFDEVICE = $ATFDEVICE
   minimalrootstart=$(( $ATF_END_KB + ($MINIMAL_SIZE_FIP_MB * 1024) ))
   rootstart=0
   while [[ $rootstart -lt $minimalrootstart ]]; do
@@ -376,32 +364,45 @@ if [ "$l" = true ]; then
   loopdev=$($sudo losetup --show --find  $IMAGE_FILE)
 fi 
 
-if [ "$F" = true ]; then formatsd; exit; fi
-
-if [ "$l" = true ]; then
-  $sudo partprobe $loopdev
-  mountdev=$(lsblk $loopdev -prno partlabel,name | grep -- -root | cut -d' ' -f2)
-  if [ -z "$mountdev" ]; then
-    echo "Not inserted! (Maybe not matching the target device on the image)"
-    exit
-  fi
-  partlabelroot=$(lsblk -prno partlabel $mountdev)
+if [ "$F" = true ]; then
+  PS3="Choose target to format image for: "
+  select TARGET in "bpir3  Bananapi-R3" "bpir64 Bananapi-R64" "Quit" ; do
+    if (( REPLY > 0 && REPLY <= 2 )) ; then break; else exit; fi
+  done
+  TARGET=${TARGET%% *}
+  PS3="Choose atfdevice to format image for: "
+  select ATFDEVICE in "sdmmc SD Card" "emmc  EMMC onboard" "Quit" ; do
+    if (( REPLY > 0 && REPLY <= 2 )) ; then break; else exit; fi
+  done
+  ATFDEVICE=${ATFDEVICE%% *}
+  formatsd
+  mountdev="/dev/disk/by-partlabel/${TARGET}-${ATFDEVICE}-root"
 else
-  readarray -t options < <(lsblk -prno partlabel,name,pkname | grep -P '^bpir' | grep -- -root)
-  if [ ${#options[@]} -gt 1 ]; then
-    PS3="Choose root partition to work on: "
-    select choice in "${options[@]}" "Quit" ; do
-      if (( REPLY > 0 && REPLY <= 2 )) ; then break; else exit; fi
-    done
+  if [ "$l" = true ]; then
+    $sudo partprobe $loopdev
+    mountdev=$(lsblk $loopdev -prno partlabel,name | grep -- -root | cut -d' ' -f2)
+    if [ -z "$mountdev" ]; then
+      echo "Not inserted! (Maybe not matching the target device on the image)"
+      exit
+    fi
+    partlabelroot=$(lsblk -prno partlabel $mountdev)
   else
-    choice=${options[0]}
+    readarray -t options < <(lsblk -prno partlabel,name,pkname | grep -P '^bpir' | grep -- -root)
+    if [ ${#options[@]} -gt 1 ]; then
+      PS3="Choose root partition to work on: "
+      select choice in "${options[@]}" "Quit" ; do
+        if (( REPLY > 0 && REPLY <= 2 )) ; then break; else exit; fi
+      done
+    else
+      choice=${options[0]}
+    fi
+    mountdev=$(echo $choice | cut -d' ' -f2)
+    partlabelroot=$(echo $choice | cut -d' ' -f1)
   fi
-  mountdev=$(echo $choice | cut -d' ' -f2)
-  partlabelroot=$(echo $choice | cut -d' ' -f1)
+  TARGET=$(echo $partlabelroot | cut -d'-' -f1)
+  ATFDEVICE=$(echo $partlabelroot | cut -d'-' -f2)
 fi
 
-TARGET=$(echo $partlabelroot | cut -d'-' -f1)
-ATFDEVICE=$(echo $partlabelroot | cut -d'-' -f2)
 [ -z "$TARGET" ] && exit
 echo "Target=${TARGET}, ATF-device="$ATFDEVICE
 
