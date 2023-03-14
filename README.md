@@ -97,7 +97,24 @@ Now build the whole image, same as before.
 
 ## R3 Build/Install emmc version
 
-Still in development...
+Create an SD card for the R3.
+```
+./build.sh -F
+```
+Create an EMMC image for the R3.
+```
+./build.sh -lFX
+```
+Then copy the bpir.img.xz to the SD card /tmp/ folder. It is accessable without root.
+
+Boot the R3 with the SD card with UART connected. When kernel starts keep 'x' key pressed. Clear the commandline with enter. Execute:
+```
+bpir3-flash2emmc /tmp/bpir.img.zx
+```
+When finised, also flip the switch most far away from power plug.
+
+Still in development, but should work. Writing is still slow, will take a half hour.
+
 
 ## Using pre-build images for a quick try-out
 
