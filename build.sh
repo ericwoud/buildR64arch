@@ -298,6 +298,7 @@ function removescript {
 
 function ctrl_c() {
   echo "** Trapped CTRL-C **"
+  [ ! -z "$mainPID" ] && kill -kill $mainPID >/dev/null
   exit
 }
 
@@ -363,8 +364,8 @@ if [ "$F" = true ]; then
   if [ "$l" = true ]; then
     device=$loopdev
   else
-    readarray -t options < <(lsblk -prno name,serial,size \
-             | grep -v "^"${pkroot} | grep -v 'boot0 \|boot1 \|boot2 ')
+    readarray -t options < <(lsblk -dprno name,serial,size \
+             | grep -v "^/dev/"${pkroot} | grep -v 'boot0 \|boot1 \|boot2 ')
     PS3="Choose device to format: "
     select device in "${options[@]}" "Quit" ; do
       if (( REPLY > 0 && REPLY <= 2 )) ; then break; else exit; fi
@@ -374,11 +375,12 @@ if [ "$F" = true ]; then
 else
   if [ "$l" = true ]; then
     $sudo partprobe $loopdev
+    udevadm settle
     device=$loopdev
   else
     readarray -t options < <(lsblk -prno partlabel,pkname | grep -P '^bpir' | grep -- -root \
                                  | grep -v ${pkroot} | grep -v 'boot0$\|boot1$\|boot2$')
-    if [ ${#options[@]} -gt 0 ]; then
+    if [ ${#options[@]} -gt 1 ]; then
       PS3="Choose device to work on: "
       select choice in "${options[@]}" "Quit" ; do
         if (( REPLY > 0 && REPLY <= 2 )) ; then break; else exit; fi
@@ -448,14 +450,18 @@ if [ "$R" = true ] ; then
   exit
 fi
 
-[ "$r" = true ] && bootstrap
+if [ "$r" = true ]; then bootstrap &
+  mainPID=$! ; wait $mainPID ; unset mainPID
+fi
 $sudo mount --rbind --make-rslave /sys  $rootfsdir/sys
 [[ $? != 0 ]] && exit
 $sudo mount --rbind --make-rslave /dev  $rootfsdir/dev
 [[ $? != 0 ]] && exit
 $sudo mount --rbind --make-rslave /run  $rootfsdir/run
 [[ $? != 0 ]] && exit
-[ "$r" = true ] && rootfs
+if [ "$r" = true ]; then rootfs &
+  mainPID=$! ; wait $mainPID ; unset mainPID
+fi
 [ "$c" = true ] && chrootfs
 [ "$X" = true ] && compressimage
 
