@@ -69,7 +69,6 @@ Optionally enter chroot environment on the SD card:
 ## Deployment
 
 Insert the SD card,, powerup, connect to the R64/R3 wireless, SSID: WIFI24, password: justsomepassword. To start ssh to R64/R3, password admin
-
 ```
 ssh root@192.168.5.1
 ```
@@ -86,10 +85,11 @@ screen -R
 ```
 Detach from the session if you want, with CTRL-A + D.
 
-Change ATFDEVICE=`sdmmc` in the script to `emmc`. Now format the emmc:
+When running on the R64, clone the script and run:
 ```
 ./build.sh -F
 ```
+Choose `sdmmc` in the script instead of `emmc`. Now format the emmc and let it setup rootfs.
 
 Make sure your internet connection is working on the R64. Ping 8.8.8.8 should work.
 
@@ -101,7 +101,7 @@ Create an SD card for the R3.
 ```
 ./build.sh -F
 ```
-Create an EMMC image for the R3.
+Create an EMMC image for the R3 and have it compressed.
 ```
 ./build.sh -lFX
 ```
@@ -179,14 +179,14 @@ Command line options:
 
 * -a   : Install necessairy packages.
 * -A   : Remove necessairy packages.
-* -F   : Format SD card or image
+* -F   : Format SD card or image, then setup rootfs
 * -l   : Add this option to use an image-file instead of an SD card
 * -r   : Build RootFS.
 * -c   : Execute chroot
 * -R   : Delete RootFS.
 * -b   : Create backup of rootfs
 * -B   : Restore backup of rootfs
-^ -X   : Create archive from image-file
+* -X   : Create archive from image-file
 * none : Enter chroot, same as option `-c`
 
 * Other variables to tweak also at top of build script.
