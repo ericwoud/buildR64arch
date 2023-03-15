@@ -121,7 +121,7 @@ function formatimage {
   read -p "Type <format> to format: " prompt
   [[ $prompt != "format" ]] && exit
   $sudo wipefs --all --force "${device}"
-  $sudo dd of="${device}" if=/dev/zero bs=64kiB count=$(($rootstart_kb/64)) status=progress
+  $sudo dd of="${device}" if=/dev/zero bs=64kiB count=$(($rootstart_kb/64)) status=progress conv=notrunc,fsync
   $sudo sync
   $sudo partprobe "${device}"
   $sudo parted -s -- "${device}" mklabel gpt
@@ -343,7 +343,7 @@ echo "pkroot=$pkroot"
 if [ "$l" = true ]; then
   if [ ! -f $IMAGE_FILE ]; then
     echo -e "\nCreating image file..."
-    dd if=/dev/zero of=$IMAGE_FILE bs=1M count=$IMAGE_SIZE_MB status=progress
+    dd if=/dev/zero of=$IMAGE_FILE bs=1M count=$IMAGE_SIZE_MB status=progress conv=notrunc,fsync
   fi            
   loopdev=$($sudo losetup --show --find  $IMAGE_FILE)
   echo "Loop device = $loopdev"
@@ -398,12 +398,11 @@ echo "Device=${device}, Target=${target}, ATF-device="${atfdevice}
 [ -z "$device" ] && exit
 [ -z "${target}" ] && exit
 [ -z "${atfdevice}" ] && exit
+setupenv # Now that target and atfdevice are known.
 
 $sudo mkdir -p "/run/udev/rules.d"
 noautomountrule="/run/udev/rules.d/10-no-automount-bpir.rules"
 echo 'KERNELS=="'${device/"/dev/"/""}'", ENV{UDISKS_IGNORE}="1"' | $sudo tee $noautomountrule
-
-setupenv
 
 [ "$F" = true ] && formatimage
 

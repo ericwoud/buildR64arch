@@ -111,7 +111,7 @@ Boot the R3 with the SD card with UART connected. When kernel starts keep 'x' ke
 ```
 bpir3-flash2emmc /tmp/bpir.img.zx
 ```
-When finised, also flip the switch most far away from power plug.
+When finised, you can reboot. Only the switch most near to powerplug (D) should be down, the rest up.
 
 Still in development, but should work. Writing is still slow, will take a half hour.
 
