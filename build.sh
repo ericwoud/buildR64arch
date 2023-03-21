@@ -48,7 +48,7 @@ case ${target} in
     ;;
   bpir3)
     KERNELDTB="mt7986a-bananapi-bpi-r3"
-    SETUPBPIR=("RT       Router setup"
+    SETUPBPIR=("RT       Router setup (NOT AVAILABLE YET!!!)"
                "RTnoSFP  Router setup, not using SFP module"
                "AP       Access Point setup")
     ;;
