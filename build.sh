@@ -90,17 +90,15 @@ function waitdev {
 
 function reinsert {
   sync
-  bindpart=$(basename $(realpath /sys/block/$1/../..))
-  driver=$(realpath /sys/block/$1/device/driver)
-  echo -n $bindpart | $sudo tee $driver/unbind
+  mmc_host=$(realpath /sys/block/${device/"/dev/"/""}/device/../.. | grep 'mmc_host$')
+  [ -z "$mmc_host" ] && return
+  bindpart=$(basename $(realpath $mmc_host/..))
+  driver=$(realpath $mmc_host/../driver)
+  echo -n $bindpart >/dev/null | $sudo tee $driver/unbind
   echo -e "\nRe-inserting" $1
   sleep 0.1
-  echo -n $bindpart | $sudo tee $driver/bind
+  echo -n $bindpart >/dev/null | $sudo tee $driver/bind
   echo
-  newdev=$(ls $driver/$bindpart/block | head -1)
-  echo "New Block Device: "$newdev
-  until lsblk /dev/$newdev >/dev/null 2>/dev/null; do sleep 0.1; done
-  $sudo partprobe "/dev/"$newdev; udevadm settle
   sync
 }
 
@@ -317,7 +315,7 @@ cd "$(dirname -- "$(realpath -- "${BASH_SOURCE[0]}")")"
 [ $USER = "root" ] && sudo="" || sudo="sudo"
 [[ $# == 0 ]] && args="-c" || args=$@
 [[ "$args" == "-l" ]] && args="-cl"
-while getopts ":ralcbRAFBX" opt $args; do declare "${opt}=true" ; done
+while getopts ":ralcbRAFBXM" opt $args; do declare "${opt}=true" ; done
 if [ "$l" = true ] && [ ! -f $IMAGE_FILE ]; then
   F=true
 fi
@@ -406,6 +404,8 @@ echo "Device=${device}, Target=${target}, ATF-device="${atfdevice}
 [ -z "${atfdevice}" ] && exit
 setupenv # Now that target and atfdevice are known.
 
+[ "$M" = true ] && reinsert
+
 if [ "$r" = true ]; then
   echo -e "\nCreate root filesystem\n"
   PS3="Choose setup to create root for: "; COLUMNS=1
@@ -418,7 +418,7 @@ if [ "$r" = true ]; then
   echo "IP="$brlanip
 fi
 
-if [ $(stat --printf="%s" $IMAGE_FILE) -eq 0 ]; then
+if [ "$l" = true ] && [ $(stat --printf="%s" $IMAGE_FILE) -eq 0 ]; then
   echo -e "\nCreating image file..."
   dd if=/dev/zero of=$IMAGE_FILE bs=1M count=$IMAGE_SIZE_MB status=progress conv=notrunc,fsync
   $sudo losetup --set-capacity $device
