@@ -1,6 +1,5 @@
 #!/bin/bash
 
-
 ALARM_MIRROR="http://de.mirror.archlinuxarm.org"
 
 QEMU="https://github.com/multiarch/qemu-user-static/releases/download/v5.2.0-11/x86_64_qemu-aarch64-static.tar.gz"
@@ -11,6 +10,7 @@ REPOKEY="DD73724DCA27796790D33E98798137154FE1474C"
 REPOURL='ftp://ftp.woudstra.mywire.org/repo/$arch'
 BACKUPREPOURL='https://github.com/ericwoud/buildRKarch/releases/download/repo-$arch'
 
+KERNELBOOTARGS="console=ttyS0,115200 debug=7 rw rootwait audit=0"
 
 # Standard erase size, when it cannot be determined (using /dev/sdX cardreader or loopdev)
 SD_ERASE_SIZE_MB=4                   # in Mega bytes
@@ -42,11 +42,9 @@ BACKUPFILE="./${target}-${atfdevice}-rootfs.tar"
 case ${target} in
   bpir64)
     KERNELDTB="mt7622-bananapi-bpi-r64"
-    KERNELBOOTARGS="console=ttyS0,115200 rw rootwait audit=0"
     ;;
   bpir3)
     KERNELDTB="mt7986a-bananapi-bpi-r3"
-    KERNELBOOTARGS="earlycon=uart8250,mmio32,0x11002000 console=ttyS0,115200 debug=7 rw rootwait audit=0"
     ;;
 esac
 } 
@@ -116,10 +114,12 @@ function formatimage {
     echo $root_end_kb
   fi
   for PART in `df -k | awk '{ print $1 }' | grep "${device}"` ; do $sudo umount $PART; done
-  $sudo parted -s "${device}" unit MiB print
-  echo -e "\nAre you sure you want to format "$device"???"
-  read -p "Type <format> to format: " prompt
-  [[ $prompt != "format" ]] && exit
+  if [ "$l" != true ]; then
+    $sudo parted -s "${device}" unit MiB print
+    echo -e "\nAre you sure you want to format "$device"???"
+    read -p "Type <format> to format: " prompt
+    [[ $prompt != "format" ]] && exit
+  fi
   $sudo wipefs --all --force "${device}"
   $sudo dd of="${device}" if=/dev/zero bs=64kiB count=$(($rootstart_kb/64)) status=progress conv=notrunc,fsync
   $sudo sync
@@ -266,7 +266,7 @@ function restorerootfs {
 
 function installscript {
   if [ ! -f "/etc/arch-release" ]; then ### Ubuntu / Debian
-    $sudo apt-get install --yes         $SCRIPT_PACKAGES $SCRIPT_PACKAGES_DEBIAN
+    $sudo apt-get install --yes            $SCRIPT_PACKAGES $SCRIPT_PACKAGES_DEBIAN
   else
     $sudo pacman -Syu --needed --noconfirm $SCRIPT_PACKAGES $SCRIPT_PACKAGES_ARCHLX
   fi
@@ -306,11 +306,15 @@ export LC_ALL=C
 export LANG=C
 export LANGUAGE=C 
 
+cd "$(dirname -- "$(realpath -- "${BASH_SOURCE[0]}")")"
 [ $USER = "root" ] && sudo="" || sudo="sudo"
 [[ $# == 0 ]] && args="-c" || args=$@
-[[ "$args" == "-l" ]] && args="-cl"              
-cd "$(dirname -- "$(realpath -- "${BASH_SOURCE[0]}")")"
+[[ "$args" == "-l" ]] && args="-cl"
 while getopts ":ralcbRAFBX" opt $args; do declare "${opt}=true" ; done
+if [ "$l" = true ] && [ ! -f $IMAGE_FILE ]; then
+  f=true
+fi
+[ "$F" = true ] && r=true
 trap finish EXIT
 trap ctrl_c INT
 shopt -s extglob
@@ -334,23 +338,26 @@ echo "Host Arch:" $hostarch
 
 rootdev=$(lsblk -pilno name,type,mountpoint | grep -G 'part /$')
 rootdev=${rootdev%% *}
-echo "ROOTDEV: $rootdev"
+echo "rootdev=$rootdev , do not use."
+[ -z $rootdev ] && exit
 
 pkroot=$(lsblk -rno pkname $rootdev);
-echo "pkroot=$pkroot"
+echo "pkroot=$pkroot , do not use."
 [ -z $pkroot ] && exit
 
-if [ "$l" = true ]; then
-  if [ ! -f $IMAGE_FILE ]; then
-    echo -e "\nCreating image file..."
-    dd if=/dev/zero of=$IMAGE_FILE bs=1M count=$IMAGE_SIZE_MB status=progress conv=notrunc,fsync
-  fi            
-  loopdev=$($sudo losetup --show --find  $IMAGE_FILE)
-  echo "Loop device = $loopdev"
+if [ "$r" = true ]; then
+  echo -e "\nCreate root filesystem\n"
+  PS3="Choose setup to create root for: "
+  select setup in "RT  Router setup" "AP  Access Point setup" "Quit" ; do
+    if (( REPLY > 0 && REPLY <= 2 )) ; then break; else exit; fi
+  done
+  setup=${setup%% *}
+  echo "Setup="${setup}
+  read -p "Enter ip address for local network: " brlanip
+  echo "IP="$brlanip
 fi
 
 if [ "$F" = true ]; then
-  r=true # Setup rootfs after formatting
   PS3="Choose target to format image for: "
   select target in "bpir3  Bananapi-R3" "bpir64 Bananapi-R64" "Quit" ; do
     if (( REPLY > 0 && REPLY <= 2 )) ; then break; else exit; fi
@@ -362,6 +369,12 @@ if [ "$F" = true ]; then
   done
   atfdevice=${atfdevice%% *}
   if [ "$l" = true ]; then
+    if [ ! -f $IMAGE_FILE ]; then
+      echo -e "\nCreating image file..."
+      dd if=/dev/zero of=$IMAGE_FILE bs=1M count=$IMAGE_SIZE_MB status=progress conv=notrunc,fsync
+    fi
+    loopdev=$($sudo losetup --show --find  $IMAGE_FILE)
+    echo "Loop device = $loopdev"
     device=$loopdev
   else
     readarray -t options < <(lsblk -dprno name,serial,size \
@@ -374,6 +387,8 @@ if [ "$F" = true ]; then
   fi
 else
   if [ "$l" = true ]; then
+    loopdev=$($sudo losetup --show --find  $IMAGE_FILE)
+    echo "Loop device = $loopdev"
     $sudo partprobe $loopdev
     udevadm settle
     device=$loopdev
@@ -414,18 +429,6 @@ echo "Mountdev=$mountdev"
 if [ "$rootdev" == "$(realpath $mountdev)" ]; then
   echo "Target device == Root device, exiting!"
   exit
-fi
-
-if [ "$r" = true ]; then
-  echo -e "\nCreate root filesystem\n"
-  PS3="Choose setup to create root for: "
-  select setup in "RT  Router setup" "AP  Access Point setup" "Quit" ; do
-    if (( REPLY > 0 && REPLY <= 2 )) ; then break; else exit; fi
-  done
-  setup=${setup%% *}
-  echo "Setup="${setup}
-  read -p "Enter ip address for local network: " brlanip
-  echo "IP="$brlanip
 fi
 
 rootfsdir="/tmp/bpirootfs.$$"
