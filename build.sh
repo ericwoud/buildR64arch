@@ -201,7 +201,7 @@ function rootfs {
                -s /bin/bash $USERNAME
   echo $USERNAME:$USERPWD | $schroot chpasswd
   echo      root:$ROOTPWD | $schroot chpasswd
-  echo "${target}" | $sudo tee $rootfsdir/hostname
+  echo "${target}" | $sudo tee $rootfsdir/etc/hostname
   echo "%wheel ALL=(ALL) ALL" | $sudo tee $rootfsdir/etc/sudoers.d/wheel
   $schroot ln -sf /usr/share/zoneinfo/${TIMEZONE} /etc/localtime
   $sudo sed -i 's/.*PermitRootLogin.*/PermitRootLogin yes/' $rootfsdir/etc/ssh/sshd_config
