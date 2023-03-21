@@ -24,7 +24,7 @@ IMAGE_FILE="./bpir.img"
 
 ROOTFS_LABEL="BPI-ROOT"
 
-NEEDED_PACKAGES="base hostapd openssh wireless-regdb iproute2 nftables f2fs-tools dtc mkinitcpio patch sudo evtest"
+NEEDED_PACKAGES="base hostapd openssh wireless-regdb iproute2 nftables f2fs-tools dtc mkinitcpio patch sudo evtest parted"
 EXTRA_PACKAGES="vim nano screen"
 PREBUILT_PACKAGES="bpir64-atf-git linux-bpir64-git yay mmc-utils-git"
 SCRIPT_PACKAGES="wget ca-certificates udisks2 parted gzip bc f2fs-tools"
