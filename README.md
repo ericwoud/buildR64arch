@@ -145,15 +145,7 @@ One would expect the traffic goes a sort of ping pong slow software path: wan --
 ```
 ifstat -wi eth0,eth1
 ```
-If you don't like this trick, then:
-
-* Move 'DHCP=yes', under 'Network', from 10-eth1.network to 10-wan.network.
-* Remove 'aux' from 10-wan.network file.
-* Remove 'Bridge=brlan' from 10-wan.network file.
-* Remove whole 'BridgeVLAN' section from 10-wan.network file.
-* Remove 10-eth1.network file
-* Adjust nftables.conf as described in the file.
-
+If you don't like this trick, then chose setup RTnoAUX.
 
 ## Setup as Access Point
 

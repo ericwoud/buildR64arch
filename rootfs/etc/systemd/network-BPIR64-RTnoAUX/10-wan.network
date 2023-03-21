@@ -1,0 +1,14 @@
+[Match]
+Name=wan
+
+[Link]
+RequiredForOnline=no
+
+[Network]
+BindCarrier=eth0
+DHCP=yes
+# Enable DHCP or use the lines below
+#Address=192.168.1.33/24
+#Gateway=192.168.1.1
+#DNS=8.8.8.8
+

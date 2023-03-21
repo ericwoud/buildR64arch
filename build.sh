@@ -42,9 +42,15 @@ BACKUPFILE="./${target}-${atfdevice}-rootfs.tar"
 case ${target} in
   bpir64)
     KERNELDTB="mt7622-bananapi-bpi-r64"
+    SETUPBPIR=("RT       Router setup"
+               "RTnoAUX  Router setup, not using aux port (dsa port 5)"
+               "AP       Access Point setup")
     ;;
   bpir3)
     KERNELDTB="mt7986a-bananapi-bpi-r3"
+    SETUPBPIR=("RT       Router setup"
+               "RTnoSFP  Router setup, not using SFP module"
+               "AP       Access Point setup")
     ;;
 esac
 } 
@@ -94,7 +100,7 @@ function reinsert {
   newdev=$(ls $driver/$bindpart/block | head -1)
   echo "New Block Device: "$newdev
   until lsblk /dev/$newdev >/dev/null 2>/dev/null; do sleep 0.1; done
-  $sudo partprobe "/dev/"$newdev
+  $sudo partprobe "/dev/"$newdev; udevadm settle
   sync
 }
 
@@ -123,7 +129,7 @@ function formatimage {
   $sudo wipefs --all --force "${device}"
   $sudo dd of="${device}" if=/dev/zero bs=64kiB count=$(($rootstart_kb/64)) status=progress conv=notrunc,fsync
   $sudo sync
-  $sudo partprobe "${device}"
+  $sudo partprobe "${device}"; udevadm settle
   $sudo parted -s -- "${device}" mklabel gpt
   [[ $? != 0 ]] && exit
   $sudo parted -s -- "${device}" unit kiB \
@@ -135,7 +141,7 @@ function formatimage {
     name 2 ${target}-${atfdevice}-fip \
     name 3 ${target}-${atfdevice}-root \
     print
-  $sudo partprobe "${device}"
+  $sudo partprobe "${device}"; udevadm settle
   mountdev=$(lsblk -prno partlabel,name $device | grep -P '^bpir' | grep -- -root)
   mountdev=$(echo $mountdev | cut -d' ' -f2)
   waitdev "${mountdev}"
@@ -170,7 +176,7 @@ function selectdir {
 
 function rootfs {
   $sudo mkdir -p $rootfsdir/boot/bootcfg
-  $sudo cp -rfv ./rootfs/boot $rootfsdir
+  $sudo cp -rfvL ./rootfs/boot $rootfsdir
   selectdir $rootfsdir/boot/dtbos ${target^^}
   echo /boot/Image |                                  $sudo tee $rootfsdir/boot/bootcfg/linux
   echo /boot/initramfs-linux-bpir64-git.img |         $sudo tee $rootfsdir/boot/bootcfg/initrd
@@ -195,12 +201,13 @@ function rootfs {
                -s /bin/bash $USERNAME
   echo $USERNAME:$USERPWD | $schroot chpasswd
   echo      root:$ROOTPWD | $schroot chpasswd
+  echo "${target}" | $sudo tee $rootfsdir/hostname
   echo "%wheel ALL=(ALL) ALL" | $sudo tee $rootfsdir/etc/sudoers.d/wheel
   $schroot ln -sf /usr/share/zoneinfo/${TIMEZONE} /etc/localtime
   $sudo sed -i 's/.*PermitRootLogin.*/PermitRootLogin yes/' $rootfsdir/etc/ssh/sshd_config
   $sudo sed -i 's/.*UsePAM.*/UsePAM no/' $rootfsdir/etc/ssh/sshd_config
   $sudo sed -i 's/.*#IgnorePkg.*/IgnorePkg = bpir64-atf-git/' $rootfsdir/etc/pacman.conf
-  for d in $(ls ./rootfs/ | grep -vx boot); do $sudo cp -rfv ./rootfs/$d $rootfsdir; done
+  for d in $(ls ./rootfs/ | grep -vx boot); do $sudo cp -rfvL ./rootfs/$d $rootfsdir; done
   $sudo sed -i "s/\bdummy\b/PARTLABEL=${target}-${atfdevice}-root/g" $rootfsdir/etc/fstab
   selectdir $rootfsdir/etc/systemd/network ${target^^}-${setup}
   selectdir $rootfsdir/etc/hostapd ${target^^}
@@ -312,7 +319,7 @@ cd "$(dirname -- "$(realpath -- "${BASH_SOURCE[0]}")")"
 [[ "$args" == "-l" ]] && args="-cl"
 while getopts ":ralcbRAFBX" opt $args; do declare "${opt}=true" ; done
 if [ "$l" = true ] && [ ! -f $IMAGE_FILE ]; then
-  f=true
+  F=true
 fi
 [ "$F" = true ] && r=true
 trap finish EXIT
@@ -345,60 +352,44 @@ pkroot=$(lsblk -rno pkname $rootdev);
 echo "pkroot=$pkroot , do not use."
 [ -z $pkroot ] && exit
 
-if [ "$r" = true ]; then
-  echo -e "\nCreate root filesystem\n"
-  PS3="Choose setup to create root for: "
-  select setup in "RT  Router setup" "AP  Access Point setup" "Quit" ; do
-    if (( REPLY > 0 && REPLY <= 2 )) ; then break; else exit; fi
-  done
-  setup=${setup%% *}
-  echo "Setup="${setup}
-  read -p "Enter ip address for local network: " brlanip
-  echo "IP="$brlanip
-fi
-
 if [ "$F" = true ]; then
-  PS3="Choose target to format image for: "
+  PS3="Choose target to format image for: "; COLUMNS=1
   select target in "bpir3  Bananapi-R3" "bpir64 Bananapi-R64" "Quit" ; do
     if (( REPLY > 0 && REPLY <= 2 )) ; then break; else exit; fi
   done
   target=${target%% *}
-  PS3="Choose atfdevice to format image for: "
+  PS3="Choose atfdevice to format image for: "; COLUMNS=1
   select atfdevice in "sdmmc SD Card" "emmc  EMMC onboard" "Quit" ; do
     if (( REPLY > 0 && REPLY <= 2 )) ; then break; else exit; fi
   done
   atfdevice=${atfdevice%% *}
   if [ "$l" = true ]; then
-    if [ ! -f $IMAGE_FILE ]; then
-      echo -e "\nCreating image file..."
-      dd if=/dev/zero of=$IMAGE_FILE bs=1M count=$IMAGE_SIZE_MB status=progress conv=notrunc,fsync
-    fi
-    loopdev=$($sudo losetup --show --find  $IMAGE_FILE)
+    [ ! -f $IMAGE_FILE ] && touch $IMAGE_FILE
+    loopdev=$($sudo losetup --show --find $IMAGE_FILE)
     echo "Loop device = $loopdev"
     device=$loopdev
   else
-    readarray -t options < <(lsblk -dprno name,serial,size \
+    readarray -t options < <(lsblk -dprno name,size \
              | grep -v "^/dev/"${pkroot} | grep -v 'boot0 \|boot1 \|boot2 ')
-    PS3="Choose device to format: "
+    PS3="Choose device to format: "; COLUMNS=1
     select device in "${options[@]}" "Quit" ; do
-      if (( REPLY > 0 && REPLY <= 2 )) ; then break; else exit; fi
+      if (( REPLY > 0 && REPLY <= ${#options[@]} )) ; then break; else exit; fi
     done
     device=${device%% *}
   fi
 else
   if [ "$l" = true ]; then
-    loopdev=$($sudo losetup --show --find  $IMAGE_FILE)
+    loopdev=$($sudo losetup --show --find $IMAGE_FILE)
     echo "Loop device = $loopdev"
-    $sudo partprobe $loopdev
-    udevadm settle
+    $sudo partprobe $loopdev; udevadm settle
     device=$loopdev
   else
     readarray -t options < <(lsblk -prno partlabel,pkname | grep -P '^bpir' | grep -- -root \
                                  | grep -v ${pkroot} | grep -v 'boot0$\|boot1$\|boot2$')
     if [ ${#options[@]} -gt 1 ]; then
-      PS3="Choose device to work on: "
+      PS3="Choose device to work on: "; COLUMNS=1
       select choice in "${options[@]}" "Quit" ; do
-        if (( REPLY > 0 && REPLY <= 2 )) ; then break; else exit; fi
+        if (( REPLY > 0 && REPLY <= ${#options[@]} )) ; then break; else exit; fi
       done
     else
       choice=${options[0]}
@@ -414,6 +405,24 @@ echo "Device=${device}, Target=${target}, ATF-device="${atfdevice}
 [ -z "${target}" ] && exit
 [ -z "${atfdevice}" ] && exit
 setupenv # Now that target and atfdevice are known.
+
+if [ "$r" = true ]; then
+  echo -e "\nCreate root filesystem\n"
+  PS3="Choose setup to create root for: "; COLUMNS=1
+  select setup in "${SETUPBPIR[@]}" "Quit" ; do
+    if (( REPLY > 0 && REPLY <= ${#SETUPBPIR[@]} )) ; then break; else exit; fi
+  done
+  setup=${setup%% *}
+  echo "Setup="${setup}
+  read -p "Enter ip address for local network: " brlanip
+  echo "IP="$brlanip
+fi
+
+if [ $(stat --printf="%s" $IMAGE_FILE) -eq 0 ]; then
+  echo -e "\nCreating image file..."
+  dd if=/dev/zero of=$IMAGE_FILE bs=1M count=$IMAGE_SIZE_MB status=progress conv=notrunc,fsync
+  $sudo losetup --set-capacity $device
+fi
 
 $sudo mkdir -p "/run/udev/rules.d"
 noautomountrule="/run/udev/rules.d/10-no-automount-bpir.rules"
