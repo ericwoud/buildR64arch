@@ -77,7 +77,7 @@ IPforward is on, the system is setup as router.
 After this, you are on your own. It is supposed to be a minimal installation of Arch Linux.
 
 
-## R64 Build/Install emmc version
+## R64 Build/Install emmc version using script again
 
 When building on R64 (running on sd-card) start/re-enter a screen session with:
 ```
@@ -95,26 +95,21 @@ Make sure your internet connection is working on the R64. Ping 8.8.8.8 should wo
 
 Now build the whole image, same as before.
 
-## R3 Build/Install emmc version
+## R64/R3 Build/Install emmc version using image
 
-Create an SD card for the R3.
+Create an SD card for the R64/R3.
 ```
 ./build.sh -F
 ```
-Create an EMMC image for the R3 and have it compressed.
+Create an EMMC image for the R64/R3 and have it compressed.
 ```
 ./build.sh -lFX
 ```
 Then copy the bpir.img.xz to the SD card /tmp/ folder. It is accessable without root.
 
-Boot the R3 with the SD card with UART connected. When kernel starts keep 'x' key pressed. Clear the commandline with enter. Execute:
-```
-bpir3-flash2emmc /tmp/bpir.img.zx
-```
-When finised, you can reboot. Only the switch most near to powerplug (D) should be down, the rest up.
+Boot the R64/R3 with the SD card with UART connected. When kernel starts keep 'shift E' keys pressed. When finised, you can reboot. 
 
-Still in development, but should work. Writing is still slow, will take a half hour.
-
+Note for R3: Only the switch most near to powerplug (D) should be down, the rest up. Still in development, but should work. Writing at HS200 speed, could be faster.
 
 ## Using pre-build images for a quick try-out
 

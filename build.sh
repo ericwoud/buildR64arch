@@ -100,6 +100,7 @@ function reinsert {
   echo -n $bindpart >/dev/null | $sudo tee $driver/bind
   echo
   sync
+  exit # device name may have changed!
 }
 
 function formatimage {
