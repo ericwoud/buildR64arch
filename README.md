@@ -5,20 +5,21 @@ Install a minimal Arch-Linux on Banana Pi R64 or R3 from scratch.
 Old: Downloadable image for quick test located [HERE](https://github.com/ericwoud/buildR64arch/releases/download/v1.2/bpir64-sdmmc.img.xz)
 
 Based on: [buildR64ubuntu](https://github.com/ericwoud/buildR64ubuntu.git)
-, [frank-w's atf](https://github.com/frank-w/BPI-R64-ATF)
-and [frank-w's kernel](https://github.com/frank-w/BPI-R2-4.14/tree/5.12-main)
+, [openwrt atf](https://github.com/mtk-openwrt/arm-trusted-firmware)
+and [frank-w's kernel](https://github.com/frank-w/BPI-Router-Linux)
 
 R64 Notes:
 Now includes a patch so that temperature is regulated at 87 instead of 47 degrees!
 Delete the file rootfs/boot/dtbos/cpu-thermal.dts before building, if you do not want to.
 
 R3 Notes:
-Still in alfa development stage
+Still in development stage, basics work, need more testing.
 
 The script can be run from Arch Linux and Debian/Ubuntu.
 
 The script only formats the SD card and installs packages and configures them. Nothing needs to be build.
 Everything that is build, is installed with prebuild packages. These packages can be updated through the AUR.
+It is also possible to build/alter a package yourself, like any other Archlinux AUR package.
 
 The script is in development and uses sudo. Any bug may possibly delete everything permanently!
 
@@ -31,9 +32,6 @@ You need:
   - Banana Pi R64 or R3
   - SD card
 
-### Prerequisites
-
-Take a look with the script at the original formatting of the SD card. We use this info to determine it's page/erase size.
 
 ### Installing
 
@@ -54,11 +52,16 @@ Install all necessary packages with:
 ```
 ./build.sh -a
 ```
-Check your SD card with the following command, write down where the original first partition starts! The script will first show you this info before formatting anything. Set `SD_BLOCK_SIZE_KB` and `SD_ERASE_SIZE_MB` in the script as described there. Don't format a brand new SD card before you find the original erase/block size. It is the best way to determine this.
+Set `SD_ERASE_SIZE_MB` in the script if using a cardreader with naming /dev/sdX. Only from a cardreader with naming /dev/mmcblkX
+it is possible to read the erase size. Using this kind of reader the script will automatically read the erase size. 
+4MB is ok for most cards if you do not know the erase size. Later you can read it when the sd-card is inserted in a running bpir64/3.
+
+Now format your SD card with:
+
 ```
 ./build.sh -F
 ```
-Now format your SD card with the same command. After formatting the rootfs gets build.
+After formatting the rootfs gets build.
 
 Optionally enter chroot environment on the SD card:
 
@@ -72,7 +75,11 @@ Insert the SD card,, powerup, connect to the R64/R3 wireless, SSID: WIFI24, pass
 ```
 ssh root@192.168.5.1
 ```
-IPforward is on, the system is setup as router.
+For standard router setup. IPforward is on.
+```
+ssh root@192.168.5.1
+```
+For standard access point setup.
 
 After this, you are on your own. It is supposed to be a minimal installation of Arch Linux.
 
@@ -109,6 +116,8 @@ Then copy the bpir.img.xz to the SD card /tmp/ folder. It is accessable without 
 
 Boot the R64/R3 with the SD card with UART connected. When kernel starts keep 'shift E' keys pressed. When finised, you can reboot. 
 
+You can keep 'x' pressed instead if you want to enter a busybox ash.
+
 Note for R3: Only the switch most near to powerplug (D) should be down, the rest up. Still in development, but should work. Writing at HS200 speed, could be faster.
 
 ## Using pre-build images for a quick try-out
@@ -120,10 +129,10 @@ Write the image file for sd-card to the appropriate device, MAKE SURE YOU HAVE T
 xz -dcv ~/Downloads/bpir64-sdmmc.img.xz | sudo dd of=/dev/sda
 ```
 
-## Changing kernel commandline options or devicetree patches
+## Changing kernel commandline options or devicetree overlays
 
-When changing the kernel commandline options in `/boot/bootcfg/cmdline` or changing/adding/removing patches in `/boot/dtb-patch`
-you should run the folling command on the bpir64 to write the changes so that they will be activated on the next boot:
+When changing the kernel commandline options in `/boot/bootcfg/cmdline` or changing/adding/removing devicetree overlays in `/boot/dtbos`
+you should run the folling command on the bpir64/3 to write the changes so that they will be activated on the next boot:
 ```
 bpir-writefip
 ```
@@ -146,7 +155,7 @@ If you don't like this trick, then chose setup RTnoAUX.
 
 When using a second or third R64/R3 as Access Point, and connecting router-lan-port to AP-lan-port, do the following:
 
-Choose Setup "AP" in stead od "RT".
+Choose Setup "AP" in stead of "RT".
 
 The Access Point has network address 192.168.1.33.
 
