@@ -45,12 +45,14 @@ case ${target} in
     SETUPBPIR=("RT       Router setup"
                "RTnoAUX  Router setup, not using aux port (dsa port 5)"
                "AP       Access Point setup")
+    WIFIMODULE="mt7615e"
     ;;
   bpir3)
     KERNELDTB="mt7986a-bananapi-bpi-r3"
     SETUPBPIR=("RT       Router setup (NOT AVAILABLE YET!!!)"
                "RTnoSFP  Router setup, not using SFP module"
                "AP       Access Point setup")
+    WIFIMODULE="mt7915e"
     ;;
 esac
 } 
@@ -169,8 +171,9 @@ function selectdir {
   $sudo rm -rf $1
   $sudo mkdir -p $1
   [ -d $1-$2                ] && $sudo mv -vf $1-$2/*                $1
+  [ -d $1-$2                ] && echo JAAAAAAAAAAAAAAAAAAAAA
   [ -d $1-$2-${atfdevice^^} ] && $sudo mv -vf $1-$2-${atfdevice^^}/* $1
-  $sudo rm -rf $1-*
+  $sudo rm -vrf $1-*
 }
 
 function rootfs {
@@ -214,16 +217,23 @@ function rootfs {
     $sudo sed -i 's/Address=.*/Address='$brlanip'\/24/' \
                     $rootfsdir/etc/systemd/network/10-brlan.network
   fi
+  $sudo mkdir -p $rootfsdir/etc/modules-load.d
+  echo -e "# Load ${WIFIMODULE}.ko at boot\n${WIFIMODULE}" | \
+           $sudo tee $rootfsdir/etc/modules-load.d/${WIFIMODULE}.conf
   $sudo systemctl --root=$rootfsdir reenable systemd-timesyncd.service
   $sudo systemctl --root=$rootfsdir reenable sshd.service
   $sudo systemctl --root=$rootfsdir reenable systemd-resolved.service
-  $sudo systemctl --root=$rootfsdir reenable hostapd.service
   if [ ${setup} == "RT" ]; then $sudo systemctl --root=$rootfsdir reenable nftables.service
-  else                        $sudo systemctl --root=$rootfsdir disable nftables.service
+  else                          $sudo systemctl --root=$rootfsdir  disable nftables.service
   fi
   $sudo systemctl --root=$rootfsdir reenable systemd-networkd.service
+  find -L "$rootfsdir/etc/hostapd" -name "*.conf"| while read conf ; do
+    echo $conf !!!!!
+    conf=$(basename $conf)
+    $sudo systemctl --root=$rootfsdir reenable hostapd@${conf/".conf"/""}.service
+  done
   find -L "rootfs/etc/systemd/system" -name "*.service"| while read service ; do
-    $sudo systemctl --root=$rootfsdir reenable  $(basename $service)
+    $sudo systemctl --root=$rootfsdir reenable $(basename $service)
   done
   if [ ! -f "$rootfsdir/etc/mac.eth0.txt" ] || [ ! -f "$rootfsdir/etc/mac.eth1.txt" ]; then
     nr=16 # Make sure there are 16 available mac addresses: nr=16/32/64
@@ -415,7 +425,7 @@ if [ "$r" = true ]; then
   done
   setup=${setup%% *}
   echo "Setup="${setup}
-  read -p "Enter ip address for local network: " brlanip
+  read -p "Enter ip address for local network (emtpy for default): " brlanip
   echo "IP="$brlanip
 fi
 

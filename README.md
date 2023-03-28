@@ -166,7 +166,7 @@ Command line options:
 
 * -a   : Install necessairy packages.
 * -A   : Remove necessairy packages.
-* -F   : Format SD card or image, then setup rootfs
+* -F   : Format SD card or image, then setup rootfs (adds -r)
 * -l   : Add this option to use an image-file instead of an SD card
 * -r   : Build RootFS.
 * -c   : Execute chroot
