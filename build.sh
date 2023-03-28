@@ -171,7 +171,6 @@ function selectdir {
   $sudo rm -rf $1
   $sudo mkdir -p $1
   [ -d $1-$2                ] && $sudo mv -vf $1-$2/*                $1
-  [ -d $1-$2                ] && echo JAAAAAAAAAAAAAAAAAAAAA
   [ -d $1-$2-${atfdevice^^} ] && $sudo mv -vf $1-$2-${atfdevice^^}/* $1
   $sudo rm -vrf $1-*
 }
@@ -185,6 +184,7 @@ function rootfs {
   echo ${KERNELDTB} |                                 $sudo tee $rootfsdir/boot/bootcfg/dtb
   echo $KERNELBOOTARGS |                              $sudo tee $rootfsdir/boot/bootcfg/cmdline
   echo ${atfdevice} |                                 $sudo tee $rootfsdir/boot/bootcfg/device
+  $sudo cp -vf /etc/resolv.conf $rootfsdir/etc/resolv.conf
   echo "--- Following packages are installed:"
   $schroot pacman -Qe
   echo "--- End of package list"
@@ -228,12 +228,11 @@ function rootfs {
   fi
   $sudo systemctl --root=$rootfsdir reenable systemd-networkd.service
   find -L "$rootfsdir/etc/hostapd" -name "*.conf"| while read conf ; do
-    echo $conf !!!!!
     conf=$(basename $conf)
-    $sudo systemctl --root=$rootfsdir reenable hostapd@${conf/".conf"/""}.service
+    $sudo systemctl --root=$rootfsdir --force enable hostapd@${conf/".conf"/""}.service
   done
   find -L "rootfs/etc/systemd/system" -name "*.service"| while read service ; do
-    $sudo systemctl --root=$rootfsdir reenable $(basename $service)
+    $sudo systemctl --root=$rootfsdir --force enable $(basename $service)
   done
   if [ ! -f "$rootfsdir/etc/mac.eth0.txt" ] || [ ! -f "$rootfsdir/etc/mac.eth1.txt" ]; then
     nr=16 # Make sure there are 16 available mac addresses: nr=16/32/64
