@@ -220,19 +220,23 @@ function rootfs {
   $sudo mkdir -p $rootfsdir/etc/modules-load.d
   echo -e "# Load ${WIFIMODULE}.ko at boot\n${WIFIMODULE}" | \
            $sudo tee $rootfsdir/etc/modules-load.d/${WIFIMODULE}.conf
-  $sudo systemctl --root=$rootfsdir reenable systemd-timesyncd.service
-  $sudo systemctl --root=$rootfsdir reenable sshd.service
-  $sudo systemctl --root=$rootfsdir reenable systemd-resolved.service
-  if [ ${setup} == "RT" ]; then $sudo systemctl --root=$rootfsdir reenable nftables.service
-  else                          $sudo systemctl --root=$rootfsdir  disable nftables.service
+  $sudo systemctl --root=$rootfsdir --force --no-pager reenable systemd-timesyncd.service
+  $sudo systemctl --root=$rootfsdir --force --no-pager reenable sshd.service
+  $sudo systemctl --root=$rootfsdir --force --no-pager reenable systemd-resolved.service
+  if [ ${setup} == "RT" ]; then
+    $sudo systemctl --root=$rootfsdir --force --no-pager reenable nftables.service
+  else
+    $sudo systemctl --root=$rootfsdir --force --no-pager  disable nftables.service
   fi
   $sudo systemctl --root=$rootfsdir reenable systemd-networkd.service
   find -L "$rootfsdir/etc/hostapd" -name "*.conf"| while read conf ; do
-    conf=$(basename $conf)
-    $sudo systemctl --root=$rootfsdir --force enable hostapd@${conf/".conf"/""}.service
+    conf=$(basename $conf); conf=${conf/".conf"/""}
+    $sudo systemctl --root=$rootfsdir --force --no-pager disable hostapd@${conf}.service
+    $sudo systemctl --root=$rootfsdir --force --no-pager  enable hostapd@${conf}.service
   done
   find -L "rootfs/etc/systemd/system" -name "*.service"| while read service ; do
-    $sudo systemctl --root=$rootfsdir --force enable $(basename $service)
+    service=$(basename $service); [[ "$service" =~ "@" ]] && continue
+    $sudo systemctl --root=$rootfsdir --force --no-pager reenable $service
   done
   if [ ! -f "$rootfsdir/etc/mac.eth0.txt" ] || [ ! -f "$rootfsdir/etc/mac.eth1.txt" ]; then
     nr=16 # Make sure there are 16 available mac addresses: nr=16/32/64
