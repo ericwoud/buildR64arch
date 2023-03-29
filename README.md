@@ -77,7 +77,7 @@ ssh root@192.168.5.1
 ```
 For standard router setup. IPforward is on.
 ```
-ssh root@192.168.5.1
+ssh root@192.168.1.33
 ```
 For standard access point setup.
 
@@ -96,11 +96,9 @@ When running on the R64, clone the script and run:
 ```
 ./build.sh -F
 ```
-Choose `sdmmc` in the script instead of `emmc`. Now format the emmc and let it setup rootfs.
-
 Make sure your internet connection is working on the R64. Ping 8.8.8.8 should work.
 
-Now build the whole image, same as before.
+Choose `emmc` in the script instead of `sdmmc`. Now format the emmc and let it setup rootfs.
 
 ## R64/R3 Build/Install emmc version using image
 
@@ -118,11 +116,11 @@ Boot the R64/R3 with the SD card with UART connected. When kernel starts keep 's
 
 You can keep 'x' pressed instead if you want to enter a busybox ash.
 
-Note for R3: Only the switch most near to powerplug (D) should be down, the rest up. Still in development, but should work. Writing at HS200 speed, could be faster.
+Note for R3: To run on EMMC, only the switch most near to powerplug (D) should be down, the rest up. Still in development, but should work. Writing at HS200 speed, could be faster.
 
 ## Using pre-build images for a quick try-out
 
-On github you will find downloadable images at the release branches.
+On github you will find downloadable images at the release branches. R64 only for now, image can be quite old. Prefer to use the script.
 
 Write the image file for sd-card to the appropriate device, MAKE SURE YOU HAVE THE CORRECT DEVICE!
 ```
@@ -136,6 +134,7 @@ you should run the folling command on the bpir64/3 to write the changes so that 
 ```
 bpir-writefip
 ```
+If something goes wrong and you cannot boot, insert the card in your laptop/computer and use the chroot option to undo the changes. Then use the `bpir-writefip` command again. On EMMC (specially on the R3) it will be much more complicated.
 
 ## R64: Using port 5 of the dsa switch
 
