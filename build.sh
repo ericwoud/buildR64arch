@@ -10,26 +10,23 @@ REPOKEY="DD73724DCA27796790D33E98798137154FE1474C"
 REPOURL='ftp://ftp.woudstra.mywire.org/repo/$arch'
 BACKUPREPOURL='https://github.com/ericwoud/buildRKarch/releases/download/repo-$arch'
 
-KERNELBOOTARGS="console=ttyS0,115200 debug=7 rw rootwait audit=0"
-
 # Standard erase size, when it cannot be determined (using /dev/sdX cardreader or loopdev)
-SD_ERASE_SIZE_MB=4                   # in Mega bytes
+SD_ERASE_SIZE_MB=4             # in Mega bytes
 
-ATF_END_KB=1024                   # End of atf partition
-MINIMAL_SIZE_FIP_MB=62             # Minimal size of fip partition
-ROOT_END_MB=100%                     # Size of root partition
-#ROOT_END_MB=$(( 4*1024  ))        # Size 4GiB
-IMAGE_SIZE_MB=7456                # Size of image
-IMAGE_FILE="./bpir.img"
+ATF_END_KB=1024                # End of atf partition
+MINIMAL_SIZE_FIP_MB=62         # Minimal size of fip partition
+ROOT_END_MB=100%               # Size of root partition
+#ROOT_END_MB=$(( 4*1024  ))    # Size 4GiB
+IMAGE_SIZE_MB=7456             # Size of image
+IMAGE_FILE="./bpir.img"        # Name of image
 
-ROOTFS_LABEL="BPI-ROOT"
-
-NEEDED_PACKAGES="base hostapd openssh wireless-regdb iproute2 nftables f2fs-tools dtc mkinitcpio patch sudo evtest parted"
+NEEDED_PACKAGES="base hostapd openssh wireless-regdb iproute2 nftables f2fs-tools dosfstools"
+NEEDED_PACKAGES+=' '"dtc mkinitcpio patch sudo evtest parted"
 EXTRA_PACKAGES="vim nano screen"
 PREBUILT_PACKAGES="bpir64-atf-git linux-bpir64-git yay mmc-utils-git"
-SCRIPT_PACKAGES="wget ca-certificates udisks2 parted gzip bc f2fs-tools"
+SCRIPT_PACKAGES="wget ca-certificates udisks2 parted gzip bc f2fs-tools dosfstools"
 SCRIPT_PACKAGES_ARCHLX="base-devel      uboot-tools  ncurses        openssl"
-SCRIPT_PACKAGES_DEBIAN="build-essential u-boot-tools libncurses-dev libssl-dev flex bison "
+SCRIPT_PACKAGES_DEBIAN="build-essential u-boot-tools libncurses-dev libssl-dev flex bison"
 
 TIMEZONE="Europe/Paris"              # Timezone
 USERNAME="user"
@@ -41,14 +38,12 @@ function setupenv {
 BACKUPFILE="./${target}-${atfdevice}-rootfs.tar"
 case ${target} in
   bpir64)
-    KERNELDTB="mt7622-bananapi-bpi-r64"
     SETUPBPIR=("RT       Router setup"
                "RTnoAUX  Router setup, not using aux port (dsa port 5)"
                "AP       Access Point setup")
     WIFIMODULE="mt7615e"
     ;;
   bpir3)
-    KERNELDTB="mt7986a-bananapi-bpi-r3"
     SETUPBPIR=("RT       Router setup (NOT AVAILABLE YET!!!)"
                "RTnoSFP  Router setup, not using SFP module"
                "AP       Access Point setup")
@@ -149,7 +144,7 @@ function formatimage {
   $sudo blkdiscard -fv "${mountdev}"
   waitdev "${mountdev}"
   nrseg=$(( $esize_mb / 2 )); [[ $nrseg -lt 1 ]] && nrseg=1
-  $sudo mkfs.f2fs -s $nrseg -t 0 -f -l $ROOTFS_LABEL ${mountdev}
+  $sudo mkfs.f2fs -s $nrseg -t 0 -f -l "${target^^}-ROOT" ${mountdev}
   $sudo sync
   if [ -b ${device}"boot0" ] && [[ "$compatible" == *"bananapi"*"mediatek,mt7"* ]]; then
     $sudo mmc bootpart enable 7 1 ${device}
@@ -175,16 +170,28 @@ function selectdir {
   $sudo rm -vrf $1-*
 }
 
+function setupMACconfig {
+  if [ ! -f "$rootfsdir/etc/mac.eth0.txt" ] || [ ! -f "$rootfsdir/etc/mac.eth1.txt" ]; then
+    nr=16 # Make sure there are 16 available mac addresses: nr=16/32/64
+    first=AA:BB:CC
+    mac5=$first:$(printf %02X $(($RANDOM%256))):$(  printf %02X $(($RANDOM%256)))
+    mac=$mac5:$(printf %02X $(($(($RANDOM%256))&-$nr)))
+    echo $mac $nr | $sudo tee $rootfsdir/etc/mac.eth0.txt
+    mac=$mac5
+    while [ "$mac" == "$mac5" ]; do # make sure second mac is different
+      mac=$first:$(printf %02X $(($RANDOM%256))):$(printf %02X $(($RANDOM%256)))
+    done
+    mac=$mac:$(printf %02X $(($RANDOM%256)) )
+    echo $mac | $sudo tee $rootfsdir/etc/mac.eth1.txt
+  else echo "Macs on eth0 and eth1 already configured."
+  fi
+}
+
 function rootfs {
-  $sudo mkdir -p $rootfsdir/boot/bootcfg
+  $sudo cp -vf /etc/resolv.conf $rootfsdir/etc/resolv.conf
+  $sudo mkdir -p $rootfsdir/boot
   $sudo cp -rfvL ./rootfs/boot $rootfsdir
   selectdir $rootfsdir/boot/dtbos ${target^^}
-  echo /boot/Image |                                  $sudo tee $rootfsdir/boot/bootcfg/linux
-  echo /boot/initramfs-linux-bpir64-git.img |         $sudo tee $rootfsdir/boot/bootcfg/initrd
-  echo ${KERNELDTB} |                                 $sudo tee $rootfsdir/boot/bootcfg/dtb
-  echo $KERNELBOOTARGS |                              $sudo tee $rootfsdir/boot/bootcfg/cmdline
-  echo ${atfdevice} |                                 $sudo tee $rootfsdir/boot/bootcfg/device
-  $sudo cp -vf /etc/resolv.conf $rootfsdir/etc/resolv.conf
   echo "--- Following packages are installed:"
   $schroot pacman -Qe
   echo "--- End of package list"
@@ -238,20 +245,7 @@ function rootfs {
     service=$(basename $service); [[ "$service" =~ "@" ]] && continue
     $sudo systemctl --root=$rootfsdir --force --no-pager reenable $service
   done
-  if [ ! -f "$rootfsdir/etc/mac.eth0.txt" ] || [ ! -f "$rootfsdir/etc/mac.eth1.txt" ]; then
-    nr=16 # Make sure there are 16 available mac addresses: nr=16/32/64
-    first=AA:BB:CC
-    mac5=$first:$(printf %02X $(($RANDOM%256))):$(  printf %02X $(($RANDOM%256)))
-    mac=$mac5:$(printf %02X $(($(($RANDOM%256))&-$nr)))
-    echo $mac $nr | $sudo tee $rootfsdir/etc/mac.eth0.txt
-    mac=$mac5
-    while [ "$mac" == "$mac5" ]; do # make sure second mac is different
-      mac=$first:$(printf %02X $(($RANDOM%256))):$(printf %02X $(($RANDOM%256)))
-    done
-    mac=$mac:$(printf %02X $(($RANDOM%256)) )
-    echo $mac | $sudo tee $rootfsdir/etc/mac.eth1.txt
-  else echo "Macs on eth0 and eth1 already configured."
-  fi
+  setupMACconfig
 }
 
 function chrootfs {
@@ -291,7 +285,7 @@ function installscript {
   fi
   # On all linux's
   if [ $hostarch == "x86_64" ]; then # Script running on x86_64 so install qemu
-    wget --no-verbose $QEMU          --no-clobber -P ./
+    wget --no-verbose $QEMU --no-clobber -P ./
     $sudo tar -xf $(basename $QEMU) -C /usr/local/bin
     S1=':qemu-aarch64:M::\x7fELF\x02\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\xb7'
     S2=':\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff:/usr/local/bin/qemu-aarch64-static:CF'
@@ -412,7 +406,7 @@ else
   target=$(echo $pr | cut -d'-' -f1)
   atfdevice=$(echo $pr | cut -d'-' -f2)
 fi
-echo "Device=${device}, Target=${target}, ATF-device="${atfdevice}
+echo -e "Device=${device}\nTarget=${target}\nATF-device="${atfdevice}
 [ -z "$device" ] && exit
 [ -z "${target}" ] && exit
 [ -z "${atfdevice}" ] && exit
@@ -445,8 +439,11 @@ echo 'KERNELS=="'${device/"/dev/"/""}'", ENV{UDISKS_IGNORE}="1"' | $sudo tee $no
 [ "$F" = true ] && formatimage
 
 mountdev=$(lsblk -prno partlabel,name $device | grep -P '^bpir' | grep -- -root)
+bootdev=$( lsblk -prno partlabel,name $device | grep -P '^bpir' | grep -- -boot)
 mountdev=$(echo $mountdev | cut -d' ' -f2)
-echo "Mountdev=$mountdev"
+bootdev=$( echo $bootdev  | cut -d' ' -f2)
+echo "Mountdev = $mountdev"
+echo "Bootdev  = $bootdev"
 [ -z "$mountdev" ] && exit
 
 if [ "$rootdev" == "$(realpath $mountdev)" ]; then
@@ -455,29 +452,37 @@ if [ "$rootdev" == "$(realpath $mountdev)" ]; then
 fi
 
 rootfsdir="/tmp/bpirootfs.$$"
-schroot="$sudo unshare --mount --mount-proc --fork --kill-child --pid --root=$rootfsdir"
+schroot="$sudo unshare --fork --kill-child --pid --root=$rootfsdir"
 echo "Rootfsdir="$rootfsdir
 
 $sudo umount $mountdev
-[ -d $rootfsdir ] || $sudo mkdir $rootfsdir
+$sudo mkdir -p $rootfsdir
 [ "$b" = true ] && ro=",ro" || ro=""
 $sudo mount --source $mountdev --target $rootfsdir \
             -o exec,dev,noatime,nodiratime$ro
 [[ $? != 0 ]] && exit
+if [ ! -z "$bootdev" ]; then
+  $sudo umount $bootdev
+  $sudo mkdir -p $rootfsdir/boot
+  $sudo mount -t vfat "$bootdev" $rootfsdir/boot
+  [[ $? != 0 ]] && exit
+fi
 
-if [ "$b" = true ] ; then backuprootfs; exit; fi
+if [ "$b" = true ] ; then backuprootfs ; exit; fi
 if [ "$B" = true ] ; then restorerootfs; exit; fi
 
 if [ "$R" = true ] ; then
   read -p "Type <remove> to delete everything from the card: " prompt
   [[ $prompt != "remove" ]] && exit
-  $sudo rm -rf $rootfsdir/{*,.*}
+  (shopt -s dotglob; $sudo rm -rf $rootfsdir/*)
   exit
 fi
 
 if [ "$r" = true ]; then bootstrap &
   mainPID=$! ; wait $mainPID ; unset mainPID
 fi
+$sudo mount -t proc               /proc $rootfsdir/proc
+[[ $? != 0 ]] && exit
 $sudo mount --rbind --make-rslave /sys  $rootfsdir/sys
 [[ $? != 0 ]] && exit
 $sudo mount --rbind --make-rslave /dev  $rootfsdir/dev
