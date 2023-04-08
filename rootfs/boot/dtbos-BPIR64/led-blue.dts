@@ -1,0 +1,14 @@
+/dts-v1/;
+/plugin/;
+
+&{/leds} {
+  blue {
+    compatible = "gpio-leds";
+    label = "bpi-r64:pio:blue";
+    gpios = <&pio 85 1>;
+    default-state = "keep";
+    function = "gpio_out";
+    color = <3>;
+  };
+};
+
