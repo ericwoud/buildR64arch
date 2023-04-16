@@ -349,8 +349,7 @@ echo "Host Arch:" $hostarch
 [ "$a" = true ] && installscript
 [ "$A" = true ] && removescript
 
-rootdev=$(lsblk -pilno name,type,mountpoint | grep -G 'part /$')
-rootdev=${rootdev%% *}
+rootdev=$(mount | grep -E '\s+on\s+/\s+' | cut -d' ' -f1)
 echo "rootdev=$rootdev , do not use."
 [ -z $rootdev ] && exit
 
