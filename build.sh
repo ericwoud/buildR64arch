@@ -2,7 +2,7 @@
 
 ALARM_MIRROR="http://de.mirror.archlinuxarm.org"
 
-QEMU="https://github.com/multiarch/qemu-user-static/releases/download/v5.2.0-11/x86_64_qemu-aarch64-static.tar.gz"
+QEMU="https://github.com/multiarch/qemu-user-static/releases/download/v7.2.0-1/qemu-aarch64-static.tar.gz"
 
 ARCHBOOTSTRAP="https://raw.githubusercontent.com/tokland/arch-bootstrap/master/arch-bootstrap.sh"
 
@@ -24,7 +24,7 @@ NEEDED_PACKAGES="base hostapd openssh wireless-regdb iproute2 nftables f2fs-tool
 NEEDED_PACKAGES+=' '"dtc mkinitcpio patch sudo evtest parted"
 EXTRA_PACKAGES="vim nano screen"
 PREBUILT_PACKAGES="bpir64-atf-git linux-bpir64-git yay mmc-utils-git"
-SCRIPT_PACKAGES="wget ca-certificates udisks2 parted gzip bc f2fs-tools dosfstools"
+SCRIPT_PACKAGES="curl ca-certificates udisks2 parted gzip bc f2fs-tools dosfstools"
 SCRIPT_PACKAGES_ARCHLX="base-devel      uboot-tools  ncurses        openssl"
 SCRIPT_PACKAGES_DEBIAN="build-essential u-boot-tools libncurses-dev libssl-dev flex bison"
 
@@ -59,10 +59,10 @@ function finish {
   if [ -v rootfsdir ] && [ ! -z "$rootfsdir" ]; then
     $sudo sync
     echo Running exit function to clean up...
-    $sudo sync
     echo $(mountpoint $rootfsdir)
     while [[ "$(mountpoint $rootfsdir)" =~ "is a mountpoint" ]]; do
       echo "Unmounting...DO NOT REMOVE!"
+      $sudo sync
       $sudo umount -R $rootfsdir
       sleep 0.1
     done
@@ -153,13 +153,32 @@ function formatimage {
 }
 
 function bootstrap {
-  if [ ! -d "$rootfsdir/etc" ]; then
-    rm -f /tmp/downloads/$(basename $ARCHBOOTSTRAP)
-    wget --no-verbose $ARCHBOOTSTRAP --no-clobber -P /tmp/downloads/
-    $sudo bash /tmp/downloads/$(basename $ARCHBOOTSTRAP) -q -a aarch64 \
-          -r $ALARM_MIRROR $rootfsdir #####  2>&0
-    ls -al $rootfsdir
-  fi
+  [ -d "$rootfsdir/etc" ] && return
+  arch='aarch64'
+  eval repo=${REPOURL}
+  until pacmanpkg=$(curl $repo'/' -l | grep -e pacman-static | grep -v .sig)
+  do sleep 2; done
+  until curl $repo'/'$pacmanpkg | xz -dc - | $sudo tar x -C $rootfsdir
+  do sleep 2; done
+  [ ! -d "$rootfsdir/usr" ] && return
+  $sudo mkdir -p $rootfsdir/{etc/pacman.d,var/lib/pacman}
+  $sudo cp /etc/resolv.conf $rootfsdir/etc/
+  echo 'Server = '"$ALARM_MIRROR/$arch"'/$repo' | \
+    $sudo tee $rootfsdir/etc/pacman.d/mirrorlist
+  cat <<EOF | $sudo tee $rootfsdir/etc/pacman.conf
+[options]
+SigLevel = Never
+[core]
+Include = /etc/pacman.d/mirrorlist
+[extra]
+Include = /etc/pacman.d/mirrorlist
+[community]
+Include = /etc/pacman.d/mirrorlist
+EOF
+  until $schroot pacman-static -Syu --noconfirm --needed --overwrite \* pacman archlinuxarm-keyring
+  do sleep 2; done
+  $sudo mv -vf $rootfsdir/etc/pacman.conf.pacnew         $rootfsdir/etc/pacman.conf
+  $sudo mv -vf $rootfsdir/etc/pacman.d/mirrorlist.pacnew $rootfsdir/etc/pacman.d/mirrorlist
 }
 
 function selectdir {
@@ -188,10 +207,11 @@ function setupMACconfig {
 }
 
 function rootfs {
-  $sudo cp -vf /etc/resolv.conf $rootfsdir/etc/resolv.conf
   $sudo mkdir -p $rootfsdir/boot
   $sudo cp -rfvL ./rootfs/boot $rootfsdir
   selectdir $rootfsdir/boot/dtbos ${target^^}
+  until $schroot pacman -Syy
+  do sleep 2; done
   echo "--- Following packages are installed:"
   $schroot pacman -Qe
   echo "--- End of package list"
@@ -204,7 +224,8 @@ function rootfs {
     echo -e "\n[ericwoud]\nServer = $REPOURL\nServer = $BACKUPREPOURL" | \
                $sudo tee -a $rootfsdir/etc/pacman.conf
   fi
-  $schroot pacman -Syu --needed --noconfirm $NEEDED_PACKAGES $EXTRA_PACKAGES $PREBUILT_PACKAGES
+  until $schroot pacman -Syu --needed --noconfirm $NEEDED_PACKAGES $EXTRA_PACKAGES $PREBUILT_PACKAGES
+  do sleep 2; done
   $schroot useradd --create-home --user-group \
                --groups audio,games,log,lp,optical,power,scanner,storage,video,wheel \
                -s /bin/bash $USERNAME
@@ -285,8 +306,8 @@ function installscript {
   fi
   # On all linux's
   if [ $hostarch == "x86_64" ]; then # Script running on x86_64 so install qemu
-    wget --no-verbose $QEMU --no-clobber -P ./
-    $sudo tar -xf $(basename $QEMU) -C /usr/local/bin
+    until curl -L $QEMU | $sudo tar -xz  -C /usr/local/bin
+    do sleep 2; done
     S1=':qemu-aarch64:M::\x7fELF\x02\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\xb7'
     S2=':\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff:/usr/local/bin/qemu-aarch64-static:CF'
     echo -n $S1$S2| $sudo tee /lib/binfmt.d/05-local-qemu-aarch64-static.conf
@@ -477,14 +498,15 @@ if [ "$R" = true ] ; then
   exit
 fi
 
+[ ! -d "$rootfsdir/dev" ] && $sudo mkdir $rootfsdir/dev
+$sudo mount --rbind --make-rslave /dev  $rootfsdir/dev # install gnupg needs it
+[[ $? != 0 ]] && exit
 if [ "$r" = true ]; then bootstrap &
   mainPID=$! ; wait $mainPID ; unset mainPID
 fi
 $sudo mount -t proc               /proc $rootfsdir/proc
 [[ $? != 0 ]] && exit
 $sudo mount --rbind --make-rslave /sys  $rootfsdir/sys
-[[ $? != 0 ]] && exit
-$sudo mount --rbind --make-rslave /dev  $rootfsdir/dev
 [[ $? != 0 ]] && exit
 $sudo mount --rbind --make-rslave /run  $rootfsdir/run
 [[ $? != 0 ]] && exit
