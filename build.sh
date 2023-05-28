@@ -210,20 +210,20 @@ function rootfs {
   $sudo mkdir -p $rootfsdir/boot
   $sudo cp -rfvL ./rootfs/boot $rootfsdir
   selectdir $rootfsdir/boot/dtbos ${target^^}
-  until $schroot pacman -Syy
-  do sleep 2; done
-  echo "--- Following packages are installed:"
-  $schroot pacman -Qe
-  echo "--- End of package list"
+  if [ -z "$(cat $rootfsdir/etc/pacman.conf | grep -oP '^\[ericwoud\]')" ]; then
+    echo -e "\n[ericwoud]\nServer = $REPOURL\nServer = $BACKUPREPOURL" | \
+               $sudo tee -a $rootfsdir/etc/pacman.conf
+  fi
   $schroot pacman-key --init
   $schroot pacman-key --populate archlinuxarm
   $schroot pacman-key --recv-keys $REPOKEY
   $schroot pacman-key --finger     $REPOKEY
   $schroot pacman-key --lsign-key $REPOKEY
-  if [ -z "$(cat $rootfsdir/etc/pacman.conf | grep -oP '^\[ericwoud\]')" ]; then
-    echo -e "\n[ericwoud]\nServer = $REPOURL\nServer = $BACKUPREPOURL" | \
-               $sudo tee -a $rootfsdir/etc/pacman.conf
-  fi
+  until $schroot pacman -Syyu --noconfirm --needed --overwrite \* pacman-static
+  do sleep 2; done
+#  echo "--- Following packages are installed:"
+#  $schroot pacman -Qe
+#  echo "--- End of package list"
   until $schroot pacman -Syu --needed --noconfirm $NEEDED_PACKAGES $EXTRA_PACKAGES $PREBUILT_PACKAGES
   do sleep 2; done
   $schroot useradd --create-home --user-group \
