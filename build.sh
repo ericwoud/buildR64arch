@@ -2,9 +2,7 @@
 
 ALARM_MIRROR="http://de.mirror.archlinuxarm.org"
 
-QEMU="https://github.com/multiarch/qemu-user-static/releases/download/v7.2.0-1/qemu-aarch64-static.tar.gz"
-
-ARCHBOOTSTRAP="https://raw.githubusercontent.com/tokland/arch-bootstrap/master/arch-bootstrap.sh"
+QEMU_AARCH64="https://github.com/multiarch/qemu-user-static/releases/download/v7.2.0-1/qemu-aarch64-static.tar.gz"
 
 REPOKEY="DD73724DCA27796790D33E98798137154FE1474C"
 REPOURL='ftp://ftp.woudstra.mywire.org/repo/$arch'
@@ -23,7 +21,7 @@ IMAGE_FILE="./bpir.img"        # Name of image
 NEEDED_PACKAGES="base hostapd openssh wireless-regdb iproute2 nftables f2fs-tools dosfstools"
 NEEDED_PACKAGES+=' '"dtc mkinitcpio patch sudo evtest parted"
 EXTRA_PACKAGES="vim nano screen"
-PREBUILT_PACKAGES="bpir64-atf-git linux-bpir64-git yay mmc-utils-git"
+PREBUILT_PACKAGES="bpir64-atf-git linux-bpir64-git mmc-utils-git"
 SCRIPT_PACKAGES="curl ca-certificates udisks2 parted gzip bc f2fs-tools dosfstools"
 SCRIPT_PACKAGES_ARCHLX="base-devel      uboot-tools  ncurses        openssl"
 SCRIPT_PACKAGES_DEBIAN="build-essential u-boot-tools libncurses-dev libssl-dev flex bison"
@@ -36,6 +34,7 @@ ROOTPWD="admin"                      # Root password
 function setupenv {
 #BACKUPFILE="/run/media/$USER/DATA/${target}-${atfdevice}-rootfs.tar"
 BACKUPFILE="./${target}-${atfdevice}-rootfs.tar"
+arch='aarch64'
 case ${target} in
   bpir64)
     SETUPBPIR=("RT       Router setup"
@@ -112,8 +111,7 @@ function formatimage {
   if [[ "$ROOT_END_MB" =~ "%" ]]; then
     root_end_kb=$ROOT_END_MB
   else
-    root_end_kb=$(( ($ROOT_END_MB/$esize_mb*$esize_mb)*1024))
-    echo $root_end_kb
+    root_end_kb=$(( ($ROOT_END_MB/$esize_mb*$esize_mb)*1024 ))
   fi
   for PART in `df -k | awk '{ print $1 }' | grep "${device}"` ; do $sudo umount $PART; done
   if [ "$l" != true ]; then
@@ -138,8 +136,7 @@ function formatimage {
     name 3 ${target}-${atfdevice}-root \
     print
   $sudo partprobe "${device}"; udevadm settle
-  mountdev=$(lsblk -prno partlabel,name $device | grep -P '^bpir' | grep -- -root)
-  mountdev=$(echo $mountdev | cut -d' ' -f2)
+  mountdev=$(lsblk -prno partlabel,name $device | grep -P '^bpir' | grep -- -root | cut -d' ' -f2)
   waitdev "${mountdev}"
   $sudo blkdiscard -fv "${mountdev}"
   waitdev "${mountdev}"
@@ -154,7 +151,6 @@ function formatimage {
 
 function bootstrap {
   [ -d "$rootfsdir/etc" ] && return
-  arch='aarch64'
   eval repo=${REPOURL}
   until pacmanpkg=$(curl $repo'/' -l | grep -e pacman-static | grep -v .sig)
   do sleep 2; done
@@ -163,6 +159,9 @@ function bootstrap {
   [ ! -d "$rootfsdir/usr" ] && return
   $sudo mkdir -p $rootfsdir/{etc/pacman.d,var/lib/pacman}
   $sudo cp /etc/resolv.conf $rootfsdir/etc/
+  if [ -z "$(cat $rootfsdir/etc/resolv.conf | grep -oP '^nameserver')" ]; then
+    echo "nameserver 8.8.8.8" | $sudo tee -a $rootfsdir/etc/resolv.conf
+  fi
   echo 'Server = '"$ALARM_MIRROR/$arch"'/$repo' | \
     $sudo tee $rootfsdir/etc/pacman.d/mirrorlist
   cat <<EOF | $sudo tee $rootfsdir/etc/pacman.conf
@@ -221,9 +220,6 @@ function rootfs {
   $schroot pacman-key --lsign-key $REPOKEY
   until $schroot pacman -Syyu --noconfirm --needed --overwrite \* pacman-static
   do sleep 2; done
-#  echo "--- Following packages are installed:"
-#  $schroot pacman -Qe
-#  echo "--- End of package list"
   until $schroot pacman -Syu --needed --noconfirm $NEEDED_PACKAGES $EXTRA_PACKAGES $PREBUILT_PACKAGES
   do sleep 2; done
   $schroot useradd --create-home --user-group \
@@ -236,7 +232,7 @@ function rootfs {
   $schroot ln -sf /usr/share/zoneinfo/${TIMEZONE} /etc/localtime
   $sudo sed -i 's/.*PermitRootLogin.*/PermitRootLogin yes/' $rootfsdir/etc/ssh/sshd_config
   $sudo sed -i 's/.*UsePAM.*/UsePAM no/' $rootfsdir/etc/ssh/sshd_config
-  $sudo sed -i 's/.*#IgnorePkg.*/IgnorePkg = bpir64-atf-git/' $rootfsdir/etc/pacman.conf
+  $sudo sed -i 's/.*#IgnorePkg.*/IgnorePkg = bpir64-atf-git bpir-uboot-git/' $rootfsdir/etc/pacman.conf
   for d in $(ls ./rootfs/ | grep -vx boot); do $sudo cp -rfvL ./rootfs/$d $rootfsdir; done
   $sudo sed -i "s/\bdummy\b/PARTLABEL=${target}-${atfdevice}-root/g" $rootfsdir/etc/fstab
   selectdir $rootfsdir/etc/systemd/network ${target^^}-${setup}
@@ -306,16 +302,13 @@ function installscript {
   fi
   # On all linux's
   if [ $hostarch == "x86_64" ]; then # Script running on x86_64 so install qemu
-    until curl -L $QEMU | $sudo tar -xz  -C /usr/local/bin
+    until curl -L $QEMU_AARCH64 | $sudo tar -xz  -C /usr/local/bin
     do sleep 2; done
     S1=':qemu-aarch64:M::\x7fELF\x02\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\xb7'
     S2=':\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff:/usr/local/bin/qemu-aarch64-static:CF'
     echo -n $S1$S2| $sudo tee /lib/binfmt.d/05-local-qemu-aarch64-static.conf
     echo
     $sudo systemctl restart systemd-binfmt.service
-  fi
-  if [ -z "$(cat /etc/resolv.conf | grep -oP '^nameserver')" ]; then
-    echo "nameserver 8.8.8.8" | $sudo tee -a /etc/resolv.conf
   fi
   exit
 }
@@ -344,7 +337,7 @@ cd "$(dirname -- "$(realpath -- "${BASH_SOURCE[0]}")")"
 [ $USER = "root" ] && sudo="" || sudo="sudo"
 [[ $# == 0 ]] && args="-c" || args=$@
 [[ "$args" == "-l" ]] && args="-cl"
-while getopts ":ralcbRAFBXM" opt $args; do declare "${opt}=true" ; done
+while getopts ":ralcbxRAFBM" opt $args; do declare "${opt}=true" ; done
 if [ "$l" = true ] && [ ! -f $IMAGE_FILE ]; then
   F=true
 fi
@@ -458,10 +451,8 @@ echo 'KERNELS=="'${device/"/dev/"/""}'", ENV{UDISKS_IGNORE}="1"' | $sudo tee $no
 
 [ "$F" = true ] && formatimage
 
-mountdev=$(lsblk -prno partlabel,name $device | grep -P '^bpir' | grep -- -root)
-bootdev=$( lsblk -prno partlabel,name $device | grep -P '^bpir' | grep -- -boot)
-mountdev=$(echo $mountdev | cut -d' ' -f2)
-bootdev=$( echo $bootdev  | cut -d' ' -f2)
+mountdev=$(lsblk -prno partlabel,name $device | grep -P '^bpir' | grep -- -root | cut -d' ' -f2)
+bootdev=$( lsblk -prno partlabel,name $device | grep -P '^bpir' | grep -- -boot | cut -d' ' -f2)
 echo "Mountdev = $mountdev"
 echo "Bootdev  = $bootdev"
 [ -z "$mountdev" ] && exit
@@ -514,7 +505,7 @@ if [ "$r" = true ]; then rootfs &
   mainPID=$! ; wait $mainPID ; unset mainPID
 fi
 [ "$c" = true ] && chrootfs
-[ "$X" = true ] && compressimage
+[ "$x" = true ] && compressimage
 
 exit
 
