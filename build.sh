@@ -149,6 +149,13 @@ function formatimage {
   $sudo lsblk -o name,mountpoint,label,partlabel,size,uuid "${device}"
 }
 
+function resolv {
+  $sudo cp /etc/resolv.conf $rootfsdir/etc/
+  if [ -z "$(cat $rootfsdir/etc/resolv.conf | grep -oP '^nameserver')" ]; then
+    echo "nameserver 8.8.8.8" | $sudo tee -a $rootfsdir/etc/resolv.conf
+  fi
+}
+
 function bootstrap {
   [ -d "$rootfsdir/etc" ] && return
   eval repo=${REPOURL}
@@ -158,10 +165,7 @@ function bootstrap {
   do sleep 2; done
   [ ! -d "$rootfsdir/usr" ] && return
   $sudo mkdir -p $rootfsdir/{etc/pacman.d,var/lib/pacman}
-  $sudo cp /etc/resolv.conf $rootfsdir/etc/
-  if [ -z "$(cat $rootfsdir/etc/resolv.conf | grep -oP '^nameserver')" ]; then
-    echo "nameserver 8.8.8.8" | $sudo tee -a $rootfsdir/etc/resolv.conf
-  fi
+  resolv
   echo 'Server = '"$ALARM_MIRROR/$arch"'/$repo' | \
     $sudo tee $rootfsdir/etc/pacman.d/mirrorlist
   cat <<EOF | $sudo tee $rootfsdir/etc/pacman.conf
@@ -206,6 +210,7 @@ function setupMACconfig {
 }
 
 function rootfs {
+  resolv
   $sudo mkdir -p $rootfsdir/boot
   $sudo cp -rfvL ./rootfs/boot $rootfsdir
   selectdir $rootfsdir/boot/dtbos ${target^^}
