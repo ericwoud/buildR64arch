@@ -249,23 +249,23 @@ function rootfs {
   $sudo mkdir -p $rootfsdir/etc/modules-load.d
   echo -e "# Load ${WIFIMODULE}.ko at boot\n${WIFIMODULE}" | \
            $sudo tee $rootfsdir/etc/modules-load.d/${WIFIMODULE}.conf
-  $sudo systemctl --root=$rootfsdir --force --no-pager reenable systemd-timesyncd.service
-  $sudo systemctl --root=$rootfsdir --force --no-pager reenable sshd.service
-  $sudo systemctl --root=$rootfsdir --force --no-pager reenable systemd-resolved.service
+  $schroot sudo systemctl --force --no-pager reenable systemd-timesyncd.service
+  $schroot sudo systemctl --force --no-pager reenable sshd.service
+  $schroot sudo systemctl --force --no-pager reenable systemd-resolved.service
   if [ ${setup} == "RT" ]; then
-    $sudo systemctl --root=$rootfsdir --force --no-pager reenable nftables.service
+    $schroot sudo systemctl --force --no-pager reenable nftables.service
   else
-    $sudo systemctl --root=$rootfsdir --force --no-pager  disable nftables.service
+    $schroot sudo systemctl --force --no-pager disable nftables.service
   fi
-  $sudo systemctl --root=$rootfsdir reenable systemd-networkd.service
+  $schroot sudo systemctl --force --no-pager reenable systemd-networkd.service
   find -L "$rootfsdir/etc/hostapd" -name "*.conf"| while read conf ; do
     conf=$(basename $conf); conf=${conf/".conf"/""}
-    $sudo systemctl --root=$rootfsdir --force --no-pager disable hostapd@${conf}.service
-    $sudo systemctl --root=$rootfsdir --force --no-pager  enable hostapd@${conf}.service
+    $schroot sudo systemctl --force --no-pager disable hostapd@${conf}.service
+    $schroot sudo systemctl --force --no-pager  enable hostapd@${conf}.service
   done
   find -L "rootfs/etc/systemd/system" -name "*.service"| while read service ; do
     service=$(basename $service); [[ "$service" =~ "@" ]] && continue
-    $sudo systemctl --root=$rootfsdir --force --no-pager reenable $service
+    $schroot sudo systemctl --force --no-pager reenable $service
   done
   setupMACconfig
 }
