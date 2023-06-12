@@ -21,6 +21,9 @@ The script only formats the SD card and installs packages and configures them. N
 Everything that is build, is installed with prebuild packages. These packages can be updated through the AUR.
 It is also possible to build/alter a package yourself, like any other Archlinux AUR package.
 
+Basic settings are prompted for, when running the script. Other tweaks can be written to config.sh in the
+same directory as the script. There the environment variables can be set, that will override the default settings.
+
 The script is in development and uses sudo. Any bug may possibly delete everything permanently!
 
 USE AT YOUR OWN RISK!!!
@@ -52,7 +55,7 @@ Install all necessary packages with:
 ```
 ./build.sh -a
 ```
-Set `SD_ERASE_SIZE_MB` in the script if using a cardreader with naming /dev/sdX. Only from a cardreader with naming /dev/mmcblkX
+Set `SD_ERASE_SIZE_MB` in config.sh if using a cardreader with naming /dev/sdX. Only from a cardreader with naming /dev/mmcblkX
 it is possible to read the erase size. Using this kind of reader the script will automatically read the erase size. 
 4MB is ok for most cards if you do not know the erase size. Later you can read it when the sd-card is inserted in a running bpir64/3.
 
