@@ -1,5 +1,12 @@
 #!/bin/bash
 
+# Hostapd launch helper script.
+#
+# It allows for previously defined settings to be used as variables.
+# Also it is possible to use bash command substition and other bash operations.
+# It also makes sure that all interfaces and bss's attached to a bridge
+# have the same 'pvid untagged' as the bridge's self port.
+
 HOSTAPD="/usr/sbin/hostapd"
 #HOSTAPD="/root/hostap/hostapd/hostapd"
 HCONFPATH="/etc/hostapd"
