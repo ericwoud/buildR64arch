@@ -271,11 +271,8 @@ function rootfs {
   $schroot sudo systemctl --force --no-pager reenable systemd-networkd.service
   find -L "$rootfsdir/etc/hostapd" -name "*.conf"| while read conf ; do
     conf=$(basename $conf); conf=${conf/".conf"/""}
-    echo "IGNORE THE WARNING: Unit /etc/systemd/system/hostapd@.service" \
-         "is added as a dependency to a non-existent unit" \
-         "sys-subsystem-net-devices-${conf}.device"
-    $schroot sudo systemctl --force --no-pager disable hostapd@${conf}.service
-    $schroot sudo systemctl --force --no-pager  enable hostapd@${conf}.service
+    $schroot sudo systemctl --force --no-pager reenable hostapd@${conf}.service \
+                 2>&1 | grep -v "is added as a dependency to a non-existent unit"
   done
   find -L "rootfs/etc/systemd/system" -name "*.service"| while read service ; do
     service=$(basename $service); [[ "$service" =~ "@" ]] && continue
