@@ -154,7 +154,7 @@ There are now 4 different bootchains supported, tested on R3 (R64 not yet tested
 
 3. ATF - UBOOT - KERNEL using `boot` partition. U-Boot uses distro-boot to keep the package simple, using a flexible startup environment. With `boot` partition present execute the following command:`pacman -Sy bpir-uboot-git` . U-Boot will be loaded from `/boot/u-boot.bin`
 
-4. ATF - UBOOT - KERNEL using `fip` partition. When still booting with `fip` partition and having u-boot installed, change the contents of `/boot/bootcfg/linux` to read `/boot/u-boot.bin`, then run `bpir-writefip`
+4. ATF - UBOOT - KERNEL using `fip` partition. When still booting with `fip` partition and having u-boot installed, change the contents of `/boot/bootcfg/linux` to read `/boot/u-boot.bin` and emtpy  `/boot/bootcfg/initrd`, then run `bpir-writefip`
 
 
 ## R64: Using port 5 of the dsa switch
