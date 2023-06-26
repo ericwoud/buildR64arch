@@ -28,6 +28,7 @@ The script is in development and uses sudo. Any bug may possibly delete everythi
 
 USE AT YOUR OWN RISK!!!
 
+
 ## Getting Started
 
 You need:
@@ -37,7 +38,6 @@ You need:
 
 
 ### Installing
-
 
 Clone from Git
 
@@ -72,6 +72,7 @@ Optionally enter chroot environment on the SD card:
 ./build.sh
 ```
 
+
 ## Deployment
 
 Insert the SD card,, powerup, connect to the R64/R3 wireless, SSID: WIFI24, password: justsomepassword. To start ssh to R64/R3, password admin
@@ -103,6 +104,7 @@ Make sure your internet connection is working on the R64. Ping 8.8.8.8 should wo
 
 Choose `emmc` in the script instead of `sdmmc`. Now format the emmc and let it setup rootfs.
 
+
 ## R64/R3 Build/Install emmc version using image
 
 Create an SD card for the R64/R3.
@@ -121,6 +123,7 @@ You can keep 'x' pressed instead if you want to enter a busybox ash.
 
 Note for R3: To run on EMMC, only the switch most near to powerplug (D) should be down, the rest up. Still in development, but should work. Writing at HS200 speed, could be faster.
 
+
 ## Using pre-build images for a quick try-out
 
 On github you will find downloadable images at the release branches. R64 only for now, image can be quite old. Prefer to use the script.
@@ -130,6 +133,7 @@ Write the image file for sd-card to the appropriate device, MAKE SURE YOU HAVE T
 xz -dcv ~/Downloads/bpir64-sdmmc.img.xz | sudo dd of=/dev/sda
 ```
 
+
 ## Changing kernel commandline options or devicetree overlays
 
 When changing the kernel commandline options in `/boot/bootcfg/cmdline` or changing/adding/removing devicetree overlays in `/boot/dtbos`
@@ -138,6 +142,20 @@ you should run the folling command on the bpir64/3 to write the changes so that 
 bpir-writefip
 ```
 If something goes wrong and you cannot boot, insert the card in your laptop/computer and use the chroot option to undo the changes. Then use the `bpir-writefip` command again. On EMMC (specially on the R3) it will be much more complicated.
+
+
+## Different bootchains supported
+
+There are now 4 different bootchains supported, tested on R3 (R64 not yet tested, but should work). First make sure you are using the latest 'atf' with the following command: `pacman -Sy bpir64-atf-git`
+
+1. ATF - KERNEL using `fip` partition. Default boot method.
+
+2. ATF - KERNEL using `boot` partition. The latest atf can boot from `boot` partition instead of `fip` partition, see https://forum.banana-pi.org/t/bpi-r3-bpi-r64-atf-with-fat32-load-capabilities/15345 . ATF will directly load the kernel from the boot (fat32) partition. Change your setup with the following command: `bpir-writefip --fip2boot`. It will rename the fip partiion to the boot partition and move all files from boot folder to boot partition. Change back to `fip` with `bpir-writefip --boot2fip`
+
+3. ATF - UBOOT - KERNEL using `boot` partition. U-Boot uses distro-boot to keep the package simple, using a flexible startup environment. With `boot` partition present execute the following command:`pacman -Sy bpir-uboot-git` . U-Boot will be loaded from `/boot/u-boot.bin`
+
+4. ATF - UBOOT - KERNEL using `fip` partition. When still booting with `fip` partition and having u-boot installed, change the contents of `/boot/bootcfg/linux` to read `/boot/u-boot.bin`, then run `bpir-writefip`
+
 
 ## R64: Using port 5 of the dsa switch
 
@@ -152,6 +170,7 @@ One would expect the traffic goes a sort of ping pong slow software path: wan --
 ifstat -wi eth0,eth1
 ```
 If you don't like this trick, then chose setup RTnoAUX.
+
 
 ## Setup as Access Point
 
@@ -171,6 +190,7 @@ Some DSA drivers have a problem with this setup, but some are recently fixed wit
 * Implement 802.11k 802.11r 802.11v.
 * Guest WIFI
 
+
 ## Features
 
 Command line options:
@@ -188,6 +208,7 @@ Command line options:
 * none : Enter chroot, same as option `-c`
 
 * Other variables to tweak also at top of build script.
+
 
 ## Acknowledgments
 
