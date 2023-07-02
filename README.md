@@ -28,6 +28,10 @@ The script is in development and uses sudo. Any bug may possibly delete everythi
 
 USE AT YOUR OWN RISK!!!
 
+R3: [Download v1.3 SD card version Router setup (301MB)](https://github.com/ericwoud/buildR64arch/releases/download/v1.3/bpir3-RTnoSFP.img.xz) Kernel version v6.3.10 (linux-rolling-stable)
+
+R64: [Download v1.3 SD card version Router setup (301MB)](https://github.com/ericwoud/buildR64arch/releases/download/v1.3/bpir64-RT.img.xz) Kernel version v6.3.10 (linux-rolling-stable)
+
 
 ## Getting Started
 
