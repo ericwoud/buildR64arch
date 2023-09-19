@@ -5,6 +5,7 @@ Name=eth1
 RequiredForOnline=no
 
 [Network]
+IPv6PrivacyExtensions=yes
 DHCP=yes
 # Enable DHCP or use the lines below
 #Address=192.168.1.33/24
