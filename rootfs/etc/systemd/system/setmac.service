@@ -20,7 +20,7 @@ ExecStart=:bash -c " \
     esac ;\
     mac=${mac::-2}$(printf %%02x $(((16#${mac: -2}&-$nr)+$i))) ;\
     d=/run/systemd/network ; mkdir -p $d ;\
-    name=${intfs/'*'/X}; name=${name/' '/'-'} ;\
+    name=${intfs//'*'/X}; name=${name//' '/'-'} ;\
     echo -e '[Match]\nOriginalName='$intfs'\n\n[Link]\nMACAddress='$mac >$d/10-${name}.link ;\
   done < /etc/systemd/network/mac.txt ;\
 "
