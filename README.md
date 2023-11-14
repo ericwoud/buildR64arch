@@ -117,7 +117,7 @@ Create an SD card for the R64/R3.
 ```
 Create an EMMC image for the R64/R3 and have it compressed.
 ```
-./build.sh -lFX
+./build.sh -lFx
 ```
 Then copy the bpir.img.xz to the SD card /tmp/ folder. It is accessable without root.
 
@@ -125,8 +125,26 @@ Boot the R64/R3 with the SD card with UART connected. When kernel starts keep 's
 
 You can keep 'x' pressed instead if you want to enter a busybox ash.
 
-Note for R3: To run on EMMC, only the switch most near to powerplug (D) should be down, the rest up. Still in development, but should work. Writing at HS200 speed, could be faster.
+Note for R3: To run on EMMC, only the switch most near to powerplug (D) should be down, the rest up.
 
+## R3-MINI Build/Install emmc version using image
+
+Create an EMMC card for the R3-MINI and have it compressed to a .gz file.
+```
+./build.sh -lFz
+```
+Then copy the bpir.img.gz to a FAT formatted usb-stick and plug it in to the R3-MINI.
+
+Boot the R3-MINI in NAND mode with UART connected. Boot to Openwrt Busybox command prompt.
+
+```
+echo 0 > /sys/block/mmcblk0boot0/force_ro
+gunzip -c /mnt/sda1/bpir.img.gz | dd of=/dev/mmcblk0 bs=4M conv=fsync
+dd if=/dev/mmcblk0 of=/dev/mmcblk0boot0 bs=17K skip=1 count=16 conv=fsync
+mmc bootpart enable 1 1 /dev/mmcblk0
+```
+
+Switch boot-switch to EMMC and reboot.
 
 ## Using pre-build images for a quick try-out
 
@@ -208,7 +226,8 @@ Command line options:
 * -R   : Delete RootFS.
 * -b   : Create backup of rootfs
 * -B   : Restore backup of rootfs
-* -x   : Create archive from image-file
+* -x   : Create archive from image-file .xz
+* -z   : Create archive from image-file .gz
 * none : Enter chroot, same as option `-c`
 
 * Other variables to tweak also at top of build script.

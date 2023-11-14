@@ -1,0 +1,14 @@
+[Match]
+Name=eth0 eth1
+
+[Link]
+RequiredForOnline=no
+
+[Network]
+Bridge=brlan
+
+[BridgeVLAN]
+VLAN=1
+PVID=1
+EgressUntagged=1
+

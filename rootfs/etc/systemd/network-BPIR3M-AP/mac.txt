@@ -1,0 +1,4 @@
+aa:bb:cc:dd:ee:ff#32 brlan eth0
++1 eth1
++16 wlan0
++24 wlan1

@@ -1,0 +1,11 @@
+/dts-v1/;
+/plugin/;
+
+&mmc0 {
+		assigned-clocks = <&topckgen 35>,
+				  <&topckgen 34>;
+		assigned-clock-parents = <&apmixedsys 6>,
+					 <&topckgen 18>;
+};
+
+

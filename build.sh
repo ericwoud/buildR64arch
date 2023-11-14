@@ -51,6 +51,11 @@ case ${target} in
                "AP       Access Point setup")
     WIFIMODULE="mt7915e"
     ;;
+  bpir3m)
+    SETUPBPIR=("RT       Router setup"
+               "AP       Access Point setup")
+    WIFIMODULE="mt7915e"
+    ;;
   *)
     echo "Unknown target '${target}'"
     exit
@@ -204,20 +209,21 @@ function selectdir {
 }
 
 function setupMACconfig {
-  if [ ! -f "$rootfsdir/etc/mac.eth0.txt" ] || [ ! -f "$rootfsdir/etc/mac.eth1.txt" ]; then
-    nr=16 # Make sure there are 16 available mac addresses: nr=16/32/64
-    first=AA:BB:CC
-    mac5=$first:$(printf %02X $(($RANDOM%256))):$(  printf %02X $(($RANDOM%256)))
-    mac=$mac5:$(printf %02X $(($(($RANDOM%256))&-$nr)))
-    echo $mac $nr | $sudo tee $rootfsdir/etc/mac.eth0.txt
-    mac=$mac5
-    while [ "$mac" == "$mac5" ]; do # make sure second mac is different
-      mac=$first:$(printf %02X $(($RANDOM%256))):$(printf %02X $(($RANDOM%256)))
+  file="$rootfsdir/etc/systemd/network/mac.txt"
+  while [ ! -z "$(cat $file | grep 'aa:bb:cc:dd:ee:ff')" ]; do
+    mac_read="$(cat $file | grep -m1 'aa:bb:cc:dd:ee:ff' | cut -d ' ' -f1)"
+    mac=${mac_read::17}
+    nr=${mac_read:18}
+    [ -z "$nr" ] && nr=1
+    echo nr=$nr
+    first="aa:bb:cc"
+    while [ ! -z "$(cat $file | grep $mac)" ]; do # make sure all macs are different
+      mac=$first:$(printf %02x $(($RANDOM%256))):$(printf %02x $(($RANDOM%256)))
     done
-    mac=$mac:$(printf %02X $(($RANDOM%256)) )
-    echo $mac | $sudo tee $rootfsdir/etc/mac.eth1.txt
-  else echo "Macs on eth0 and eth1 already configured."
-  fi
+    mac=$mac:$(printf %02x $(($RANDOM%256)) )
+    mac=${mac::-2}$(printf %02x $(((16#${mac: -2}&-$nr)+0)))
+    $sudo sed -i '0,/aa:bb:cc:dd:ee:ff/{s/aa:bb:cc:dd:ee:ff/'$mac'/}' $file
+  done
 }
 
 function rootfs {
@@ -288,12 +294,13 @@ function chrootfs {
 }
 
 function compressimage {
-  rm -f $IMAGE_FILE".xz"
+  rm -f $IMAGE_FILE".xz" $IMAGE_FILE".gz"
   $sudo rm -vrf $rootfsdir/tmp/*
   echo "Type Y + Y:"
   yes | $schroot pacman -Scc
   finish
-  xz --keep --force --verbose $IMAGE_FILE
+  [ "$x" = true ] && xz   --keep --force --verbose $IMAGE_FILE
+  [ "$z" = true ] && dd if=$IMAGE_FILE status=progress | gzip >$IMAGE_FILE".gz"
 }
 
 function backuprootfs {
@@ -360,7 +367,7 @@ export LANGUAGE=C
 
 cd "$(dirname -- "$(realpath -- "${BASH_SOURCE[0]}")")"
 [ $USER = "root" ] && sudo="" || sudo="sudo"
-while getopts ":ralcbxRAFBM" opt $args; do
+while getopts ":ralcbxzRAFBM" opt $args; do
   if [[ "${opt}" == "?" ]]; then echo "Unknown option -$OPTARG"; exit; fi
   declare "${opt}=true"
   ((argcnt++))
@@ -407,12 +414,15 @@ echo "pkroot=$pkroot , do not use."
 
 if [ "$F" = true ]; then
   PS3="Choose target to format image for: "; COLUMNS=1
-  select target in "bpir3  Bananapi-R3" "bpir64 Bananapi-R64" "Quit" ; do
+  select target in "bpir3  Bananapi-R3" "bpir3m Bananapi-R3-Mini" "bpir64 Bananapi-R64" "Quit" ; do
     if (( REPLY > 0 && REPLY <= 2 )) ; then break; else exit; fi
   done
   target=${target%% *}
   PS3="Choose atfdevice to format image for: "; COLUMNS=1
-  select atfdevice in "sdmmc SD Card" "emmc  EMMC onboard" "Quit" ; do
+  atfdevices=()
+  [[ $target != "bpir3m" ]] && atfdevices+=("sdmmc SD Card")
+  atfdevices+=("emmc  EMMC onboard" "Quit")
+  select atfdevice in "${atfdevices[@]}" ; do
     if (( REPLY > 0 && REPLY <= 2 )) ; then break; else exit; fi
   done
   atfdevice=${atfdevice%% *}
@@ -541,7 +551,9 @@ if [ "$r" = true ]; then rootfs &
   mainPID=$! ; wait $mainPID ; unset mainPID
 fi
 [ "$c" = true ] && chrootfs
-[ "$x" = true ] && compressimage
+if [ "$x" = true ] || [ "$z" = true ]; then
+  compressimage
+fi
 
 exit
 
