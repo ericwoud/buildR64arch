@@ -224,6 +224,8 @@ Command line options:
 * -r   : Build RootFS.
 * -c   : Execute chroot
 * -R   : Delete RootFS.
+* -p   : Set boot with FIP partition (default for sdmmc/emmc).
+* -P   : Set boot with FAT partition. (default for nand).
 * -b   : Create backup of rootfs
 * -B   : Restore backup of rootfs
 * -x   : Create archive from image-file .xz

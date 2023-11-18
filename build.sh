@@ -270,6 +270,7 @@ function rootfs {
     $schroot sudo systemctl --force --no-pager reenable $service
   done
   setupMACconfig
+  $schroot bpir-writefip $bpir_write
 }
 
 function chrootfs {
@@ -352,7 +353,7 @@ export LANGUAGE=C
 
 cd "$(dirname -- "$(realpath -- "${BASH_SOURCE[0]}")")"
 [ $USER = "root" ] && sudo="" || sudo="sudo"
-while getopts ":ralcbxzRAFBI" opt $args; do
+while getopts ":ralcbxzpRAFBIP" opt $args; do
   if [[ "${opt}" == "?" ]]; then echo "Unknown option -$OPTARG"; exit; fi
   declare "${opt}=true"
   ((argcnt++))
@@ -456,16 +457,27 @@ echo -e "Device=${device}\nTarget=${target}\nATF-device="${atfdevice}
 
 setupenv # Now that target and atfdevice are known.
 
-if [ "$r" = true ] && [ "$I" != true ]; then
-  echo -e "\nCreate root filesystem\n"
-  PS3="Choose setup to create root for: "; COLUMNS=1
-  select setup in "${SETUPBPIR[@]}" "Quit" ; do
-    if (( REPLY > 0 && REPLY <= ${#SETUPBPIR[@]} )) ; then break; else exit; fi
-  done
-  setup=${setup%% *}
-  echo "Setup="${setup}
-  read -p "Enter ip address for local network (emtpy for default): " brlanip
-  echo "IP="$brlanip
+if [ "$r" = true ]; then
+  if [ "$I" != true ]; then
+    echo -e "\nCreate root filesystem\n"
+    PS3="Choose setup to create root for: "; COLUMNS=1
+    select setup in "${SETUPBPIR[@]}" "Quit" ; do
+      if (( REPLY > 0 && REPLY <= ${#SETUPBPIR[@]} )) ; then break; else exit; fi
+    done
+    setup=${setup%% *}
+    echo "Setup="${setup}
+    read -p "Enter ip address for local network (emtpy for default): " brlanip
+    echo "IP="$brlanip
+  fi
+  if [ "$p" = true ]  ; then bpir_write="--fip2boot"
+  elif [ "$P" = true ]; then bpir_write="--boot2fip"
+  else
+    case ${atfdevice} in
+      sdmmc|emmc) bpir_write="--fip2boot" ;;
+      nand)       bpir_write="--boot2fip" ;;
+      *) echo "Unknown atfdevice '${atfdevice}'"; exit ;;
+    esac
+  fi
 fi
 
 # Check if 'config.sh' exists.  If so, source that to override default values.
