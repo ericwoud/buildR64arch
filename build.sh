@@ -46,7 +46,7 @@ case ${target} in
     WIFIMODULE="mt7615e"
     ;;
   bpir3)
-    SETUPBPIR=("RT       Router setup (NOT AVAILABLE YET!!!)"
+    SETUPBPIR=("RT       Router setup, SFP module eth1 as wan"
                "RTnoSFP  Router setup, not using SFP module"
                "AP       Access Point setup")
     WIFIMODULE="mt7915e"
@@ -96,21 +96,6 @@ function waitdev {
     echo "WAIT!"
     sleep 0.1
   done
-}
-
-function reinsert {
-  sync
-  mmc_host=$(realpath /sys/block/${device/"/dev/"/""}/device/../.. | grep 'mmc_host$')
-  [ -z "$mmc_host" ] && return
-  bindpart=$(basename $(realpath $mmc_host/..))
-  driver=$(realpath $mmc_host/../driver)
-  echo -n $bindpart >/dev/null | $sudo tee $driver/unbind
-  echo -e "\nRe-inserting" $1
-  sleep 0.1
-  echo -n $bindpart >/dev/null | $sudo tee $driver/bind
-  echo
-  sync
-  exit # device name may have changed!
 }
 
 function formatimage {
@@ -269,7 +254,7 @@ function rootfs {
   $schroot sudo systemctl --force --no-pager reenable systemd-timesyncd.service
   $schroot sudo systemctl --force --no-pager reenable sshd.service
   $schroot sudo systemctl --force --no-pager reenable systemd-resolved.service
-  if [ ${setup} == "RT" ]; then
+  if [[ ${setup} == "RT"* ]]; then
     $schroot sudo systemctl --force --no-pager reenable nftables.service
   else
     $schroot sudo systemctl --force --no-pager disable nftables.service
@@ -367,7 +352,7 @@ export LANGUAGE=C
 
 cd "$(dirname -- "$(realpath -- "${BASH_SOURCE[0]}")")"
 [ $USER = "root" ] && sudo="" || sudo="sudo"
-while getopts ":ralcbxzRAFBM" opt $args; do
+while getopts ":ralcbxzRAFBI" opt $args; do
   if [[ "${opt}" == "?" ]]; then echo "Unknown option -$OPTARG"; exit; fi
   declare "${opt}=true"
   ((argcnt++))
@@ -411,21 +396,22 @@ pkroot=$(lsblk -srno name ${rootdevice} | tail -1)
 echo "pkroot=$pkroot , do not use."
 [ -z $pkroot ] && exit
 
-
 if [ "$F" = true ]; then
-  PS3="Choose target to format image for: "; COLUMNS=1
-  select target in "bpir3  Bananapi-R3" "bpir3m Bananapi-R3-Mini" "bpir64 Bananapi-R64" "Quit" ; do
-    if (( REPLY > 0 && REPLY <= 2 )) ; then break; else exit; fi
-  done
-  target=${target%% *}
-  PS3="Choose atfdevice to format image for: "; COLUMNS=1
-  atfdevices=()
-  [[ $target != "bpir3m" ]] && atfdevices+=("sdmmc SD Card")
-  atfdevices+=("emmc  EMMC onboard" "Quit")
-  select atfdevice in "${atfdevices[@]}" ; do
-    if (( REPLY > 0 && REPLY <= 2 )) ; then break; else exit; fi
-  done
-  atfdevice=${atfdevice%% *}
+  if [ "$I" != true ]; then # Non-interactive -lFI or -lrI
+    PS3="Choose target to format image for: "; COLUMNS=1
+    select target in "bpir3  Bananapi-R3" "bpir3m Bananapi-R3-Mini" "bpir64 Bananapi-R64" "Quit" ; do
+      if (( REPLY > 0 && REPLY <= 2 )) ; then break; else exit; fi
+    done
+    target=${target%% *}
+    PS3="Choose atfdevice to format image for: "; COLUMNS=1
+    atfdevices=()
+    [[ $target != "bpir3m" ]] && atfdevices+=("sdmmc SD Card")
+    atfdevices+=("emmc  EMMC onboard" "Quit")
+    select atfdevice in "${atfdevices[@]}" ; do
+      if (( REPLY > 0 && REPLY <= 2 )) ; then break; else exit; fi
+    done
+    atfdevice=${atfdevice%% *}
+  fi
   if [ "$l" = true ]; then
     [ ! -f $IMAGE_FILE ] && touch $IMAGE_FILE
     loopdev=$($sudo losetup --show --find $IMAGE_FILE)
@@ -433,7 +419,7 @@ if [ "$F" = true ]; then
     device=$loopdev
   else
     readarray -t options < <(lsblk -dprno name,size \
-             | grep -v "^/dev/"${pkroot} | grep -v 'boot0 \|boot1 \|boot2 ')
+       | grep -v "^/dev/"${pkroot} | grep -v 'boot0 \|boot1 \|boot2 ')
     PS3="Choose device to format: "; COLUMNS=1
     select device in "${options[@]}" "Quit" ; do
       if (( REPLY > 0 && REPLY <= ${#options[@]} )) ; then break; else exit; fi
@@ -447,8 +433,8 @@ else
     $sudo partprobe $loopdev; udevadm settle
     device=$loopdev
   else
-    readarray -t options < <(lsblk -prno partlabel,pkname | grep -P '^bpir' | grep -- -root \
-                                 | grep -v ${pkroot} | grep -v 'boot0$\|boot1$\|boot2$')
+    readarray -t options < <(lsblk -prno partlabel,pkname | grep -P '^bpir' \
+        | grep -- -root | grep -v ${pkroot} | grep -v 'boot0$\|boot1$\|boot2$')
     if [ ${#options[@]} -gt 1 ]; then
       PS3="Choose device to work on: "; COLUMNS=1
       select choice in "${options[@]}" "Quit" ; do
@@ -467,13 +453,10 @@ echo -e "Device=${device}\nTarget=${target}\nATF-device="${atfdevice}
 [ -z "$device" ] && exit
 [ -z "${target}" ] && exit
 [ -z "${atfdevice}" ] && exit
+
 setupenv # Now that target and atfdevice are known.
-# Check if 'config.sh' exists.  If so, source that to override default values.
-[ -f "config.sh" ] && source config.sh
 
-[ "$M" = true ] && reinsert
-
-if [ "$r" = true ]; then
+if [ "$r" = true ] && [ "$I" != true ]; then
   echo -e "\nCreate root filesystem\n"
   PS3="Choose setup to create root for: "; COLUMNS=1
   select setup in "${SETUPBPIR[@]}" "Quit" ; do
@@ -484,6 +467,9 @@ if [ "$r" = true ]; then
   read -p "Enter ip address for local network (emtpy for default): " brlanip
   echo "IP="$brlanip
 fi
+
+# Check if 'config.sh' exists.  If so, source that to override default values.
+[ -f "config.sh" ] && source config.sh
 
 if [ "$l" = true ] && [ $(stat --printf="%s" $IMAGE_FILE) -eq 0 ]; then
   echo -e "\nCreating image file..."
