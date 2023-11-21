@@ -397,6 +397,8 @@ pkroot=$(lsblk -srno name ${rootdevice} | tail -1)
 echo "pkroot=$pkroot , do not use."
 [ -z $pkroot ] && exit
 
+[ "$I" = true ] && source config.sh
+
 if [ "$F" = true ]; then
   if [ "$I" != true ]; then # Non-interactive -lFI or -lrI
     PS3="Choose target to format image for: "; COLUMNS=1
