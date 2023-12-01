@@ -121,6 +121,8 @@ Create an EMMC image for the R64/R3 and have it compressed.
 ```
 Then copy the bpir.img.xz to the SD card /tmp/ folder. It is accessable without root.
 
+If using a pre-build image, rename it to `bpir.img.xz`
+
 Boot the R64/R3 with the SD card with UART connected. When kernel starts keep 'shift E' keys pressed. When finised, you can reboot. 
 
 You can keep 'x' pressed instead if you want to enter a busybox ash.
