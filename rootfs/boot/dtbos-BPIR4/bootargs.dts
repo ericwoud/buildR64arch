@@ -1,0 +1,10 @@
+/dts-v1/;
+/plugin/;
+
+/* edit from main .dtb as overlay file cannot add to root */
+
+&{/} {
+  chosen {
+    bootargs = "earlycon=uart8250,mmio32,0x11000000";
+  };
+};

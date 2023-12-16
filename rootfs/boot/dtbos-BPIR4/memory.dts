@@ -1,0 +1,8 @@
+/dts-v1/;
+/plugin/;
+
+&{/} {
+  memory {
+    device_type = "memory";
+  };
+};

@@ -3,7 +3,7 @@
 # Set default configuration values
 # These can be overridden by entering them into config.sh
 
-ALARM_MIRROR="http://de.mirror.archlinuxarm.org"
+ALARM_MIRROR="http://eu.mirror.archlinuxarm.org"
 
 QEMU_AARCH64="https://github.com/multiarch/qemu-user-static/releases/download/v7.2.0-1/qemu-aarch64-static.tar.gz"
 
@@ -34,6 +34,11 @@ USERNAME="user"
 USERPWD="admin"
 ROOTPWD="admin"                      # Root password
 
+TARGETS=("bpir64 Bananapi-R64"
+         "bpir3  Bananapi-R3"
+         "bpir3m Bananapi-R3-Mini"
+         "bpir4  Bananapi-R4")
+
 function setupenv {
 #BACKUPFILE="/run/media/$USER/DATA/${target}-${atfdevice}-rootfs.tar"
 BACKUPFILE="./${target}-${atfdevice}-rootfs.tar"
@@ -53,6 +58,11 @@ case ${target} in
     ;;
   bpir3m)
     SETUPBPIR=("RT       Router setup"
+               "AP       Access Point setup")
+    WIFIMODULE="mt7915e"
+    ;;
+  bpir4)
+    SETUPBPIR=(
                "AP       Access Point setup")
     WIFIMODULE="mt7915e"
     ;;
@@ -402,8 +412,8 @@ echo "pkroot=$pkroot , do not use."
 if [ "$F" = true ]; then
   if [ "$I" != true ]; then # Non-interactive -lFI or -lrI
     PS3="Choose target to format image for: "; COLUMNS=1
-    select target in "bpir3  Bananapi-R3" "bpir3m Bananapi-R3-Mini" "bpir64 Bananapi-R64" "Quit" ; do
-      if (( REPLY > 0 && REPLY <= 2 )) ; then break; else exit; fi
+    select target in "${TARGETS[@]}" "Quit" ; do
+      if (( REPLY > 0 && REPLY <= ${#TARGETS[@]} )) ; then break; else exit; fi
     done
     target=${target%% *}
     PS3="Choose atfdevice to format image for: "; COLUMNS=1
