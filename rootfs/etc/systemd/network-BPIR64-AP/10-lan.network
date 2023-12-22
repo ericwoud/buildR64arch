@@ -1,5 +1,5 @@
 [Match]
-Name=lan0 lan1 lan2 lan3 lan4 wan
+Name=lan0 lan1 lan2 lan3 lan4 wan eth1 eth2
 
 [Link]
 RequiredForOnline=no
