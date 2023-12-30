@@ -12,7 +12,7 @@ R64 Notes:
 Now includes a patch so that temperature is regulated at 87 instead of 47 degrees!
 Delete the file rootfs/boot/dtbos/cpu-thermal.dts before building, if you do not want to.
 
-R3 Notes:
+R4 Notes:
 Still in development stage, basics work, need more testing.
 
 The script can be run from Arch Linux and Debian/Ubuntu.
@@ -27,10 +27,6 @@ same directory as the script. There the environment variables can be set, that w
 The script is in development and uses sudo. Any bug may possibly delete everything permanently!
 
 USE AT YOUR OWN RISK!!!
-
-R3: [Download v1.3 SD card version Router setup (301MB)](https://github.com/ericwoud/buildR64arch/releases/download/v1.3/bpir3-RTnoSFP.img.xz) Kernel version v6.3.10 (linux-rolling-stable)
-
-R64: [Download v1.3 SD card version Router setup (301MB)](https://github.com/ericwoud/buildR64arch/releases/download/v1.3/bpir64-RT.img.xz) Kernel version v6.3.10 (linux-rolling-stable)
 
 
 ## Getting Started
@@ -131,7 +127,7 @@ Note for R3: To run on EMMC, only the switch most near to powerplug (D) should b
 
 ## R3-MINI & R4 Build/Install emmc version using image
 
-Create an EMMC card for the R3-MINI and have it compressed to a .gz file.
+Create an EMMC card for the R3-MINI/R4 and have it compressed to a .gz file.
 ```
 ./build.sh -lFz
 ```
