@@ -129,20 +129,20 @@ You can keep 'x' pressed instead if you want to enter a busybox ash.
 
 Note for R3: To run on EMMC, only the switch most near to powerplug (D) should be down, the rest up.
 
-## R3-MINI Build/Install emmc version using image
+## R3-MINI & R4 Build/Install emmc version using image
 
 Create an EMMC card for the R3-MINI and have it compressed to a .gz file.
 ```
 ./build.sh -lFz
 ```
-Then copy the bpir.img.gz to a FAT formatted usb-stick and plug it in to the R3-MINI.
+Then copy the bpir.img.gz to a FAT formatted usb-stick and plug it in to the board.
 
-Boot the R3-MINI in NAND mode with UART connected. Boot to Openwrt Busybox command prompt.
+Boot the board in NAND mode with UART connected. Boot to Openwrt Busybox command prompt.
 
 ```
 echo 0 > /sys/block/mmcblk0boot0/force_ro
 gunzip -c /mnt/sda1/bpir.img.gz | dd of=/dev/mmcblk0 bs=4M conv=fsync
-dd if=/dev/mmcblk0 of=/dev/mmcblk0boot0 bs=17K skip=1 count=16 conv=fsync
+dd if=/dev/mmcblk0 of=/dev/mmcblk0boot0 bs=17K skip=1 count=32 conv=fsync
 mmc bootpart enable 1 1 /dev/mmcblk0
 ```
 

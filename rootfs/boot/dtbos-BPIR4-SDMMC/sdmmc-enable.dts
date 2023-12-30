@@ -11,6 +11,6 @@
   cap-sd-highspeed;
   vmmc-supply = <&reg_3p3v>;
   vqmmc-supply = <&reg_3p3v>;
-  no-mmc;
+//  no-mmc;
   status = "okay";
 };
