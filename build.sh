@@ -15,7 +15,7 @@ BACKUPREPOURL='https://github.com/ericwoud/buildRKarch/releases/download/repo-$a
 SD_ERASE_SIZE_MB=4             # in Mega bytes
 
 ATF_END_KB=1024                # End of atf partition
-MINIMAL_SIZE_FIP_MB=62         # Minimal size of fip partition
+MINIMAL_SIZE_FIP_MB=190        # Minimal size of fip partition
 ROOT_END_MB=100%               # Size of root partition
 #ROOT_END_MB=$(( 4*1024  ))    # Size 4GiB
 IMAGE_SIZE_MB=7456             # Size of image
