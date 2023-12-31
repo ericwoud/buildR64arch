@@ -250,7 +250,7 @@ function rootfs {
   $schroot ln -sf /usr/share/zoneinfo/${TIMEZONE} /etc/localtime
   $sudo sed -i 's/.*PermitRootLogin.*/PermitRootLogin yes/' $rootfsdir/etc/ssh/sshd_config
   $sudo sed -i 's/.*UsePAM.*/UsePAM no/' $rootfsdir/etc/ssh/sshd_config
-  $sudo sed -i 's/.*#IgnorePkg.*/IgnorePkg = bpir64-atf-git bpir-uboot-git/' $rootfsdir/etc/pacman.conf
+  $sudo sed -i 's/.*#IgnorePkg.*/IgnorePkg = bpir*-atf-git bpir*-uboot-git/' $rootfsdir/etc/pacman.conf
   for d in $(ls ./rootfs/ | grep -vx boot); do $sudo cp -rfvL ./rootfs/$d $rootfsdir; done
   $sudo sed -i "s/\bdummy\b/PARTLABEL=${target}-${atfdevice}-root/g" $rootfsdir/etc/fstab
   selectdir $rootfsdir/etc/systemd/network ${target^^}-${setup}
