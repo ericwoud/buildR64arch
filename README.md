@@ -224,11 +224,13 @@ Get the partition number of the partition that starts at 256MiB and enter with t
 ```
 export partnr=1
 ```
-Choose one of:
+Get target name:
 ```
-parted /dev/nvme0n1 name ${partnr} bpir3-nvme-root print
-parted /dev/nvme0n1 name ${partnr} bpir3m-nvme-root print
-parted /dev/nvme0n1 name ${partnr} bpir4-nvme-root print
+export target=$(echo /dev/disk/by-partlabel/bpir*-emmc-root | cut -d'/' -f5 | cut -d'-' -f1)
+```
+Set partlabel of partition:
+```
+parted /dev/nvme0n1 name ${partnr} ${target}-nvme-root print
 ```
 Then format the partition:
 ```
@@ -237,8 +239,8 @@ mkfs.btrfs -f -L "BPIR-ROOT" /dev/nvme0n1p${partnr}
 Mount:
 ```
 mkdir -p /emmc-root /nvme-root /boot
-mount /dev/disk/by-partlabel/bpir*-emmc-root /emmc-root
-mount /dev/disk/by-partlabel/bpir*-emmc-boot /boot
+mount /dev/disk/by-partlabel/${target}-emmc-root /emmc-root
+mount /dev/disk/by-partlabel/${target}-emmc-boot /boot
 mount /dev/nvme0n1p${partnr} /nvme-root
 ```
 And copy the files over:
