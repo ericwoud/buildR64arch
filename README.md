@@ -220,7 +220,7 @@ Now setup the rootfs partition:
 ```
 parted /dev/nvme0n1 unit MiB mkpart primary 256MiB 300GiB print
 ```
-Get the partition number of the partition that starts at 256MiB and enter with this mumber:
+Get the partition number of the partition that starts at 256MiB and enter with this number:
 ```
 export partnr=1
 ```
