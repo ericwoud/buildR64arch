@@ -208,7 +208,7 @@ Some DSA drivers have a problem with this setup, but some are recently fixed wit
 
 ## Setup booting from NVME on R3/R3mini/R4
 
-This instruction is for the default moot method "2. ATF - KERNEL using boot partition."
+This instruction is for the default boot method "2. ATF - KERNEL using boot partition."
 
 Setup a booting emmc system on R3/R3mini/R4. Check if the nvme is stable, coldboot and reboot several times and see if the drive is present _every_ time, with the `lsblk` command. If the drive is stable, boot to initrd.
 
