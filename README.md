@@ -168,9 +168,9 @@ If something goes wrong and you cannot boot, insert the card in your laptop/comp
 
 There are now 4 different bootchains supported, tested on R3 (R64 not yet tested, but should work). First make sure you are using the latest 'atf' with the following command: `pacman -Sy bpir64-atf-git`
 
-1. ATF - KERNEL using `fip` partition. Default boot method.
+1. ATF - KERNEL using `fip` partition.
 
-2. ATF - KERNEL using `boot` partition. The latest atf can boot from `boot` partition instead of `fip` partition, see https://forum.banana-pi.org/t/bpi-r3-bpi-r64-atf-with-fat32-load-capabilities/15345 . ATF will directly load the kernel from the boot (fat32) partition. Change your setup with the following command: `bpir-writefip --fip2boot`. It will rename the fip partiion to the boot partition and move all files from boot folder to boot partition. Change back to `fip` with `bpir-writefip --boot2fip`
+2. ATF - KERNEL using `boot` partition. Default boot method. The latest atf can boot from `boot` partition instead of `fip` partition, see https://forum.banana-pi.org/t/bpi-r3-bpi-r64-atf-with-fat32-load-capabilities/15345 . ATF will directly load the kernel from the boot (fat32) partition. Change your setup with the following command: `bpir-writefip --fip2boot`. It will rename the fip partiion to the boot partition and move all files from boot folder to boot partition. Change back to `fip` with `bpir-writefip --boot2fip`.
 
 3. ATF - UBOOT - KERNEL using `boot` partition. U-Boot uses distro-boot to keep the package simple, using a flexible startup environment. With `boot` partition present execute the following command:`pacman -Sy bpir-uboot-git` . U-Boot will be loaded from `/boot/u-boot.bin`
 
@@ -204,6 +204,57 @@ For vlan setup the lan ports which connect router and AP as lan-trunk port on bo
 
 Some DSA drivers have a problem with this setup, but some are recently fixed with a fix wireless roaming fix in the kernel. You will need very recent drivers on all routers/switches and access points on your network
 
+
+
+## Setup booting from NVME on R3/R3mini/R4.
+
+This instruction is for the default moot method "2. ATF - KERNEL using boot partition."
+
+Setup a booting emmc system on R3/R3mini/R4. Check if the nvme is stable, colboot and reboot several times and see if the drive is present _every_ time, with the `lsblk` command. If the drive is stable, boot to initrd.
+
+To clear and empty the nvme, optionaly run:
+```
+parted /dev/nvme0n1 mklabel gpt
+```
+Now setup the rootfs partition:
+```
+parted /dev/nvme0n1 unit MiB mkpart primary 256MiB 300GiB print
+```
+Get the partition number of the partition that starts at 256MiB and enter with this mumber:
+```
+export partnr=1
+```
+Choose one of:
+```
+parted /dev/nvme0n1 name ${partnr} bpir3-nvme-root print
+parted /dev/nvme0n1 name ${partnr} bpir3m-nvme-root print
+parted /dev/nvme0n1 name ${partnr} bpir4-nvme-root print
+```
+Then format the partition:
+```
+mkfs.btrfs -f -L "BPIR-ROOT" /dev/nvme0n1p${partnr}
+```
+Mount:
+```
+mkdir -p /emmc-root /nvme-root /boot
+mount /dev/disk/by-partlabel/bpir*-emmc-root /emmc-root
+mount /dev/disk/by-partlabel/bpir*-emmc-boot /boot
+mount /dev/nvme0n1p${partnr} /nvme-root
+```
+And copy the files over:
+```
+cp -a /emmc-root/* /nvme-root
+```
+Setup the system to boot from nvme partition:
+```
+fdtget -ts "$(cat /boot/bootcfg/atfdtb)" "/chosen" "bootargs" >/tmp/bootargs.txt
+sed -i 's/-emmc-/-nvme-/g' /tmp/bootargs.txt
+fdtput -ts "$(cat /boot/bootcfg/atfdtb)" "/chosen" "bootargs" "$(cat /tmp/bootargs.txt)"
+```
+Do not forget, as the nvme will still have a lot to sync, the command: !!!
+```
+sync
+```
 
 ## TODO:
 
