@@ -206,7 +206,7 @@ Some DSA drivers have a problem with this setup, but some are recently fixed wit
 
 
 
-## Setup booting from NVME on R3/R3mini/R4.
+## Setup booting from NVME on R3/R3mini/R4
 
 This instruction is for the default moot method "2. ATF - KERNEL using boot partition."
 
