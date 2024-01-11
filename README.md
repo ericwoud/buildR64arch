@@ -210,7 +210,14 @@ Some DSA drivers have a problem with this setup, but some are recently fixed wit
 
 This instruction is for the default boot method "2. ATF - KERNEL using boot partition."
 
-Setup a booting emmc system on R3/R3mini/R4. Check if the nvme is stable, coldboot and reboot several times and see if the drive is present _every_ time, with the `lsblk` command. If the drive is stable, boot to initrd by keeping the 'x' key pressed during boot.
+Setup a booting emmc system on R3/R3mini/R4. Check if the nvme is stable, coldboot and reboot several times and see if the drive is present _every_ time, with the `lsblk` command. If the drive is stable, continue.
+
+Boot emmc normally and make sure that the packages are updated:
+```
+pacman -Syu linux-bpir64-git bpir64-atf-git
+```
+
+Boot to initrd by keeping the 'x' key pressed during boot.
 
 To clear and empty the nvme, optionally run:
 ```
@@ -266,7 +273,12 @@ This instruction is for the default boot method "1. ATF - KERNEL using `fip` par
 
 Setup a booting emmc system on R3/R3mini/R4. Check if the nvme is stable, coldboot and reboot several times and see if the drive is present _every_ time, with the `lsblk` command. If the drive is stable, continue.
 
-First make sure we are booting from emmc fip partition by executing from normal startup:
+Boot emmc normally and make sure that the packages are updated:
+```
+pacman -Syu linux-bpir64-git bpir64-atf-git
+```
+
+Make sure we are booting from emmc fip partition by executing from normal startup:
 ```
 bpir-writefip --boot2fip
 ```

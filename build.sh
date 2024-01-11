@@ -362,6 +362,8 @@ export LC_ALL=C
 export LANG=C
 export LANGUAGE=C 
 
+[ -f "config.sh" ] && source config.sh
+
 cd "$(dirname -- "$(realpath -- "${BASH_SOURCE[0]}")")"
 [ $USER = "root" ] && sudo="" || sudo="sudo"
 while getopts ":ralcbxzpRAFBIP" opt $args; do
@@ -428,7 +430,7 @@ if [ "$F" = true ]; then
   fi
   if [ "$l" = true ]; then
     [ ! -f $IMAGE_FILE ] && touch $IMAGE_FILE
-    loopdev=$($sudo losetup --show --find $IMAGE_FILE)
+    loopdev=$($sudo losetup --show --find $IMAGE_FILE 2>/dev/null)
     echo "Loop device = $loopdev"
     device=$loopdev
   else
