@@ -269,7 +269,7 @@ sync
 
 ## Setup booting from NVME on R3/R3mini/R4, using chain-loading kernel on emmc fip partition
 
-*** In the making, not possible yet ***
+*** currently broken, mtk-pcie-gen3 driver not kexec compatible ***
 
 This instruction is for the default boot method "1. ATF - KERNEL using `fip` partition." This is to prevent that any (the wrong) boot partition is mounted. Using kexec may result in incorrect initialisation of hardware. It may reveal unknown bugs.
 

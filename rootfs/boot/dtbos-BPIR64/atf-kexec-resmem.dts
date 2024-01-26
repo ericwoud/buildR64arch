@@ -1,0 +1,17 @@
+/dts-v1/;
+/plugin/;
+
+&{/} {
+  reserved-memory {
+    // 256 bytes
+    atf_data: atf-data@43030000 {
+      no-map;
+      reg = <0 0x43030000 0 0x100>;
+    };
+    // 32 Mbytes
+    atf_buffer: atf-buffer@51000000 {
+      no-map;
+      reg = <0 0x51000000 0 0x2000000>;
+    };
+  };
+};
