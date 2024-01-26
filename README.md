@@ -117,9 +117,9 @@ Create an EMMC image for the R64/R3 and have it compressed.
 ```
 ./build.sh -lFx
 ```
-Then copy the bpir.img.xz to the SD card /tmp/ folder. It is accessable without root.
+Then copy the bpir.img.gz to the SD card /tmp/ folder. It is accessable without root.
 
-If using a pre-build image, rename it to `bpir.img.xz`
+If using a pre-build image, rename it to `bpir.img.gz`
 
 Boot the R64/R3 with the SD card with UART connected. When kernel starts keep 'shift E' keys pressed. When finised, you can reboot. 
 
@@ -139,7 +139,7 @@ Boot the board in NAND mode with UART connected. Boot to Openwrt Busybox command
 
 ```
 echo 0 > /sys/block/mmcblk0boot0/force_ro
-gunzip -c /mnt/sda1/bpir.img.gz | dd of=/dev/mmcblk0 bs=4M conv=fsync
+gzip -d -c /mnt/sda1/bpir.img.gz | dd of=/dev/mmcblk0 bs=4M conv=fsync
 dd if=/dev/mmcblk0 of=/dev/mmcblk0boot0 bs=17K skip=1 count=32 conv=fsync
 mmc bootpart enable 1 1 /dev/mmcblk0
 ```

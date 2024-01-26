@@ -210,7 +210,6 @@ function setupMACconfig {
     mac=${mac_read::17}
     nr=${mac_read:18}
     [ -z "$nr" ] && nr=1
-    echo nr=$nr
     first="aa:bb:cc"
     while [ ! -z "$(cat $file | grep $mac)" ]; do # make sure all macs are different
       mac=$first:$(printf %02x $(($RANDOM%256))):$(printf %02x $(($RANDOM%256)))
