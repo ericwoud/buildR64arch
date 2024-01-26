@@ -139,7 +139,7 @@ Boot the board in NAND mode with UART connected. Boot to Openwrt Busybox command
 
 ```
 echo 0 > /sys/block/mmcblk0boot0/force_ro
-gzip -d -c /mnt/sda1/bpir.img.gz | dd of=/dev/mmcblk0 bs=4M conv=fsync
+gunzip -c /mnt/sda1/bpir.img.gz | dd of=/dev/mmcblk0 bs=4M conv=fsync
 dd if=/dev/mmcblk0 of=/dev/mmcblk0boot0 bs=17K skip=1 count=32 conv=fsync
 mmc bootpart enable 1 1 /dev/mmcblk0
 ```
@@ -152,7 +152,7 @@ On github you will find downloadable images at the release branches. R64 only fo
 
 Write the image file for sd-card to the appropriate device, MAKE SURE YOU HAVE THE CORRECT DEVICE!
 ```
-xz -dcv ~/Downloads/bpir64-sdmmc.img.xz | sudo dd of=/dev/sda
+gunzip -c ~/Downloads/bpir64-sdmmc.img.xz | sudo dd of=/dev/sda
 ```
 
 
