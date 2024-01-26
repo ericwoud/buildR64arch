@@ -152,7 +152,7 @@ On github you will find downloadable images at the release branches. R64 only fo
 
 Write the image file for sd-card to the appropriate device, MAKE SURE YOU HAVE THE CORRECT DEVICE!
 ```
-gunzip -c ~/Downloads/bpir64-sdmmc.img.xz | sudo dd of=/dev/sda
+gunzip -c ~/Downloads/bpir64-sdmmc.img.gz | sudo dd of=/dev/sda
 ```
 
 
