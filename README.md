@@ -1,8 +1,8 @@
 # buildR64arch
 
-Install a minimal Arch-Linux on Banana Pi R64 or R3 from scratch.
+Install a minimal Arch-Linux on Banana Pi R64, R3, R3mini and R4 from scratch.
 
-Old: Downloadable image for quick test located [HERE](https://github.com/ericwoud/buildR64arch/releases/download/v1.2/bpir64-sdmmc.img.xz)
+Downloadable images for quick test located [HERE](https://www.woudstra.mywire.org/images/)
 
 Based on: [buildR64ubuntu](https://github.com/ericwoud/buildR64ubuntu.git)
 , [openwrt atf](https://github.com/mtk-openwrt/arm-trusted-firmware)
