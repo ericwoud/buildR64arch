@@ -248,9 +248,13 @@ function rootfs {
   $sudo sed -i 's/.*UsePAM.*/UsePAM no/' $rootfsdir/etc/ssh/sshd_config
   $sudo sed -i 's/.*#IgnorePkg.*/IgnorePkg = bpir*-atf-git bpir*-uboot-git/' $rootfsdir/etc/pacman.conf
   $sudo cp -rfvL "$rootfsdir/usr/share/buildR64arch/etc" $rootfsdir
+  wdir="$rootfsdir/etc/systemd/network"
+  $sudo rm -rf $wdir/*
+  $sudo cp -rfvL "$rootfsdir/usr/share/buildR64arch/network/network-${target^^}-${setup}/"* $wdir
+  wdir="$rootfsdir/etc/hostapd"
+  $sudo rm -rf $wdir/*
+  $sudo cp -rfvL "$rootfsdir/usr/share/buildR64arch/network/network-${target^^}/"* $wdir
   $sudo sed -i "s/\bdummy\b/PARTLABEL=${target}-${atfdevice}-root/g" $rootfsdir/etc/fstab
-  selectdir $rootfsdir/etc/systemd/network ${target^^}-${setup}
-  selectdir $rootfsdir/etc/hostapd ${target^^}
   if [ ! -z "$brlanip" ]; then
     $sudo sed -i 's/Address=.*/Address='$brlanip'\/24/' \
                     $rootfsdir/etc/systemd/network/10-brlan.network
