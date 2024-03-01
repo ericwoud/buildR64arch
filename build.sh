@@ -223,9 +223,6 @@ function setupMACconfig {
 function rootfs {
   trap ctrl_c INT
   resolv
-  $sudo mkdir -p $rootfsdir/boot
-  $sudo cp -rfvL ./rootfs/boot $rootfsdir
-  selectdir $rootfsdir/boot/dtbos ${target^^}
   if [ -z "$(cat $rootfsdir/etc/pacman.conf | grep -oP '^\[ericwoud\]')" ]; then
     serv="[ericwoud]\nServer = $REPOURL\nServer = $BACKUPREPOURL\n"
     $sudo sed -i '/^\[core\].*/i'" ${serv}"'' $rootfsdir/etc/pacman.conf
@@ -250,7 +247,7 @@ function rootfs {
   $sudo sed -i 's/.*PermitRootLogin.*/PermitRootLogin yes/' $rootfsdir/etc/ssh/sshd_config
   $sudo sed -i 's/.*UsePAM.*/UsePAM no/' $rootfsdir/etc/ssh/sshd_config
   $sudo sed -i 's/.*#IgnorePkg.*/IgnorePkg = bpir*-atf-git bpir*-uboot-git/' $rootfsdir/etc/pacman.conf
-  for d in $(ls ./rootfs/ | grep -vx boot); do $sudo cp -rfvL ./rootfs/$d $rootfsdir; done
+$sudo cp -rfvL "/usr/share/buildR64arch/etc" $rootfsdir
   $sudo sed -i "s/\bdummy\b/PARTLABEL=${target}-${atfdevice}-root/g" $rootfsdir/etc/fstab
   selectdir $rootfsdir/etc/systemd/network ${target^^}-${setup}
   selectdir $rootfsdir/etc/hostapd ${target^^}

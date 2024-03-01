@@ -114,6 +114,15 @@ if [[ $@ =~ "--atf" ]]; then
   fi
 fi
 
+###############
+# Copy DTBO's #
+###############
+if [ ! -d "/boot/dtbos/" ]; then
+  mkdir -p "/boot/dtbos/"
+  cp -vf /usr/share/buildR64arch/boot/dtbos-${target^^}/*                "/boot/dtbos/" 2>/dev/null
+  cp -vf /usr/share/buildR64arch/boot/dtbos-${target^^}-${atfdevice^^}/* "/boot/dtbos/" 2>/dev/null
+fi
+
 #################
 # Create DTBO's #
 #################
