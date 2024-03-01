@@ -118,8 +118,8 @@ fi
 ###############
 if [ ! -d "/boot/dtbos/" ]; then
   mkdir -p "/boot/dtbos/"
-  cp -vf /usr/share/buildR64arch/boot/dtbos-${target^^}/*                "/boot/dtbos/" 2>/dev/null
-  cp -vf /usr/share/buildR64arch/boot/dtbos-${target^^}-${atfdevice^^}/* "/boot/dtbos/" 2>/dev/null
+  cp -vf /usr/share/buildR64arch/boot/${target^^}/*                "/boot/dtbos/" 2>/dev/null
+  cp -vf /usr/share/buildR64arch/boot/${target^^}-${atfdevice^^}/* "/boot/dtbos/" 2>/dev/null
 fi
 
 #################
