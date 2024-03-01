@@ -195,14 +195,6 @@ function bootstrap {
   $sudo mv -vf $rootfsdir/etc/pacman.d/mirrorlist.pacnew $rootfsdir/etc/pacman.d/mirrorlist
 }
 
-function selectdir {
-  $sudo rm -rf $1
-  $sudo mkdir -p $1
-  [ -d $1-$2                ] && $sudo mv -vf $1-$2/*                $1
-  [ -d $1-$2-${atfdevice^^} ] && $sudo mv -vf $1-$2-${atfdevice^^}/* $1
-  $sudo rm -vrf $1-*
-}
-
 function setupMACconfig {
   file="$rootfsdir/etc/systemd/network/mac.txt"
   while [ ! -z "$(cat $file | grep 'aa:bb:cc:dd:ee:ff')" ]; do
@@ -251,7 +243,7 @@ function rootfs {
   wdir="$rootfsdir/etc/systemd/network"; $sudo rm -rf $wdir/*
   $sudo cp -rfvL "$rootfsdir/usr/share/buildR64arch/network/${target^^}-${setup}/"* $wdir
   wdir="$rootfsdir/etc/hostapd";         $sudo rm -rf $wdir/*
-  $sudo cp -rfvL "$rootfsdir/usr/share/buildR64arch/network/${target^^}/"* $wdir
+  $sudo cp -rfvL "$rootfsdir/usr/share/buildR64arch/hostapd/${target^^}/"* $wdir
   $sudo sed -i "s/\bdummy\b/PARTLABEL=${target}-${atfdevice}-root/g" $rootfsdir/etc/fstab
   if [ ! -z "$brlanip" ]; then
     $sudo sed -i 's/Address=.*/Address='$brlanip'\/24/' \
