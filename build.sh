@@ -272,10 +272,10 @@ $sudo cp -rfvL "/usr/share/buildR64arch/etc" $rootfsdir
     $schroot sudo systemctl --force --no-pager reenable hostapd@${conf}.service \
                  2>&1 | grep -v "is added as a dependency to a non-existent unit"
   done
-  find -L "rootfs/etc/systemd/system" -name "*.service"| while read service ; do
-    service=$(basename $service); [[ "$service" =~ "@" ]] && continue
-    $schroot sudo systemctl --force --no-pager reenable $service
-  done
+#  find -L "rootfs/etc/systemd/system" -name "*.service"| while read service ; do
+#    service=$(basename $service); [[ "$service" =~ "@" ]] && continue
+#    $schroot sudo systemctl --force --no-pager reenable $service
+#  done
   setupMACconfig
   $schroot bpir-writefip $bpir_write
 }
