@@ -27,7 +27,6 @@ default_dtb="${default_dtb/.dtb/}"
 
 tmp="/tmp/bpir64-atf-git"
 mkdir -p $tmp
-mkdir -p /boot/dtbos
 mkdir -p /boot/bootcfg
 dtb=$(       getconf dtb     "$default_dtb")
 atfdevice=$( getconf device  "$(echo $partlabelroot | cut -d'-' -f2)")
