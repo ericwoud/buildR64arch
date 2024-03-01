@@ -1,0 +1,176 @@
+#!/bin/bash
+
+#############
+# Functions #
+#############
+function getconf {
+  conf=$(cat /boot/bootcfg/${1} 2>/dev/null)
+  if [ -z "$conf" ]; then
+    conf="${2}"
+    echo -n "${conf}" >"/boot/bootcfg/${1}"
+  fi
+  echo "${conf}"
+}
+
+#################
+# Set variables #
+#################
+rootdev=$(lsblk -pilno pkname,type,mountpoint | grep -G 'part /$' |  head -n1 | cut -d " " -f1)
+partlabelroot=$(lsblk -plno partlabel $rootdev | grep -G '\-root$' )
+[ -z "$partlabelroot" ] && exit
+target=$(echo $partlabelroot | cut -d'-' -f1)
+
+default_dtb="${target/m/-mini}"
+default_dtb="${default_dtb/bpir/-bananapi-bpi-r}"
+default_dtb=$(shopt -s nullglob; cd /boot/dtbs; echo "mt"*"${default_dtb}.dtb" | head -n 1)
+default_dtb="${default_dtb/.dtb/}"
+
+tmp="/tmp/bpir64-atf-git"
+mkdir -p $tmp
+mkdir -p /boot/dtbos
+mkdir -p /boot/bootcfg
+dtb=$(       getconf dtb     "$default_dtb")
+atfdevice=$( getconf device  "$(echo $partlabelroot | cut -d'-' -f2)")
+linux=$(     getconf linux   "/boot/Image")
+cmdline=$(   getconf cmdline "console=ttyS0,115200 debug=7 rw rootwait audit=0")
+initrd=$(    getconf initrd  "/boot/initramfs-linux-bpir64-git.img")
+atfdtb=$(    getconf atfdtb  "/boot/dtbs/${dtb}-atf.dtb")
+
+########## cleanup *-atf.dtb
+
+fipdevicel="/dev/disk/by-partlabel/${target}-${atfdevice}-fip"
+bootdevicel="/dev/disk/by-partlabel/${target}-${atfdevice}-boot"
+atfdevicel="/dev/disk/by-partlabel/${target}-${atfdevice}-atf"
+fstabstr="PARTLABEL=${target}-${atfdevice}-boot"
+
+#######################
+# Convert FIP to BOOT #
+#######################
+if [[ $@ =~ "--fip2boot" ]] && [ -L ${fipdevicel} ]; then
+  set -e
+  pkfip=$(lsblk -rno pkname ${fipdevicel})
+  nrfip=$(cat "/sys/block/${pkfip}/$(basename $(realpath ${fipdevicel}))/partition")
+  if [ -z "$pkfip" ] || [ -z "$nrfip" ]; then exit; fi
+  [ -e $tmp/boot ] && rm -rf $tmp/boot
+  echo "Moving files from /boot to $tmp/boot"
+  mv -fT /boot $tmp/boot
+  parted -s -- "/dev/$pkfip" name $nrfip ${target}-${atfdevice}-boot \
+                             set  $nrfip boot on
+  mkfs.vfat -v -F 32 -S 512 -s 16 -n "${target^^}-BOOT" ${bootdevicel}
+  mkdir /boot
+  mount -t vfat ${bootdevicel} /boot
+  echo "Copying files from $tmp/boot to /boot"
+  cp -rfT $tmp/boot /boot
+  set +e
+fi
+
+#######################
+# Convert BOOT to FIP #
+#######################
+if [[ $@ =~ "--boot2fip" ]] && [ -L ${bootdevicel} ]; then
+  set -e
+  pkfip=$(lsblk -rno pkname ${bootdevicel})
+  nrfip=$(cat "/sys/block/${pkfip}/$(basename $(realpath ${bootdevicel}))/partition")
+  if [ -z "$pkfip" ] || [ -z "$nrfip" ]; then exit; fi
+  [ -e $tmp/boot ] && rm -rf $tmp/boot
+  mkdir $tmp/boot
+  echo "Copying files from /boot to $tmp/boot"
+  cp -rfT /boot/ $tmp/boot
+  while mountpoint /boot; do umount /boot; sleep 1; done
+  parted -s -- "/dev/$pkfip" name $nrfip ${target}-${atfdevice}-fip
+  rm -rf /boot
+  echo "Moving files from $tmp/boot to /boot"
+  mv -fT $tmp/boot /boot
+  set +e
+fi
+
+########################
+# Write ATF bootloader #
+########################
+if [[ $@ =~ "--atf" ]]; then
+  if [ -L ${atfdevicel} ]; then
+    headerdev="/dev/"$(lsblk -no pkname ${atfdevicel})
+    if [ -f "/boot/${target}-atf-${atfdevice}-header.bin" ]; then
+      echo Writing ${target}-atf-${atfdevice}-header.bin to ${headerdev}
+      dd if=/boot/${target}-atf-${atfdevice}-header.bin of="${headerdev}" conv=fsync
+    fi
+    echo -e "Target = ${target}, ATF device = ${atfdevice}\nZeroing: ${atfdevicel}"
+    dd bs=64k if=/dev/zero of="${atfdevicel}" conv=fsync 2>/dev/null
+    echo "Writing ${target}-atf-${atfdevice}-atf.bin to ${atfdevicel}"
+    dd bs=64k if=/boot/${target}-atf-${atfdevice}-atf.bin of="${atfdevicel}" conv=fsync
+    if [ -b ${headerdev}"boot0" ] && [ -b ${headerdev}"boot1" ]; then
+      bootpart="0"$(mmc extcsd read ${headerdev} | grep PARTITION_CONFIG | cut -f 2 -d'0' | cut -f 1 -d']')
+      bootpart=$(( ($bootpart & 0x38) >> 3 ))
+      echo "EXTCSD bootpart = $bootpart"
+      [ "$bootpart" -eq "1" ] && bootx="boot0"
+      [ "$bootpart" -eq "2" ] && bootx="boot1"
+      if [ ! -z "$bootx" ]; then
+        echo -e "Copying atf to ${headerdev}${bootx}"
+	echo 0 > /sys/block/${headerdev/'/dev/'/}${bootx}/force_ro
+        dd bs=4M if="${atfdevicel}" of="${headerdev}${bootx}" conv=fsync
+	echo 1 > /sys/block/${headerdev/'/dev/'/}${bootx}/force_ro
+      fi
+    fi
+  fi
+fi
+
+#################
+# Create DTBO's #
+#################
+cp -vf "/boot/dtbs/${dtb}.dtb" "/boot/dtbs/${dtb}-fixed.dtb"
+rm -rf /boot/dtbos/*.dtbo
+for bp in /boot/dtbos/*.dts; do
+  echo "Creating .dtbo from $(basename $bp)"
+  dtc -@ -q -I dts -O dtb -o ${bp/".dts"/".dtbo"} $bp
+  cat $bp | grep "//fdtput" | while read -r line ; do
+    echo fdtput "/boot/dtbs/${dtb}-fixed.dtb" ${line/"//fdtput"/""}
+         fdtput "/boot/dtbs/${dtb}-fixed.dtb" ${line/"//fdtput"/""}
+  done
+done
+
+########################
+# Create a single .dtb #
+########################
+fdtoverlay -vi "/boot/dtbs/${dtb}-fixed.dtb" -o "$atfdtb" \
+                /boot/dtbos/*.dtbo
+origargs=$(fdtget -ts "$atfdtb" "/chosen" "bootargs")
+bootargs="root=PARTLABEL=${partlabelroot} $origargs $cmdline"
+echo BOOTARGS = "$bootargs"
+fdtput -ts "$atfdtb" "/chosen" "bootargs" "$bootargs"
+fdtput -ts "$atfdtb" "/memory" "device_type" "memory"
+if [ -f "$initrd" ];then
+  ins="0x48000000"
+  ine="0x$(printf '%x\n' $(( $ins + $(du -b $initrd | cut -f1) )))"
+  fdtput -tx "$atfdtb" "/chosen" "linux,initrd-end" "$ine"
+  fdtput -tx "$atfdtb" "/chosen" "linux,initrd-start" "$ins"
+else
+  echo -n "EMPTYBYT" > "$tmp/initrd"
+  initrd="$tmp/initrd"
+fi
+if [ ! -f "$atfdtb" ];then
+  echo -n "EMPTYBYT" > "$tmp/atfdtb"
+  atfdtb="$tmp/atfdtb"
+fi
+
+##############################
+# Create and write fip image #
+##############################
+if [ -L ${fipdevicel} ]; then
+  bl31="/boot/${target}-atf-${atfdevice}-bl31.bin"
+  imageid=$(od --skip-bytes=$((4*14)) --read-bytes=4 --address-radix=n -x \
+              $linux | sed 's/ //g')
+  fipfiles=""
+  [ -f "$bl31" ]   && fipfiles+=" --soc-fw $bl31"
+  [ -f "$linux" ]  && fipfiles+=" --nt-fw $linux"
+  if [[ "$imageid" == "5241644d" ]]; then # We have a linux kernel image
+    [ -f "$atfdtb" ] && fipfiles+=" --nt-fw-config $atfdtb"
+    [ -f "$initrd" ] && fipfiles+=" --tos-fw-extra2 $initrd"
+  fi
+  fiptool --verbose create $tmp/fip.bin $fipfiles
+  fiptool info $tmp/fip.bin
+  echo Writing FIP to: ${fipdevicel}
+  dd bs=1M of=${fipdevicel} if=/dev/zero conv=fsync 2>/dev/null
+  dd bs=1M of=${fipdevicel} if=$tmp/fip.bin conv=fsync
+fi
+
+exit 0
