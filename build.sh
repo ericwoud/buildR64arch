@@ -247,7 +247,7 @@ function rootfs {
   $sudo sed -i 's/.*PermitRootLogin.*/PermitRootLogin yes/' $rootfsdir/etc/ssh/sshd_config
   $sudo sed -i 's/.*UsePAM.*/UsePAM no/' $rootfsdir/etc/ssh/sshd_config
   $sudo sed -i 's/.*#IgnorePkg.*/IgnorePkg = bpir*-atf-git bpir*-uboot-git/' $rootfsdir/etc/pacman.conf
-$sudo cp -rfvL "/usr/share/buildR64arch/etc" $rootfsdir
+  $sudo cp -rfvL "$rootfsdir/usr/share/buildR64arch/etc" $rootfsdir
   $sudo sed -i "s/\bdummy\b/PARTLABEL=${target}-${atfdevice}-root/g" $rootfsdir/etc/fstab
   selectdir $rootfsdir/etc/systemd/network ${target^^}-${setup}
   selectdir $rootfsdir/etc/hostapd ${target^^}
@@ -272,12 +272,8 @@ $sudo cp -rfvL "/usr/share/buildR64arch/etc" $rootfsdir
     $schroot sudo systemctl --force --no-pager reenable hostapd@${conf}.service \
                  2>&1 | grep -v "is added as a dependency to a non-existent unit"
   done
-#  find -L "rootfs/etc/systemd/system" -name "*.service"| while read service ; do
-#    service=$(basename $service); [[ "$service" =~ "@" ]] && continue
-#    $schroot sudo systemctl --force --no-pager reenable $service
-#  done
   setupMACconfig
-  $schroot bpir-writefip $bpir_write
+  $schroot bpir-toolbox $bpir_write
 }
 
 function chrootfs {
