@@ -126,6 +126,7 @@ Boot the R64/R3 with the SD card with UART connected. When kernel starts keep 's
 You can keep 'x' pressed instead if you want to enter a busybox ash.
 
 Note for R3: To run on EMMC, only the switch most near to powerplug (D) should be down, the rest up.
+This is different from the normal switch settings. It is done so that you do not need mmcblk0boot0.
 
 ## R3-MINI & R4 Build/Install emmc version using image
 
