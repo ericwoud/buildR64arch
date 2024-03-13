@@ -124,8 +124,9 @@ if [[ $@ =~ "--uboot-install" ]]; then
 fi
 
 if [[ $@ =~ "--uboot-remove" ]]; then
-  rm -vf  /boot/u-boot.bin
-  rm -vrf /boot/extlinux
+  rm -vf "/boot/u-boot.bin"
+  rm -vf $extlinux
+  rmdir -v $(dirname $extlinux)
   exit
 fi
 
