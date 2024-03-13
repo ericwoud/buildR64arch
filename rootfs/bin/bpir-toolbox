@@ -25,6 +25,8 @@ default_dtb="${default_dtb/bpir/-bananapi-bpi-r}"
 default_dtb=$(shopt -s nullglob; cd /boot/dtbs; echo "mt"*"${default_dtb}.dtb" | head -n 1)
 default_dtb="${default_dtb/.dtb/}"
 
+extlinux="/boot/extlinux/extlinux.conf"
+
 tmp="/tmp/bpir64-atf-git"
 mkdir -p $tmp
 mkdir -p /boot/bootcfg
@@ -111,6 +113,40 @@ if [[ $@ =~ "--atf" ]]; then
       fi
     fi
   fi
+fi
+
+##############
+# U-BOOT PKG #
+##############
+if [[ $@ =~ "--uboot-install" ]]; then
+  cp -vf /boot/u-boot-${target}.bin /boot/u-boot.bin # This is the file that boots
+  exit
+fi
+
+if [[ $@ =~ "--uboot-remove" ]]; then
+  rm -vf  /boot/u-boot.bin
+  rm -vrf /boot/extlinux
+  exit
+fi
+
+############
+# EXTLINUX #
+############
+if [[ $@ =~ "--extlinux" ]] || [ ! -d $(dirname $extlinux) ]; then
+  mkdir -p $(dirname $extlinux)
+  cat <<-EOF | tee $extlinux
+	DEFAULT linux-bpir64-git
+	  MENU title U-Boot menu
+	  PROMPT 0
+	  TIMEOUT 50
+	LABEL linux-bpir64-git
+	  MENU LABEL Archlinux AUR package BananaPi Routers
+	  LINUX $(echo $linux   | cut -c6-)
+	  INITRD $(echo $initrd | cut -c6-)
+	  FDT $(echo $atfdtb    | cut -c6-)
+	  APPEND root=PARTLABEL=${partlabelroot} $cmdline
+	EOF
+  exit
 fi
 
 ###############
