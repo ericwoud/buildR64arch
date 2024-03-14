@@ -42,7 +42,6 @@ atfdtb=$(    getconf atfdtb  "/boot/dtbs/${dtb}-atf.dtb")
 fipdevicel="/dev/disk/by-partlabel/${target}-${atfdevice}-fip"
 bootdevicel="/dev/disk/by-partlabel/${target}-${atfdevice}-boot"
 atfdevicel="/dev/disk/by-partlabel/${target}-${atfdevice}-atf"
-fstabstr="PARTLABEL=${target}-${atfdevice}-boot"
 
 #######################
 # Convert FIP to BOOT #
