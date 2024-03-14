@@ -115,25 +115,10 @@ if [[ $@ =~ "--atf" ]]; then
   fi
 fi
 
-##############
-# U-BOOT PKG #
-##############
-if [[ $@ =~ "--uboot-install" ]]; then
-  cp -vf /boot/u-boot-${target}.bin /boot/u-boot.bin # This is the file that boots
-  exit
-fi
-
-if [[ $@ =~ "--uboot-remove" ]]; then
-  rm -vf "/boot/u-boot.bin"
-  rm -vf $extlinux
-  rmdir -v $(dirname $extlinux)
-  exit
-fi
-
 ############
 # EXTLINUX #
 ############
-if [[ $@ =~ "--extlinux" ]] || [ ! -d $(dirname $extlinux) ]; then
+if [[ $@ =~ "--extlinux" ]] || ( [[ $@ =~ "--uboot-install" ]] && [ ! -f "$extlinux" ] ) ; then
   mkdir -p $(dirname $extlinux)
   cat <<-EOF | tee $extlinux
 	DEFAULT linux-bpir64-git
@@ -147,6 +132,21 @@ if [[ $@ =~ "--extlinux" ]] || [ ! -d $(dirname $extlinux) ]; then
 	  FDT $(echo $atfdtb    | cut -c6-)
 	  APPEND root=PARTLABEL=${partlabelroot} $cmdline
 	EOF
+  exit
+fi
+
+##############
+# U-BOOT PKG #
+##############
+if [[ $@ =~ "--uboot-install" ]]; then
+  cp -vf /boot/u-boot-${target}.bin /boot/u-boot.bin # This is the file that boots
+  exit
+fi
+
+if [[ $@ =~ "--uboot-remove" ]]; then
+  rm -vf "/boot/u-boot.bin"
+  rm -vf $extlinux
+  rmdir -v $(dirname $extlinux)
   exit
 fi
 
