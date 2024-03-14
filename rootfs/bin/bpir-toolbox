@@ -139,7 +139,7 @@ fi
 # U-BOOT PKG #
 ##############
 if [[ $@ =~ "--uboot-install" ]]; then
-  cp -vf /boot/u-boot-${target}.bin /boot/u-boot.bin # This is the file that boots
+  cp -vf /boot/uboot/u-boot-${target}.bin /boot/u-boot.bin # This is the file that boots
   exit
 fi
 
