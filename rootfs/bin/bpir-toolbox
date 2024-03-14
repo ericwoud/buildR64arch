@@ -127,9 +127,9 @@ if [[ $@ =~ "--extlinux" ]] || ( [[ $@ =~ "--uboot-install" ]] && [ ! -f "$extli
 	  TIMEOUT 50
 	LABEL linux-bpir64-git
 	  MENU LABEL Archlinux AUR package BananaPi Routers
-	  LINUX $(echo $linux   | cut -c6-)
-	  INITRD $(echo $initrd | cut -c6-)
-	  FDT $(echo $atfdtb    | cut -c6-)
+	  LINUX ${linux:5}
+	  INITRD ${initrd:5}
+	  FDT ${atfdtb:5}
 	  APPEND root=PARTLABEL=${partlabelroot} $cmdline
 	EOF
   exit
