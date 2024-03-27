@@ -23,7 +23,7 @@ IMAGE_FILE="./bpir.img"        # Name of image
 
 NEEDED_PACKAGES="base hostapd openssh wireless-regdb iproute2 nftables f2fs-tools dosfstools btrfs-progs\
  dtc mkinitcpio patch sudo evtest parted"
-EXTRA_PACKAGES="vim nano screen"
+EXTRA_PACKAGES="vim nano screen i2c-tools ethtool"
 PREBUILT_PACKAGES="bpir64-atf-git linux-bpir64-git mmc-utils-git peekpoke-git ssh-fix-reboot hostapd-launch"
 SCRIPT_PACKAGES="curl ca-certificates udisks2 parted gzip bc f2fs-tools dosfstools"
 SCRIPT_PACKAGES_ARCHLX="base-devel      uboot-tools  ncurses        openssl"
