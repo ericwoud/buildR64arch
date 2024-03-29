@@ -21,8 +21,8 @@ ROOT_END_MB=100%               # Size of root partition
 IMAGE_SIZE_MB=7456             # Size of image
 IMAGE_FILE="./bpir.img"        # Name of image
 
-NEEDED_PACKAGES="base hostapd openssh wireless-regdb iproute2 nftables f2fs-tools dosfstools btrfs-progs\
- dtc mkinitcpio patch sudo evtest parted"
+NEEDED_PACKAGES="base dbus-broker-units hostapd openssh wireless-regdb iproute2 nftables f2fs-tools dosfstools\
+ btrfs-progs dtc mkinitcpio patch sudo evtest parted"
 EXTRA_PACKAGES="vim nano screen i2c-tools ethtool"
 PREBUILT_PACKAGES="bpir64-atf-git linux-bpir64-git mmc-utils-git peekpoke-git ssh-fix-reboot hostapd-launch"
 SCRIPT_PACKAGES="curl ca-certificates udisks2 parted gzip bc f2fs-tools dosfstools"
