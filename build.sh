@@ -24,7 +24,7 @@ IMAGE_FILE="./bpir.img"        # Name of image
 NEEDED_PACKAGES="base dbus-broker-units hostapd openssh wireless-regdb iproute2 nftables f2fs-tools dosfstools\
  btrfs-progs dtc mkinitcpio patch sudo evtest parted"
 EXTRA_PACKAGES="vim nano screen i2c-tools ethtool"
-PREBUILT_PACKAGES="bpir64-atf-git linux-bpir64-git mmc-utils-git peekpoke-git ssh-fix-reboot hostapd-launch"
+PREBUILT_PACKAGES="bpir-atf-git mmc-utils-git peekpoke-git ssh-fix-reboot hostapd-launch"
 SCRIPT_PACKAGES="curl ca-certificates udisks2 parted gzip bc f2fs-tools dosfstools"
 SCRIPT_PACKAGES_ARCHLX="base-devel      uboot-tools  ncurses        openssl"
 SCRIPT_PACKAGES_DEBIAN="build-essential u-boot-tools libncurses-dev libssl-dev flex bison"
@@ -43,6 +43,7 @@ function setupenv {
 #BACKUPFILE="/run/media/$USER/DATA/${target}-${atfdevice}-rootfs.tar"
 BACKUPFILE="./${target}-${atfdevice}-rootfs.tar"
 arch='aarch64'
+PREBUILT_PACKAGES+=' '"linux-${target}-git"
 case ${target} in
   bpir64)
     SETUPBPIR=("RT       Router setup"
@@ -293,7 +294,7 @@ function backuprootfs {
 function restorerootfs {
   if [ -z "$(ls $rootfsdir)" ] || [ "$(ls $rootfsdir)" = "boot" ]; then
     $sudo tar -vxf "${BACKUPFILE}" -C $rootfsdir
-    echo "Run ./build.sh and execute 'pacman -Sy bpir64-atf-git' to write the" \
+    echo "Run ./build.sh and execute 'pacman -Sy bpir-atf-git' to write the" \
          "new atf-boot! Then type 'exit'."
   else
     echo "Root partition not empty!"

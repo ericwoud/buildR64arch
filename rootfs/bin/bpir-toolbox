@@ -25,6 +25,8 @@ default_dtb="${default_dtb/bpir/-bananapi-bpi-r}"
 default_dtb=$(shopt -s nullglob; cd /boot/dtbs; echo "mt"*"${default_dtb}.dtb" | head -n 1)
 default_dtb="${default_dtb/.dtb/}"
 
+initrd_file=$(echo /boot/initramfs-linux-bpir*-git.img)
+
 extlinux="/boot/extlinux/extlinux.conf"
 
 tmp="/tmp/bpir64-atf-git"
@@ -34,7 +36,7 @@ dtb=$(       getconf dtb     "$default_dtb")
 atfdevice=$( getconf device  "$(echo $partlabelroot | cut -d'-' -f2)")
 linux=$(     getconf linux   "/boot/Image")
 cmdline=$(   getconf cmdline "console=ttyS0,115200 debug=7 rw rootwait audit=0")
-initrd=$(    getconf initrd  "/boot/initramfs-linux-bpir64-git.img")
+initrd=$(    getconf initrd  "${initrd_file}")
 atfdtb=$(    getconf atfdtb  "/boot/dtbs/${dtb}-atf.dtb")
 
 ########## cleanup *-atf.dtb
