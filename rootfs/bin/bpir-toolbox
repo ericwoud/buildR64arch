@@ -25,6 +25,7 @@ default_dtb="${default_dtb/bpir/-bananapi-bpi-r}"
 default_dtb=$(shopt -s nullglob; cd /boot/dtbs; echo "mt"*"${default_dtb}.dtb" | head -n 1)
 default_dtb="${default_dtb/.dtb/}"
 
+[ ! -f "$(cat /boot/bootcfg/initrd)" ] && rm -f "/boot/bootcfg/initrd"
 initrd_file=$(echo /boot/initramfs-linux-bpir*-git.img)
 
 extlinux="/boot/extlinux/extlinux.conf"
