@@ -26,7 +26,6 @@ default_dtb=$(shopt -s nullglob; cd /boot/dtbs; echo "mt"*"${default_dtb}.dtb" |
 default_dtb="${default_dtb/.dtb/}"
 
 [ ! -f "$(cat /boot/bootcfg/initrd)" ] && rm -f "/boot/bootcfg/initrd"
-initrd_file=$(shopt -s nullglob; echo /boot/initramfs-*bpir*.img | head -n 1)
 
 extlinux="/boot/extlinux/extlinux.conf"
 
@@ -37,7 +36,7 @@ dtb=$(       getconf dtb     "$default_dtb")
 atfdevice=$( getconf device  "$(echo $partlabelroot | cut -d'-' -f2)")
 linux=$(     getconf linux   "/boot/Image")
 cmdline=$(   getconf cmdline "console=ttyS0,115200 debug=7 rw rootwait audit=0")
-initrd=$(    getconf initrd  "${initrd_file}")
+initrd=$(    getconf initrd  "/boot/initramfs-bpir.img")
 atfdtb=$(    getconf atfdtb  "/boot/dtbs/${dtb}-atf.dtb")
 
 ########## cleanup *-atf.dtb
