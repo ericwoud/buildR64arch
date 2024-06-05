@@ -81,6 +81,7 @@ if [[ $@ =~ "--boot2fip" ]] && [ -L ${bootdevicel} ]; then
   cp -rfT /boot/ $tmp/boot
   while mountpoint /boot; do umount /boot; sleep 1; done
   parted -s -- "/dev/$pkfip" name $nrfip ${target}-${atfdevice}-fip
+  until [ -b ${fipdevicel} ]; do sleep 1; done
   rm -rf /boot
   echo "Moving files from $tmp/boot to /boot"
   mv -fT $tmp/boot /boot
