@@ -3,7 +3,7 @@
 # Set default configuration values
 # These can be overridden by entering them into config.sh
 
-ALARM_MIRROR="http://eu.mirror.archlinuxarm.org"
+ALARM_MIRROR="http://mirror.archlinuxarm.org"
 
 QEMU_AARCH64="https://github.com/multiarch/qemu-user-static/releases/download/v7.2.0-1/qemu-aarch64-static.tar.gz"
 
@@ -23,7 +23,7 @@ IMAGE_FILE="./bpir.img"        # Name of image
 
 NEEDED_PACKAGES="base dbus-broker-units hostapd openssh wireless-regdb iproute2 nftables f2fs-tools dosfstools\
  btrfs-progs dtc mkinitcpio patch sudo evtest parted"
-EXTRA_PACKAGES="vim nano screen i2c-tools ethtool"
+EXTRA_PACKAGES="nano screen i2c-tools ethtool"
 PREBUILT_PACKAGES="bpir-atf-git mmc-utils-git peekpoke-git ssh-fix-reboot hostapd-launch"
 SCRIPT_PACKAGES="curl ca-certificates udisks2 parted gzip bc f2fs-tools dosfstools"
 SCRIPT_PACKAGES_ARCHLX="base-devel      uboot-tools  ncurses        openssl"
@@ -342,7 +342,9 @@ function ctrl_c() {
       $sudo kill -s SIGKILL $pp &>/dev/null
     done
   fi
-  exit
+  trap - EXIT
+  finish
+  exit 1
 }
 
 export LC_ALL=C
