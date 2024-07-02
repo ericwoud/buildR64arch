@@ -5,6 +5,8 @@ Name=eth1
 RequiredForOnline=no
 
 [Network]
+IPv4Forwarding=yes
+IPv6Forwarding=yes
 IPv6PrivacyExtensions=yes
 DHCP=yes
 # Enable DHCP or use the lines below

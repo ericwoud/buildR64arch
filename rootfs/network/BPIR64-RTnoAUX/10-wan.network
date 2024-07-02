@@ -5,6 +5,8 @@ Name=wan
 RequiredForOnline=no
 
 [Network]
+IPv4Forwarding=yes
+IPv6Forwarding=yes
 BindCarrier=eth0
 IPv6PrivacyExtensions=yes
 DHCP=yes

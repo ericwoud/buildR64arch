@@ -6,7 +6,8 @@ RequiredForOnline=degraded-carrier
 #RequiredForOnline=no
 
 [Network]
-IPForward=no
+IPv4Forwarding=no
+IPv6Forwarding=no
 Address=192.168.1.33/24
 Gateway=192.168.1.1
 DNS=8.8.8.8
