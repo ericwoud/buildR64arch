@@ -63,7 +63,7 @@ case ${target} in
     WIFIMODULE="mt7915e"
     ;;
   bpir4)
-    SETUPBPIR=(
+    SETUPBPIR=("RTnoSFP  Router setup, not using SFP module, wan=lan0"
                "AP       Access Point setup")
     WIFIMODULE="mt7915e"
     ;;

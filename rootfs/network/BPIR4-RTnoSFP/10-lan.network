@@ -1,0 +1,15 @@
+[Match]
+Name=lan1 lan2 lan3 lan4
+
+[Link]
+RequiredForOnline=no
+
+[Network]
+BindCarrier=eth0
+Bridge=brlan
+
+[BridgeVLAN]
+VLAN=1
+PVID=1
+EgressUntagged=1
+
