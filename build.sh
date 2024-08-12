@@ -144,8 +144,10 @@ function formatimage {
     name 3 ${target}-${atfdevice}-root \
     print
   $sudo partprobe "${device}"; $sudo udevadm settle
-  
-  mountdev=$(lsblk -prno partlabel,name $device | grep -P '^bpir' | grep -- -root | cut -d' ' -f2)
+  while 
+    mountdev=$(lsblk -prno partlabel,name $device | grep -P '^bpir' | grep -- -root | cut -d' ' -f2)
+    [ -z "$mountdev" ]
+  do sleep 0.1; done
   waitdev "${mountdev}"
   $sudo blkdiscard -fv "${mountdev}"
   waitdev "${mountdev}"
