@@ -36,7 +36,7 @@ You need:
   - Banana Pi R64 or R3
   - SD card
 
-### Choose your setup.
+### Choose your setup
 
 There are basically 2 setups to choose from. RouTer and AccessPoint. Some extra variants are added, according to the selected board'hardware.
 
