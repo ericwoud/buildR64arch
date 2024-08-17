@@ -44,6 +44,8 @@ There are basically 2 setups to choose from. RouTer and AccessPoint. Some extra 
 
 2. AccessPoint sets up all ports and wlan interfaces under 1 bridge called brlan. The bridge is setup with IP number 192.168.1.33. The bpi board should be connected lan-lan with your main router. The subnet should match the subnet of your router's lan subnet (first 3 numbers of IP). If not matching, then edit either one to match. Clients connecting to your bpi board are bridged with your router/modem so they should get an IP through your main router/modem's dhcp server.
 
+If you have 2 bpi boards you can setup 1 as RouTer and 1 as AccessPoint. If you use matching ssid's and passwords and you can use Fast Transition roaming to roam smoothly from one to another bpi board.
+
 ### Installing
 
 Clone from Git
