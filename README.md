@@ -40,7 +40,7 @@ You need:
 
 There are basically 2 setups to choose from. RouTer and AccessPoint. Some extra variants are added, according to the selected board'hardware.
 
-1. Router setup sets up the wan port (optionally a sfp port) as a dhcp client. It should get an IP number from your main router or modem or such. The lan ports and wlan interfaces are all setup in 1 bridge, called brlan. The bridge is setup with IP number 192.168.5.1. The bpi's wan port should be connected to a lan port of your main router/modem. Traffic from brlan is forwarded to wan, using masquerade.
+1. RouTer setup sets up the wan port (optionally a sfp port) as a dhcp client. It should get an IP number from your main router or modem or such. The lan ports and wlan interfaces are all setup in 1 bridge, called brlan. The bridge is setup with IP number 192.168.5.1. The bpi's wan port should be connected to a lan port of your main router/modem. Traffic from brlan is forwarded to wan, using masquerade.
 
 2. AccessPoint sets up all ports and wlan interfaces under 1 bridge called brlan. The bridge is setup with IP number 192.168.1.33. The bpi board should be connected lan-lan with your main router. The subnet should match the subnet of your router's lan subnet (first 3 numbers of IP). If not matching, the edit either one to match. Clients connecting to your bpi board are bridged with your router/modem so they should get an IP through your main router/modem's dhcp server.
 
