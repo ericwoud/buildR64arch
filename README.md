@@ -60,12 +60,6 @@ Change directory
 cd buildR64arch
 ```
 
-Install all necessary packages with:
-```
-./build.sh -a
-```
-This also installs a local version /usr/local/bin/qemu-aarch64-static. It can be removed with the `-A` option.
-
 Set `SD_ERASE_SIZE_MB` in config.sh if using a cardreader with naming /dev/sdX. Only from a cardreader with naming /dev/mmcblkX
 it is possible to read the erase size. Using this kind of reader the script will automatically read the erase size. 
 4MB is ok for most cards if you do not know the erase size. Later you can read it when the sd-card is inserted in a running bpir64/3.
@@ -357,8 +351,6 @@ Now booting from emmc results in the emmc-initrd chainloading the kernel located
 
 Command line options:
 
-* -a   : Install necessairy packages.
-* -A   : Remove necessairy packages.
 * -F   : Format SD card or image, then setup rootfs (adds -r)
 * -l   : Add this option to use an image-file instead of an SD card
 * -r   : Build RootFS.
