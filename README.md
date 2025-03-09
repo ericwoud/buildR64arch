@@ -211,7 +211,6 @@ For vlan setup the lan ports which connect router and AP as lan-trunk port on bo
 Some DSA drivers have a problem with this setup, but some are recently fixed with a fix wireless roaming fix in the kernel. You will need very recent drivers on all routers/switches and access points on your network
 
 
-
 ## Setup booting from NVME on R3/R3mini/R4, using boot partition on emmc
 
 This instruction is for the default boot method "2. ATF - KERNEL using boot partition."
@@ -271,75 +270,6 @@ Do not forget, as the nvme will still have a lot to sync, the command: !!!
 sync
 ```
 
-## Setup booting from NVME on R3/R3mini/R4, using chain-loading kernel on emmc fip partition
-
-*** Altough this is functional on R3/R3mini, this is not recommended, merely a proof of concept ***
-
-This instruction is for the default boot method "1. ATF - KERNEL using `fip` partition." This is to prevent that any (the wrong) boot partition is mounted.
-
-Setup a booting emmc system on R3/R3mini/R4. Check if the nvme is stable, coldboot and reboot several times and see if the drive is present _every_ time, with the `lsblk` command. If the drive is stable, continue.
-
-Boot emmc normally and make sure that the packages are updated:
-```
-pacman -Syu linux-bpir64-git bpir64-atf-git
-```
-
-Make sure we are booting from emmc fip partition by executing from normal startup:
-```
-bpir-writefip --boot2fip
-```
-
-Then boot in to initrd by keeping the 'x' key pressed during boot. To clear and empty the nvme, optionally run:
-```
-parted /dev/nvme0n1 mklabel gpt
-```
-Now setup the rootfs partition:
-```
-parted /dev/nvme0n1 unit MiB mkpart primary 256MiB 300GiB print
-```
-Get the partition number of the partition that starts at 256MiB and enter with this number:
-```
-export partnr=1
-```
-Get target name:
-```
-export target=$(echo /dev/disk/by-partlabel/bpir*-emmc-root | cut -d'/' -f5 | cut -d'-' -f1)
-```
-Set partlabel of partition:
-```
-parted /dev/nvme0n1 name ${partnr} ${target}-nvme-root print
-```
-Then format the partition:
-```
-mkfs.btrfs -f -L "BPIR-ROOT" /dev/nvme0n1p${partnr}
-```
-Mount:
-```
-mkdir -p /emmc-root /nvme-root
-mount /dev/disk/by-partlabel/${target}-emmc-root /emmc-root
-mount /dev/nvme0n1p${partnr} /nvme-root
-```
-And copy the files over:
-```
-cp -a /emmc-root/* /nvme-root
-```
-Setup the nvme-kernel to boot from nvme partition:
-```
-fdtget -ts "/nvme-root$(cat /nvme-root/boot/bootcfg/atfdtb)" "/chosen" "bootargs" >/tmp/bootargs.txt
-sed -i 's/-emmc-/-nvme-/g' /tmp/bootargs.txt
-fdtput -ts "/nvme-root$(cat /nvme-root/boot/bootcfg/atfdtb)" "/chosen" "bootargs" "$(cat /tmp/bootargs.txt)"
-```
-Make sure that the atf and fip partition on emmc are not touched by the nvme booting system:
-```
-echo nvme >/nvme-root/boot/bootcfg/device
-```
-
-Do not forget, as the nvme will still have a lot to sync, the command: !!!
-```
-sync
-```
-
-Now booting from emmc results in the emmc-initrd chainloading the kernel located on nvme. If somehow the nvme root partition is not found, or the 'e' key is pressed during startup, the emmc initrd will continue booting the emmc-root. This makes the emmc a recovery system. It is also the system from which to update the atf and emmc-kernel.
 
 ## TODO:
 
