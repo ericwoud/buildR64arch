@@ -1,0 +1,111 @@
+#!/usr/bin/ash
+ 
+# Tool for %PKGBASE% package, needs to run from initrd!
+# Connect UART and when kernel starts, keep 'x' key pressed.
+ 
+function get_sysmmc {
+  str=$(echo /sys/bus/platform/devices/${addr}.mmc/mmc_host/mmc*/mmc* | head -1)
+  [ -e "$str" ] && echo ${str} || echo ""
+}
+function get_mmcblk {
+  str=$(get_sysmmc)
+  [ ! -z "$str" ] &&  echo "$(basename $(ls ${str}/block | head -1))" || echo "/dev/null"
+}
+function get_mmctype {
+  str=$(get_sysmmc)
+  [ ! -z "$str" ] && cat ${str}/type || echo "NONE"
+}
+
+function set_sdmmc {
+  rmdir ${mmcdtbo}
+} 
+
+function set_emmc {
+cat <<EOT | tee /tmp/mmc0.dts
+/dts-v1/;
+/plugin/;
+&mmc0 {
+  bus-width = <8>;
+  max-frequency = <200000000>;
+  cap-mmc-highspeed;
+  mmc-hs200-1_8v;
+  mmc-hs400-1_8v;
+  hs400-ds-delay = <0x14014>;
+  no-sd;
+  no-sdio;
+  status = "okay";
+};
+EOT
+mkdir -p ${mmcdtbo}
+dtc -@ -I dts -O dtb -o ${mmcdtbo}/dtbo /tmp/mmc0.dts
+}
+ 
+function restart_driver {
+  [[ "$1" == "SD" ]] && pos="UP"
+  [[ "$1" == "MMC" ]] && pos="DOWN"
+  until [[ "$(get_mmctype)" == "$1" ]]; do
+    echo ${addr}.mmc >/sys/bus/platform/drivers/${driver}/unbind
+    sleep 0.1
+    echo ${addr}.mmc >/sys/bus/platform/drivers/${driver}/bind
+    echo "Flip SD/EMMC switch ${pos} (=$1) (most near to power plug), the rest stay up!"
+    sleep 1.9
+  done
+}
+
+driver="mtk-msdc"
+addr="11230000"
+compatible="$(cat /proc/device-tree/compatible)"
+
+if [[ "$compatible" == *"bananapi"*"mediatek,mt7622"* ]]; then # BPI-R64
+  mmcblk=$(get_mmcblk)
+  echo "EMMC Device = /dev/${mmcblk}"
+  mkdir -p /tmp/mnt
+  mount --source /dev/disk/by-partlabel/*-sdmmc-root --target /tmp/mnt
+  [ $? -ne 0 ] && exit
+  echo "Flashing file $1 now..."
+  dd if="/tmp/mnt$1" of=/dev/${mmcblk} bs=1M conv=fsync,notrunc
+  umount /tmp/mnt
+elif [[ "$compatible" == *"bananapi"*"mediatek,mt7986"* ]]; then # BPI-R3
+  mount -t configfs none /sys/kernel/config
+  [ ! -e "/sys/kernel/config/device-tree/overlays" ] && exit
+  addr="11230000"
+  mmcblk=$(get_mmcblk)
+  mmcdtbo="/sys/kernel/config/device-tree/overlays/mmc0"
+  echo "EMMC Device = /dev/${mmcblk}"
+  if [[ "$(get_mmctype)" == "SD" ]]; then
+    mkdir -p /tmp/mnt
+    mount --source /dev/disk/by-partlabel/*-sdmmc-root --target /tmp/mnt
+    [ $? -ne 0 ] && exit
+    echo "Reading file $1 now..."
+    cp -f "/tmp/mnt$1" "/tmp/tempfile"
+    umount /tmp/mnt
+    [ $? -ne 0 ] && exit
+    echo "Switching to EMMC..."
+    set_emmc
+    restart_driver "MMC"
+    mmcblk=$(get_mmcblk)
+    if [ -e "/tmp/tempfile" ]; then
+      echo "Setting up EMMC so that ${mmcblk} is the bootdevice."
+      mmc bootpart enable 7 1 /dev/${mmcblk}
+      echo "Writing $1 to EMMC now..."
+      gzip -d -c "/tmp/tempfile" | dd of=/dev/${mmcblk} conv=fsync,notrunc
+      echo "Reboot and enjoy booting from EMMC."
+    fi
+  elif [[ "$(get_mmctype)" == "MMC" ]]; then
+    echo "Switching back to SDMMC..."
+    set_sdmmc
+    restart_driver "SD"
+    mmcblk=$(get_mmcblk)
+  fi
+fi
+
+#CONFIG_DEBUG_FS=y
+#CONFIG_MMC_DEBUG=y
+#mount -t debugfs none /sys/kernel/debug
+#echo "file drivers/mmc/* +p" > /sys/kernel/debug/dynamic_debug/control
+
+#echo "Testing on mmcblk0boot1..."
+#echo 0 > /sys/block/mmcblk0boot0/force_ro 
+#echo 0 > /sys/block/mmcblk0boot1/force_ro 
+#dd if=/dev/zero of=/dev/mmcblk0boot1
+
