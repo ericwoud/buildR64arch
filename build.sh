@@ -22,7 +22,7 @@ IMAGE_FILE="./bpir.img"        # Name of image
 NEEDED_PACKAGES="base dbus-broker-units hostapd openssh wireless-regdb iproute2 nftables f2fs-tools dosfstools\
  btrfs-progs dtc mkinitcpio patch sudo evtest parted"
 EXTRA_PACKAGES="nano screen i2c-tools ethtool"
-PREBUILT_PACKAGES="bpir-atf-git mmc-utils-git peekpoke-git ssh-fix-reboot hostapd-launch"
+PREBUILT_PACKAGES="bpir-atf-git mmc-utils-git ssh-fix-reboot hostapd-launch"
 SCRIPT_PACKAGES="curl ca-certificates udisks2 parted gzip bc f2fs-tools dosfstools"
 SCRIPT_PACKAGES_ARCHLX="base-devel      uboot-tools  ncurses        openssl"
 SCRIPT_PACKAGES_DEBIAN="build-essential u-boot-tools libncurses-dev libssl-dev flex bison"
