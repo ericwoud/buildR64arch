@@ -210,7 +210,7 @@ function bootstrap {
 	[community]
 	Include = /etc/pacman.d/mirrorlist
 	EOF
-    until schroot pacman-static -Syu --noconfirm --needed --overwrite \* pacman archlinuxarm-keyring
+    until schroot pacman-static -Syu --noconfirm --needed --overwrite \* pacman util-linux archlinuxarm-keyring
     do sleep 2; done
     $sudo mv -vf $rootfsdir/etc/pacman.conf.pacnew         $rootfsdir/etc/pacman.conf
     $sudo mv -vf $rootfsdir/etc/pacman.d/mirrorlist.pacnew $rootfsdir/etc/pacman.d/mirrorlist
@@ -387,7 +387,6 @@ function add_children() {
 
 function schroot() {
   if [[ -z "${*}" ]]; then
-  
     $sudo unshare --fork --kill-child --pid --uts --root=$rootfsdir su -c "hostname ${target};bash"
   else
     $sudo unshare --fork --kill-child --pid --uts --root=$rootfsdir su -c "hostname ${target};${*}"
