@@ -30,7 +30,7 @@ NEEDED_PACKAGES="hostapd wireless-regdb iproute2 nftables f2fs-tools dosfstools\
  btrfs-progs patch sudo evtest parted"
 NEEDED_PACKAGES_DEBIAN="openssh-server device-tree-compiler mmc-utils     dracut-core"
 NEEDED_PACKAGES_ALARM=" openssh        dtc                  mmc-utils-git dracut\
- base dbus-broker-units mkinitcpio"
+ base dbus-broker-units inetutils mkinitcpio"
 EXTRA_PACKAGES="nano screen i2c-tools ethtool"
 PREBUILT_PACKAGES="bpir-atf-git ssh-fix-reboot hostapd-launch"
 SCRIPT_PACKAGES="curl ca-certificates udisks2 parted gzip bc f2fs-tools dosfstools debootstrap"
@@ -210,7 +210,7 @@ function bootstrap {
 	[community]
 	Include = /etc/pacman.d/mirrorlist
 	EOF
-    until schroot pacman-static -Syu --noconfirm --needed --overwrite \* pacman util-linux archlinuxarm-keyring
+    until schrootstrap pacman-static -Syu --noconfirm --needed --overwrite \* pacman archlinuxarm-keyring
     do sleep 2; done
     $sudo mv -vf $rootfsdir/etc/pacman.conf.pacnew         $rootfsdir/etc/pacman.conf
     $sudo mv -vf $rootfsdir/etc/pacman.d/mirrorlist.pacnew $rootfsdir/etc/pacman.d/mirrorlist
@@ -268,8 +268,8 @@ function rootfs {
     schroot pacman-key --recv-keys $REPOKEY
     schroot pacman-key --finger     $REPOKEY
     schroot pacman-key --lsign-key $REPOKEY
-    schroot pacman-key --lsign-key 'Arch Linux ARM Build System <builder@archlinuxarm.org>'
-    until schroot pacman -Syyu --needed --noconfirm --overwrite \* pacman-static \
+#    schroot pacman-key --lsign-key 'Arch Linux ARM Build System <builder@archlinuxarm.org>'
+    until schroot pacman -Syyu --needed --noconfirm --overwrite \\* pacman-static \
                           $NEEDED_PACKAGES $NEEDED_PACKAGES_ALARM $EXTRA_PACKAGES $PREBUILT_PACKAGES
     do sleep 2; done
   fi
@@ -383,6 +383,10 @@ function removescript {
 function add_children() {
   [ -z "$1" ] && return || echo $1
   for ppp in $(pgrep -P $1 2>/dev/null) ; do add_children $ppp; done
+}
+
+function schrootstrap() {
+    $sudo unshare --fork --kill-child --pid --uts --root=$rootfsdir "${@}"
 }
 
 function schroot() {
