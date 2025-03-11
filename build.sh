@@ -9,6 +9,13 @@ REPOKEY="DD73724DCA27796790D33E98798137154FE1474C"
 REPOURL='ftp://ftp.woudstra.mywire.org/repo/$arch'
 BACKUPREPOURL='https://github.com/ericwoud/buildRKarch/releases/download/repo-$arch'
 
+DEBOOTSTR_RELEASE="noble"
+DEBOOTSTR_SOURCE="http://ports.ubuntu.com/ubuntu-ports"
+DEBOOTSTR_COMPNS="main,restricted,universe,multiverse"
+#DEBOOTSTR_RELEASE="bullseye"
+#DEBOOTSTR_SOURCE="http://ftp.debian.org/debian/"
+#DEBOOTSTR_COMPNS="main,contrib,non-free"
+
 # Standard erase size, when it cannot be determined (using /dev/sdX cardreader or loopdev)
 SD_ERASE_SIZE_MB=4             # in Mega bytes
 
@@ -19,11 +26,14 @@ ROOT_END_MB=100%               # Size of root partition
 IMAGE_SIZE_MB=7456             # Size of image
 IMAGE_FILE="./bpir.img"        # Name of image
 
-NEEDED_PACKAGES="base dbus-broker-units hostapd openssh wireless-regdb iproute2 nftables f2fs-tools dosfstools\
- btrfs-progs dtc mkinitcpio patch sudo evtest parted"
+NEEDED_PACKAGES="hostapd wireless-regdb iproute2 nftables f2fs-tools dosfstools\
+ btrfs-progs patch sudo evtest parted"
+NEEDED_PACKAGES_DEBIAN="openssh-server device-tree-compiler mmc-utils     dracut-core"
+NEEDED_PACKAGES_ALARM=" openssh        dtc                  mmc-utils-git dracut\
+ base dbus-broker-units mkinitcpio"
 EXTRA_PACKAGES="nano screen i2c-tools ethtool"
-PREBUILT_PACKAGES="bpir-atf-git mmc-utils-git ssh-fix-reboot hostapd-launch"
-SCRIPT_PACKAGES="curl ca-certificates udisks2 parted gzip bc f2fs-tools dosfstools"
+PREBUILT_PACKAGES="bpir-atf-git ssh-fix-reboot hostapd-launch"
+SCRIPT_PACKAGES="curl ca-certificates udisks2 parted gzip bc f2fs-tools dosfstools debootstrap"
 SCRIPT_PACKAGES_ARCHLX="base-devel      uboot-tools  ncurses        openssl"
 SCRIPT_PACKAGES_DEBIAN="build-essential u-boot-tools libncurses-dev libssl-dev flex bison"
 
@@ -46,7 +56,7 @@ function setupenv {
 #BACKUPFILE="/run/media/$USER/DATA/${target}-${atfdevice}-rootfs.tar"
 BACKUPFILE="./${target}-${atfdevice}-rootfs.tar"
 arch='aarch64'
-PREBUILT_PACKAGES+=' '"linux-${target}-git"
+PREBUILT_PACKAGES="linux-${target}-git"' '$PREBUILT_PACKAGES
 case ${target} in
   bpir64)
     SETUPBPIR=("RT       Router setup !!!BROKEN!!!"
@@ -182,10 +192,15 @@ function bootstrap {
   do sleep 2; done
   [ ! -d "$rootfsdir/usr" ] && return
   $sudo mkdir -p $rootfsdir/{etc/pacman.d,var/lib/pacman}
-  resolv
-  echo 'Server = '"$ALARM_MIRROR/$arch"'/$repo' | \
-    $sudo tee $rootfsdir/etc/pacman.d/mirrorlist
-  cat <<-EOF | $sudo tee $rootfsdir/etc/pacman.conf
+  if [ "$u" = true ]; then
+    until $sudo debootstrap --arch=arm64 --no-check-gpg --components=$DEBOOTSTR_COMPNS \
+                     --variant=minbase $DEBOOTSTR_RELEASE $rootfsdir $DEBOOTSTR_SOURCE
+    do sleep 2; done
+  else
+    resolv
+    echo 'Server = '"$ALARM_MIRROR/$arch"'/$repo' | \
+      $sudo tee $rootfsdir/etc/pacman.d/mirrorlist
+    cat <<-EOF | $sudo tee $rootfsdir/etc/pacman.conf
 	[options]
 	SigLevel = Never
 	[core]
@@ -195,10 +210,11 @@ function bootstrap {
 	[community]
 	Include = /etc/pacman.d/mirrorlist
 	EOF
-  until $schroot pacman-static -Syu --noconfirm --needed --overwrite \* pacman archlinuxarm-keyring
-  do sleep 2; done
-  $sudo mv -vf $rootfsdir/etc/pacman.conf.pacnew         $rootfsdir/etc/pacman.conf
-  $sudo mv -vf $rootfsdir/etc/pacman.d/mirrorlist.pacnew $rootfsdir/etc/pacman.d/mirrorlist
+    until schroot pacman-static -Syu --noconfirm --needed --overwrite \* pacman archlinuxarm-keyring
+    do sleep 2; done
+    $sudo mv -vf $rootfsdir/etc/pacman.conf.pacnew         $rootfsdir/etc/pacman.conf
+    $sudo mv -vf $rootfsdir/etc/pacman.d/mirrorlist.pacnew $rootfsdir/etc/pacman.d/mirrorlist
+  fi
 }
 
 function setupMACconfig {
@@ -221,27 +237,50 @@ function setupMACconfig {
 function rootfs {
   trap ctrl_c INT
   resolv
-  if [ -z "$(cat $rootfsdir/etc/pacman.conf | grep -oP '^\[ericwoud\]')" ]; then
-    serv="[ericwoud]\nServer = $REPOURL\nServer = $BACKUPREPOURL\n"
-    $sudo sed -i '/^\[core\].*/i'" ${serv}"'' $rootfsdir/etc/pacman.conf
+  serv="[ericwoud]\nServer = $REPOURL\nServer = $BACKUPREPOURL\n"
+  if [ "$u" = true ]; then
+    until schroot apt-get install --yes --no-install-recommends $NEEDED_PACKAGES $NEEDED_PACKAGES_DEBIAN $EXTRA_PACKAGES
+    do sleep 2; done
+    cat <<-EOF | $sudo tee $rootfsdir/etc/pacman.conf
+	[options]
+	Architecture = aarch64
+	#IgnorePkg =
+	#IgnoreGroup =
+	#NoUpgrade   =
+	#NoExtract   =
+	CheckSpace
+	SigLevel    = Never
+	LocalFileSigLevel = Optional
+	#RemoteFileSigLevel = Required
+	${serv}
+	EOF
+    $sudo sed -i 's|\\n|\n|g' $rootfsdir/etc/pacman.conf 
+    until schroot pacman-static -Sy --needed --noconfirm\
+        --assume-installed=coreutils,linux-firmware,kmod,f2fs-tools,dosfstools,btrfs-progs,parted,dtc,systemd\
+        $PREBUILT_PACKAGES
+    do sleep 2; done
+  else
+    if [ -z "$(cat $rootfsdir/etc/pacman.conf | grep -oP '^\[ericwoud\]')" ]; then
+      $sudo sed -i '/^\[core\].*/i'" ${serv}"'' $rootfsdir/etc/pacman.conf
+    fi
+    schroot pacman-key --init
+    schroot pacman-key --populate archlinuxarm
+    schroot pacman-key --recv-keys $REPOKEY
+    schroot pacman-key --finger     $REPOKEY
+    schroot pacman-key --lsign-key $REPOKEY
+    schroot pacman-key --lsign-key 'Arch Linux ARM Build System <builder@archlinuxarm.org>'
+    until schroot pacman -Syyu --needed --noconfirm --overwrite \* pacman-static \
+                          $NEEDED_PACKAGES $NEEDED_PACKAGES_ALARM $EXTRA_PACKAGES $PREBUILT_PACKAGES
+    do sleep 2; done
   fi
-  $schroot pacman-key --init
-  $schroot pacman-key --populate archlinuxarm
-  $schroot pacman-key --recv-keys $REPOKEY
-  $schroot pacman-key --finger     $REPOKEY
-  $schroot pacman-key --lsign-key $REPOKEY
-  $schroot pacman-key --lsign-key "Arch Linux ARM Build System <builder@archlinuxarm.org>"
-  until $schroot pacman -Syyu --needed --noconfirm --overwrite \* pacman-static \
-                        $NEEDED_PACKAGES $EXTRA_PACKAGES $PREBUILT_PACKAGES
-  do sleep 2; done
-  $schroot useradd --create-home --user-group \
+  echo "${target}" | $sudo tee $rootfsdir/etc/hostname
+  schroot useradd --create-home --user-group \
                --groups audio,games,log,lp,optical,power,scanner,storage,video,wheel \
                -s /bin/bash $USERNAME
-  echo $USERNAME:$USERPWD | $schroot chpasswd
-  echo      root:$ROOTPWD | $schroot chpasswd
-  echo "${target}" | $sudo tee $rootfsdir/etc/hostname
+  echo $USERNAME:$USERPWD | schroot chpasswd
+  echo      root:$ROOTPWD | schroot chpasswd
   echo "%wheel ALL=(ALL) ALL" | $sudo tee $rootfsdir/etc/sudoers.d/wheel
-  $schroot ln -sf /usr/share/zoneinfo/${TIMEZONE} /etc/localtime
+  schroot ln -sf /usr/share/zoneinfo/${TIMEZONE} /etc/localtime
   $sudo sed -i 's/.*PermitRootLogin.*/PermitRootLogin yes/' $rootfsdir/etc/ssh/sshd_config
   $sudo sed -i 's/.*UsePAM.*/UsePAM no/' $rootfsdir/etc/ssh/sshd_config
   $sudo sed -i 's/.*#IgnorePkg.*/IgnorePkg = bpir*-atf-git bpir*-uboot-git/' $rootfsdir/etc/pacman.conf
@@ -258,35 +297,39 @@ function rootfs {
   $sudo mkdir -p $rootfsdir/etc/modules-load.d
   echo -e "# Load ${WIFIMODULE}.ko at boot\n${WIFIMODULE}" | \
            $sudo tee $rootfsdir/etc/modules-load.d/${WIFIMODULE}.conf
-  $schroot sudo systemctl --force --no-pager reenable systemd-timesyncd.service
-  $schroot sudo systemctl --force --no-pager reenable sshd.service
-  $schroot sudo systemctl --force --no-pager reenable systemd-resolved.service
-  if [[ ${setup} == "RT"* ]]; then
-    $schroot sudo systemctl --force --no-pager reenable nftables.service
-  else
-    $schroot sudo systemctl --force --no-pager disable nftables.service
+  if [ ! -f "$rootfsdir/etc/arch-release" ]; then ### Ubuntu / Debian
+    schroot sudo systemctl --force --no-pager reenable ssh.service
+  else # ArchLinuxArm
+    schroot sudo systemctl --force --no-pager reenable sshd.service
   fi
-  $schroot sudo systemctl --force --no-pager reenable systemd-networkd.service
+  schroot sudo systemctl --force --no-pager reenable systemd-timesyncd.service
+  schroot sudo systemctl --force --no-pager reenable systemd-resolved.service
+  if [[ ${setup} == "RT"* ]]; then
+    schroot sudo systemctl --force --no-pager reenable nftables.service
+  else
+    schroot sudo systemctl --force --no-pager disable nftables.service
+  fi
+  schroot sudo systemctl --force --no-pager reenable systemd-networkd.service
   find -L "$rootfsdir/etc/hostapd" -name "*.conf"| while read conf ; do
     conf=$(basename $conf); conf=${conf/".conf"/""}
-    $schroot sudo systemctl --force --no-pager reenable hostapd@${conf}.service \
+    schroot sudo systemctl --force --no-pager reenable hostapd@${conf}.service \
                  2>&1 | grep -v "is added as a dependency to a non-existent unit"
   done
   setupMACconfig
-  $schroot bpir-toolbox $bpir_write
+  schroot bpir-toolbox $bpir_write
 }
 
 function chrootfs {
   echo "Entering chroot on image. Enter commands as if running on the target:"
   echo "Type <exit> to exit from the chroot environment."
-  $schroot
+  schroot
 }
 
 function compressimage {
   rm -f $IMAGE_FILE".xz" $IMAGE_FILE".gz"
   $sudo rm -vrf $rootfsdir/tmp/*
   echo "Type Y + Y:"
-  yes | $schroot pacman -Scc
+  yes | schroot pacman -Scc
   finish
   [ "$x" = true ] && xz   --keep --force --verbose $IMAGE_FILE
   [ "$z" = true ] && dd if=$IMAGE_FILE status=progress | gzip >$IMAGE_FILE".gz"
@@ -342,6 +385,15 @@ function add_children() {
   for ppp in $(pgrep -P $1 2>/dev/null) ; do add_children $ppp; done
 }
 
+function schroot() {
+  if [[ -z "${*}" ]]; then
+  
+    $sudo unshare --fork --kill-child --pid --uts --root=$rootfsdir su -c "hostname ${target};bash"
+  else
+    $sudo unshare --fork --kill-child --pid --uts --root=$rootfsdir su -c "hostname ${target};${*}"
+  fi
+}
+
 function ctrl_c() {
   echo "** Trapped CTRL-C, PID=$mainPID **"
   if [ ! -z "$mainPID" ]; then
@@ -362,7 +414,7 @@ export LANGUAGE=C
 
 cd "$(dirname -- "$(realpath -- "${BASH_SOURCE[0]}")")"
 [ $USER = "root" ] && sudo="" || sudo="sudo"
-while getopts ":rlcbxzpRFBIP" opt $args; do
+while getopts ":rlcbxzpuRFBIP" opt $args; do
   if [[ "${opt}" == "?" ]]; then echo "Unknown option -$OPTARG"; exit; fi
   declare "${opt}=true"
   ((argcnt++))
@@ -531,7 +583,6 @@ if [ "$rootdev" == "$(realpath $mountdev)" ]; then
 fi
 
 rootfsdir="/tmp/bpirootfs.$$"
-schroot="$sudo unshare --fork --kill-child --pid --root=$rootfsdir"
 echo "Rootfsdir="$rootfsdir
 
 $sudo umount $mountdev
