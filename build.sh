@@ -26,11 +26,12 @@ ROOT_END_MB=100%               # Size of root partition
 IMAGE_SIZE_MB=7456             # Size of image
 IMAGE_FILE="./bpir.img"        # Name of image
 
+STRAP_PACKAGES="pacman archlinuxarm-keyring inetutils"
 NEEDED_PACKAGES="hostapd wireless-regdb iproute2 nftables f2fs-tools dosfstools\
  btrfs-progs patch sudo evtest parted"
 NEEDED_PACKAGES_DEBIAN="openssh-server device-tree-compiler mmc-utils     dracut-core"
 NEEDED_PACKAGES_ALARM=" openssh        dtc                  mmc-utils-git dracut\
- base dbus-broker-units inetutils mkinitcpio"
+ base dbus-broker-units mkinitcpio"
 EXTRA_PACKAGES="nano screen i2c-tools ethtool"
 PREBUILT_PACKAGES="bpir-atf-git ssh-fix-reboot hostapd-launch"
 SCRIPT_PACKAGES="curl ca-certificates udisks2 parted gzip bc f2fs-tools dosfstools debootstrap"
@@ -210,7 +211,7 @@ function bootstrap {
 	[community]
 	Include = /etc/pacman.d/mirrorlist
 	EOF
-    until schrootstrap pacman-static -Syu --noconfirm --needed --overwrite \* pacman archlinuxarm-keyring
+    until schrootstrap pacman-static -Syu --noconfirm --needed --overwrite \* $STRAP_PACKAGES
     do sleep 2; done
     $sudo mv -vf $rootfsdir/etc/pacman.conf.pacnew         $rootfsdir/etc/pacman.conf
     $sudo mv -vf $rootfsdir/etc/pacman.d/mirrorlist.pacnew $rootfsdir/etc/pacman.d/mirrorlist
