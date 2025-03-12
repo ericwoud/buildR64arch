@@ -29,7 +29,8 @@ IMAGE_FILE="./bpir.img"        # Name of image
 STRAP_PACKAGES="pacman archlinuxarm-keyring inetutils"
 NEEDED_PACKAGES="hostapd wireless-regdb iproute2 nftables f2fs-tools dosfstools\
  btrfs-progs patch sudo evtest parted"
-NEEDED_PACKAGES_DEBIAN="openssh-server device-tree-compiler mmc-utils     dracut-core"
+NEEDED_PACKAGES_DEBIAN="openssh-server device-tree-compiler mmc-utils     dracut-core\
+ systemd-timesyncd systemd-resolved"
 NEEDED_PACKAGES_ALARM=" openssh        dtc                  mmc-utils-git dracut\
  base dbus-broker-units mkinitcpio"
 EXTRA_PACKAGES="nano screen i2c-tools ethtool"
@@ -186,6 +187,11 @@ function bootstrap {
   trap ctrl_c INT
   [ -d "$rootfsdir/etc" ] && return
   eval repo=${BACKUPREPOURL}
+  if [ "$u" = true ]; then
+    until $sudo debootstrap --arch=arm64 --no-check-gpg --components=$DEBOOTSTR_COMPNS \
+                     --variant=minbase $DEBOOTSTR_RELEASE $rootfsdir $DEBOOTSTR_SOURCE
+    do sleep 2; done
+  fi
   until pacmanpkg=$(curl -L $repo'/ericwoud.db' | tar -xzO --wildcards "pacman-static*/desc" \
         | grep "%FILENAME%" -A1 | tail -n 1)
   do sleep 2; done
@@ -193,11 +199,7 @@ function bootstrap {
   do sleep 2; done
   [ ! -d "$rootfsdir/usr" ] && return
   $sudo mkdir -p $rootfsdir/{etc/pacman.d,var/lib/pacman}
-  if [ "$u" = true ]; then
-    until $sudo debootstrap --arch=arm64 --no-check-gpg --components=$DEBOOTSTR_COMPNS \
-                     --variant=minbase $DEBOOTSTR_RELEASE $rootfsdir $DEBOOTSTR_SOURCE
-    do sleep 2; done
-  else
+  if [ "$u" != true ]; then
     resolv
     echo 'Server = '"$ALARM_MIRROR/$arch"'/$repo' | \
       $sudo tee $rootfsdir/etc/pacman.d/mirrorlist
@@ -239,8 +241,14 @@ function rootfs {
   trap ctrl_c INT
   resolv
   serv="[ericwoud]\nServer = $REPOURL\nServer = $BACKUPREPOURL\n"
+  echo "${target}" | $sudo tee $rootfsdir/etc/hostname
+  if [[ -z $(grep "${target}" $rootfsdir/etc/hosts) ]]; then
+    echo -e "127.0.0.1\t${target}" | $sudo tee -a $rootfsdir/etc/hosts
+  fi
   if [ "$u" = true ]; then
-    until schroot apt-get install --yes --no-install-recommends $NEEDED_PACKAGES $NEEDED_PACKAGES_DEBIAN $EXTRA_PACKAGES
+    echo -e 'APT::Install-Suggests "0";'"\n"'APT::Install-Recommends "0";' | $sudo tee \
+            $rootfsdir/etc/apt/apt.conf.d/99onlyneeded
+    until schroot apt-get install --yes $NEEDED_PACKAGES $NEEDED_PACKAGES_DEBIAN $EXTRA_PACKAGES
     do sleep 2; done
     cat <<-EOF | $sudo tee $rootfsdir/etc/pacman.conf
 	[options]
@@ -274,13 +282,19 @@ function rootfs {
                           $NEEDED_PACKAGES $NEEDED_PACKAGES_ALARM $EXTRA_PACKAGES $PREBUILT_PACKAGES
     do sleep 2; done
   fi
-  echo "${target}" | $sudo tee $rootfsdir/etc/hostname
+  if [ ! -f "$rootfsdir/etc/arch-release" ]; then ### Ubuntu / Debian
+    sshd="ssh"
+    wheel="sudo"
+    groups="audio,games,lp,video,$wheel"
+  else # ArchLinuxArm
+    sshd="sshd"
+    wheel="wheel"
+    groups="audio,games,log,lp,optical,power,scanner,storage,video,$wheel"
+  fi
   schroot useradd --create-home --user-group \
-               --groups audio,games,log,lp,optical,power,scanner,storage,video,wheel \
+               --groups ${groups} \
                -s /bin/bash $USERNAME
-  echo $USERNAME:$USERPWD | schroot chpasswd
-  echo      root:$ROOTPWD | schroot chpasswd
-  echo "%wheel ALL=(ALL) ALL" | $sudo tee $rootfsdir/etc/sudoers.d/wheel
+  echo "%${wheel} ALL=(ALL) ALL" | $sudo tee $rootfsdir/etc/sudoers.d/wheel
   schroot ln -sf /usr/share/zoneinfo/${TIMEZONE} /etc/localtime
   $sudo sed -i 's/.*PermitRootLogin.*/PermitRootLogin yes/' $rootfsdir/etc/ssh/sshd_config
   $sudo sed -i 's/.*UsePAM.*/UsePAM no/' $rootfsdir/etc/ssh/sshd_config
@@ -298,11 +312,9 @@ function rootfs {
   $sudo mkdir -p $rootfsdir/etc/modules-load.d
   echo -e "# Load ${WIFIMODULE}.ko at boot\n${WIFIMODULE}" | \
            $sudo tee $rootfsdir/etc/modules-load.d/${WIFIMODULE}.conf
-  if [ ! -f "$rootfsdir/etc/arch-release" ]; then ### Ubuntu / Debian
-    schroot sudo systemctl --force --no-pager reenable ssh.service
-  else # ArchLinuxArm
-    schroot sudo systemctl --force --no-pager reenable sshd.service
-  fi
+  echo $USERNAME:$USERPWD | schroot chpasswd
+  echo      root:$ROOTPWD | schroot chpasswd
+  schroot sudo systemctl --force --no-pager reenable ${sshd}.service
   schroot sudo systemctl --force --no-pager reenable systemd-timesyncd.service
   schroot sudo systemctl --force --no-pager reenable systemd-resolved.service
   if [[ ${setup} == "RT"* ]]; then
@@ -616,6 +628,8 @@ setupqemu
 
 [ ! -d "$rootfsdir/dev" ] && $sudo mkdir $rootfsdir/dev
 $sudo mount --rbind --make-rslave /dev  $rootfsdir/dev # install gnupg needs it
+[[ $? != 0 ]] && exit
+$sudo mount --rbind --make-rslave /dev/pts  $rootfsdir/dev/pts
 [[ $? != 0 ]] && exit
 if [ "$r" = true ]; then bootstrap &
   mainPID=$! ; wait $mainPID ; unset mainPID
