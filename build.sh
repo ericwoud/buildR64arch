@@ -28,9 +28,9 @@ IMAGE_FILE="./bpir.img"        # Name of image
 
 STRAP_PACKAGES="pacman archlinuxarm-keyring inetutils"
 NEEDED_PACKAGES="hostapd wireless-regdb iproute2 nftables f2fs-tools dosfstools\
- btrfs-progs patch sudo evtest parted"
+ btrfs-progs patch sudo evtest parted linux-firmware binutils"
 NEEDED_PACKAGES_DEBIAN="openssh-server device-tree-compiler mmc-utils     dracut-core\
- systemd-timesyncd systemd-resolved"
+ libpam-systemd systemd-timesyncd systemd-resolved"
 NEEDED_PACKAGES_ALARM=" openssh        dtc                  mmc-utils-git dracut\
  base dbus-broker-units mkinitcpio"
 EXTRA_PACKAGES="nano screen i2c-tools ethtool"

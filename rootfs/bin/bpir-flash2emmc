@@ -1,4 +1,4 @@
-#!/usr/bin/ash
+#!/bin/bash
  
 # Tool for %PKGBASE% package, needs to run from initrd!
 # Connect UART and when kernel starts, keep 'x' key pressed.
