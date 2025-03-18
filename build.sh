@@ -26,13 +26,13 @@ ROOT_END_MB=100%               # Size of root partition
 IMAGE_SIZE_MB=7456             # Size of image
 IMAGE_FILE="./bpir.img"        # Name of image
 
-STRAP_PACKAGES="pacman archlinuxarm-keyring inetutils"
+STRAP_PACKAGES="pacman archlinuxarm-keyring inetutils build-r64-arch-utils-git"
 NEEDED_PACKAGES="hostapd wireless-regdb iproute2 nftables f2fs-tools dosfstools\
  btrfs-progs patch sudo evtest parted linux-firmware binutils"
 NEEDED_PACKAGES_DEBIAN="openssh-server device-tree-compiler mmc-utils     dracut-core\
  libpam-systemd systemd-timesyncd systemd-resolved"
 NEEDED_PACKAGES_ALARM=" openssh        dtc                  mmc-utils-git dracut\
- base dbus-broker-units mkinitcpio"
+ base dbus-broker-units"
 EXTRA_PACKAGES="nano screen i2c-tools ethtool"
 PREBUILT_PACKAGES="bpir-atf-git ssh-fix-reboot hostapd-launch"
 SCRIPT_PACKAGES="curl ca-certificates udisks2 parted gzip bc f2fs-tools dosfstools debootstrap"
