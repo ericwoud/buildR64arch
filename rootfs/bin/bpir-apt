@@ -1,0 +1,15 @@
+#~/bin/bash
+
+pkgs=$(pacman-static -Sp "${@:2}" 2>/dev/null| cut -d"'" -f2)
+pkgs=$(echo $pkgs)
+pkgs=${pkgs//" "/","}
+
+if [ "$1" == "install" ] || [ "$1" == "upgrade" ]; then
+  pacman-static -Syu --needed --noconfirm --assume-installed=$pkgs "${@:2}"
+elif [ "$1" == "remove" ]; then
+  pacman-static -R --noconfirm "${@:2}"
+  pacman-static -Qdtq | pacman-static -Rns --noconfirm -
+else
+  echo else
+fi
+
