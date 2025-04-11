@@ -94,25 +94,40 @@ fi
 if [[ $@ =~ "--atf" ]]; then
   if [ -L ${atfdevicel} ]; then
     headerdev="/dev/"$(lsblk -no pkname ${atfdevicel})
-    if [ -f "/boot/${target}-atf-${atfdevice}-header.bin" ]; then
-      echo Writing ${target}-atf-${atfdevice}-header.bin to ${headerdev}
-      dd if=/boot/${target}-atf-${atfdevice}-header.bin of="${headerdev}" conv=fsync
+    headerfile="${target}-atf-${atfdevice}-header.bin"
+    atffile="${target}-atf-${atfdevice}-atf.bin"
+    if [ -f "/usr/share/bpir-atf/${headerfile}" ]; then
+      fullheaderfile="/usr/share/bpir-atf/${headerfile}"
+    else
+      fullheaderfile="/boot/${headerfile}"
     fi
-    echo -e "Target = ${target}, ATF device = ${atfdevice}\nZeroing: ${atfdevicel}"
-    dd bs=64k if=/dev/zero of="${atfdevicel}" conv=fsync 2>/dev/null
-    echo "Writing ${target}-atf-${atfdevice}-atf.bin to ${atfdevicel}"
-    dd bs=64k if=/boot/${target}-atf-${atfdevice}-atf.bin of="${atfdevicel}" conv=fsync
-    if [ -b ${headerdev}"boot0" ] && [ -b ${headerdev}"boot1" ]; then
-      bootpart="0"$(mmc extcsd read ${headerdev} | grep PARTITION_CONFIG | cut -f 2 -d'0' | cut -f 1 -d']')
-      bootpart=$(( ($bootpart & 0x38) >> 3 ))
-      echo "EXTCSD bootpart = $bootpart"
-      [ "$bootpart" -eq "1" ] && bootx="boot0"
-      [ "$bootpart" -eq "2" ] && bootx="boot1"
-      if [ ! -z "$bootx" ]; then
-        echo -e "Copying atf to ${headerdev}${bootx}"
-	echo 0 > /sys/block/${headerdev/'/dev/'/}${bootx}/force_ro
-        dd bs=4M if="${atfdevicel}" of="${headerdev}${bootx}" conv=fsync
-	echo 1 > /sys/block/${headerdev/'/dev/'/}${bootx}/force_ro
+    if [ -f "/usr/share/bpir-atf/${atffile}" ]; then
+      fullatffile="/usr/share/bpir-atf/${atffile}"
+    else
+      fullatffile="/boot/${atffile}"
+    fi
+    if [ -f "${fullheaderfile}" ]; then
+      echo Writing ${headerfile} to ${headerdev}
+      dd if="${fullheaderfile}" of="${headerdev}" conv=fsync
+    fi
+    echo -e "Target = ${target}, ATF device = ${atfdevice}"
+    if [ -f "${fullatffile}" ]; then
+      echo "Zeroing: ${atfdevicel}"
+      dd bs=64k if=/dev/zero of="${atfdevicel}" conv=fsync 2>/dev/null
+      echo "Writing ${atffile} to ${atfdevicel}"
+      dd bs=64k if="${fullatffile}" of="${atfdevicel}" conv=fsync
+      if [ -b ${headerdev}"boot0" ] && [ -b ${headerdev}"boot1" ]; then
+        bootpart="0"$(mmc extcsd read ${headerdev} | grep PARTITION_CONFIG | cut -f 2 -d'0' | cut -f 1 -d']')
+        bootpart=$(( ($bootpart & 0x38) >> 3 ))
+        echo "EXTCSD bootpart = $bootpart"
+        [ "$bootpart" -eq "1" ] && bootx="boot0"
+        [ "$bootpart" -eq "2" ] && bootx="boot1"
+        if [ ! -z "$bootx" ]; then
+          echo -e "Copying atf to ${headerdev}${bootx}"
+          echo 0 > /sys/block/${headerdev/'/dev/'/}${bootx}/force_ro
+          dd bs=4M if="${atfdevicel}" of="${headerdev}${bootx}" conv=fsync
+          echo 1 > /sys/block/${headerdev/'/dev/'/}${bootx}/force_ro
+        fi
       fi
     fi
   fi

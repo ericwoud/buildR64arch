@@ -26,14 +26,14 @@ ROOT_END_MB=100%               # Size of root partition
 IMAGE_SIZE_MB=7456             # Size of image
 IMAGE_FILE="./bpir.img"        # Name of image
 
-STRAP_PACKAGES="pacman archlinuxarm-keyring inetutils build-r64-arch-utils-git"
 NEEDED_PACKAGES="hostapd wireless-regdb iproute2 nftables f2fs-tools dosfstools\
  btrfs-progs patch sudo evtest parted linux-firmware binutils"
 NEEDED_PACKAGES_DEBIAN="openssh-server device-tree-compiler mmc-utils     dracut-core\
  libpam-systemd systemd-timesyncd systemd-resolved"
 NEEDED_PACKAGES_ALARM=" openssh        dtc                  mmc-utils-git dracut\
  base dbus-broker-units"
-EXTRA_PACKAGES="nano screen i2c-tools ethtool"
+STRAP_PACKAGES_ALARM="pacman archlinuxarm-keyring inetutils"
+EXTRA_PACKAGES="nano screen i2c-tools ethtool iperf3"
 PREBUILT_PACKAGES="bpir-atf-git ssh-fix-reboot hostapd-launch"
 SCRIPT_PACKAGES="curl ca-certificates udisks2 parted gzip bc f2fs-tools dosfstools debootstrap"
 SCRIPT_PACKAGES_ARCHLX="base-devel      uboot-tools  ncurses        openssl"
@@ -49,6 +49,9 @@ TARGETS=("bpir64 Bananapi-R64"
          "bpir3m Bananapi-R3-Mini"
          "bpir4  Bananapi-R4")
 
+DISTROBPIR=("alarm    ArchLinuxARM"
+            "ubuntu   Ubuntu")
+
 QEMU="https://github.com/multiarch/qemu-user-static/releases/download/v7.2.0-1/qemu-aarch64-static.tar.gz"
 QEMUFILE="qemu-aarch64-static"
 S1=':qemu-aarch64:M::\x7fELF\x02\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\xb7'
@@ -58,7 +61,7 @@ function setupenv {
 #BACKUPFILE="/run/media/$USER/DATA/${target}-${atfdevice}-rootfs.tar"
 BACKUPFILE="./${target}-${atfdevice}-rootfs.tar"
 arch='aarch64'
-PREBUILT_PACKAGES="linux-${target}-git"' '$PREBUILT_PACKAGES
+PREBUILT_PACKAGES+=" linux-${target}-git"
 case ${target} in
   bpir64)
     SETUPBPIR=("RT       Router setup !!!BROKEN!!!"
@@ -187,7 +190,7 @@ function bootstrap {
   trap ctrl_c INT
   [ -d "$rootfsdir/etc" ] && return
   eval repo=${BACKUPREPOURL}
-  if [ "$u" = true ]; then
+  if [ "$distro" == "ubuntu" ]; then
     until $sudo debootstrap --arch=arm64 --no-check-gpg --components=$DEBOOTSTR_COMPNS \
                      --variant=minbase $DEBOOTSTR_RELEASE $rootfsdir $DEBOOTSTR_SOURCE
     do sleep 2; done
@@ -199,7 +202,7 @@ function bootstrap {
   do sleep 2; done
   [ ! -d "$rootfsdir/usr" ] && return
   $sudo mkdir -p $rootfsdir/{etc/pacman.d,var/lib/pacman}
-  if [ "$u" != true ]; then
+  if [ "$distro" == "alarm" ]; then
     resolv
     echo 'Server = '"$ALARM_MIRROR/$arch"'/$repo' | \
       $sudo tee $rootfsdir/etc/pacman.d/mirrorlist
@@ -213,28 +216,11 @@ function bootstrap {
 	[community]
 	Include = /etc/pacman.d/mirrorlist
 	EOF
-    until schrootstrap pacman-static -Syu --noconfirm --needed --overwrite \* $STRAP_PACKAGES
+    until schrootstrap pacman-static -Syu --noconfirm --needed --overwrite \* $STRAP_PACKAGES_ALARM
     do sleep 2; done
     $sudo mv -vf $rootfsdir/etc/pacman.conf.pacnew         $rootfsdir/etc/pacman.conf
     $sudo mv -vf $rootfsdir/etc/pacman.d/mirrorlist.pacnew $rootfsdir/etc/pacman.d/mirrorlist
   fi
-}
-
-function setupMACconfig {
-  file="$rootfsdir/etc/systemd/network/mac.txt"
-  while [ ! -z "$(cat $file | grep 'aa:bb:cc:dd:ee:ff')" ]; do
-    mac_read="$(cat $file | grep -m1 'aa:bb:cc:dd:ee:ff' | cut -d ' ' -f1)"
-    mac=${mac_read::17}
-    nr=${mac_read:18}
-    [ -z "$nr" ] && nr=1
-    first="aa:bb:cc"
-    while [ ! -z "$(cat $file | grep $mac)" ]; do # make sure all macs are different
-      mac=$first:$(printf %02x $(($RANDOM%256))):$(printf %02x $(($RANDOM%256)))
-    done
-    mac=$mac:$(printf %02x $(($RANDOM%256)) )
-    mac=${mac::-2}$(printf %02x $(((16#${mac: -2}&-$nr)+0)))
-    $sudo sed -i '0,/aa:bb:cc:dd:ee:ff/{s/aa:bb:cc:dd:ee:ff/'$mac'/}' $file
-  done
 }
 
 function rootfs {
@@ -242,10 +228,13 @@ function rootfs {
   resolv
   serv="[ericwoud]\nServer = $REPOURL\nServer = $BACKUPREPOURL\n"
   echo "${target}" | $sudo tee $rootfsdir/etc/hostname
-  if [[ -z $(grep "${target}" $rootfsdir/etc/hosts) ]]; then
+  if [[ -z $(grep "${target}" $rootfsdir/etc/hosts 2>/dev/null) ]]; then
     echo -e "127.0.0.1\t${target}" | $sudo tee -a $rootfsdir/etc/hosts
   fi
-  if [ "$u" = true ]; then
+  if [ ! -f "$rootfsdir/etc/arch-release" ]; then ### Ubuntu / Debian
+    sshd="ssh"
+    wheel="sudo"
+    groups="audio,games,lp,video,$wheel"
     echo -e 'APT::Install-Suggests "0";'"\n"'APT::Install-Recommends "0";' | $sudo tee \
             $rootfsdir/etc/apt/apt.conf.d/99onlyneeded
     until schroot apt-get install --yes $NEEDED_PACKAGES $NEEDED_PACKAGES_DEBIAN $EXTRA_PACKAGES
@@ -264,11 +253,14 @@ function rootfs {
 	${serv}
 	EOF
     $sudo sed -i 's|\\n|\n|g' $rootfsdir/etc/pacman.conf 
-    until schroot pacman-static -Sy --needed --noconfirm\
-        --assume-installed=coreutils,linux-firmware,kmod,f2fs-tools,dosfstools,btrfs-progs,parted,dtc,systemd\
-        $PREBUILT_PACKAGES
+    until schroot pacman-static -Syu --noconfirm --overwrite \\* build-r64-arch-utils-git
     do sleep 2; done
-  else
+    until schroot bpir-apt install $PREBUILT_PACKAGES
+    do sleep 2; done
+  else # ArchLinuxArm
+    sshd="sshd"
+    wheel="wheel"
+    groups="audio,games,log,lp,optical,power,scanner,storage,video,$wheel"
     if [ -z "$(cat $rootfsdir/etc/pacman.conf | grep -oP '^\[ericwoud\]')" ]; then
       $sudo sed -i '/^\[core\].*/i'" ${serv}"'' $rootfsdir/etc/pacman.conf
     fi
@@ -281,15 +273,6 @@ function rootfs {
     until schroot pacman -Syyu --needed --noconfirm --overwrite \\* pacman-static \
                           $NEEDED_PACKAGES $NEEDED_PACKAGES_ALARM $EXTRA_PACKAGES $PREBUILT_PACKAGES
     do sleep 2; done
-  fi
-  if [ ! -f "$rootfsdir/etc/arch-release" ]; then ### Ubuntu / Debian
-    sshd="ssh"
-    wheel="sudo"
-    groups="audio,games,lp,video,$wheel"
-  else # ArchLinuxArm
-    sshd="sshd"
-    wheel="wheel"
-    groups="audio,games,log,lp,optical,power,scanner,storage,video,$wheel"
   fi
   schroot useradd --create-home --user-group \
                --groups ${groups} \
@@ -330,6 +313,23 @@ function rootfs {
   done
   setupMACconfig
   schroot bpir-toolbox $bpir_write
+}
+
+function setupMACconfig {
+  file="$rootfsdir/etc/systemd/network/mac.txt"
+  while [ ! -z "$(cat $file | grep 'aa:bb:cc:dd:ee:ff')" ]; do
+    mac_read="$(cat $file | grep -m1 'aa:bb:cc:dd:ee:ff' | cut -d ' ' -f1)"
+    mac=${mac_read::17}
+    nr=${mac_read:18}
+    [ -z "$nr" ] && nr=1
+    first="aa:bb:cc"
+    while [ ! -z "$(cat $file | grep $mac)" ]; do # make sure all macs are different
+      mac=$first:$(printf %02x $(($RANDOM%256))):$(printf %02x $(($RANDOM%256)))
+    done
+    mac=$mac:$(printf %02x $(($RANDOM%256)) )
+    mac=${mac::-2}$(printf %02x $(((16#${mac: -2}&-$nr)+0)))
+    $sudo sed -i '0,/aa:bb:cc:dd:ee:ff/{s/aa:bb:cc:dd:ee:ff/'$mac'/}' $file
+  done
 }
 
 function chrootfs {
@@ -383,16 +383,6 @@ function disableqemu {
   fi
 }
 
-function removescript {
-  # On all linux's
-  if [ $hostarch == "x86_64" ]; then # Script running on x86_64 so remove qemu
-    $sudo rm -f /usr/local/bin/qemu-aarch64-static
-    $sudo rm -f /lib/binfmt.d/05-local-qemu-aarch64-static.conf
-    $sudo systemctl restart systemd-binfmt.service
-  fi
-  exit
-}
-
 function add_children() {
   [ -z "$1" ] && return || echo $1
   for ppp in $(pgrep -P $1 2>/dev/null) ; do add_children $ppp; done
@@ -430,7 +420,7 @@ export LANGUAGE=C
 
 cd "$(dirname -- "$(realpath -- "${BASH_SOURCE[0]}")")"
 [ $USER = "root" ] && sudo="" || sudo="sudo"
-while getopts ":rlcbxzpuRFBIP" opt $args; do
+while getopts ":rlcbxzpRFBIP" opt $args; do
   if [[ "${opt}" == "?" ]]; then echo "Unknown option -$OPTARG"; exit; fi
   declare "${opt}=true"
   ((argcnt++))
@@ -552,6 +542,12 @@ setupenv # Now that target and atfdevice are known.
 if [ "$r" = true ]; then
   if [ "$I" != true ]; then
     echo -e "\nCreate root filesystem\n"
+    PS3="Choose distro to create root for: "; COLUMNS=1
+    select distro in "${DISTROBPIR[@]}" "Quit" ; do
+      if (( REPLY > 0 && REPLY <= ${#DISTROBPIR[@]} )) ; then break; else exit; fi
+    done
+    distro=${distro%% *}
+    echo "Distro="${distro}
     PS3="Choose setup to create root for: "; COLUMNS=1
     select setup in "${SETUPBPIR[@]}" "Quit" ; do
       if (( REPLY > 0 && REPLY <= ${#SETUPBPIR[@]} )) ; then break; else exit; fi
