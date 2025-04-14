@@ -1,8 +1,0 @@
-[NetDev]
-Name=brlan
-Kind=bridge
-
-[Bridge]
-DefaultPVID=0
-VLANFiltering=1
-
