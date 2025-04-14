@@ -209,7 +209,7 @@ Boot emmc normally and make sure that the packages are updated:
 pacman -Syu linux-bpir64-git bpir64-atf-git
 ```
 
-Boot to initrd by keeping the 'x' key pressed during boot.
+Boot to initrd shell by keeping the 'x' key pressed during boot.
 
 To clear and empty the nvme, optionally run:
 ```
@@ -225,7 +225,7 @@ export partnr=1
 ```
 Get target name:
 ```
-export target=$(echo /dev/disk/by-partlabel/bpir*-emmc-root | cut -d'/' -f5 | cut -d'-' -f1)
+export target=$(echo $root | cut -d'=' -f2 | cut -d'-' -f1)
 ```
 Set partlabel of partition:
 ```
