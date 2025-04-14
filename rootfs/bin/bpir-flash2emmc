@@ -55,12 +55,14 @@ function restart_driver {
 driver="mtk-msdc"
 addr="11230000"
 compatible="$(cat /proc/device-tree/compatible)"
+rootdev=$(blkid -t $root -l -o device) # $root exported in init
+[ -b "${rootdev}" ] || exit
 
 if [[ "$compatible" == *"bananapi"*"mediatek,mt7622"* ]]; then # BPI-R64
   mmcblk=$(get_mmcblk)
   echo "EMMC Device = /dev/${mmcblk}"
   mkdir -p /tmp/mnt
-  mount --source /dev/disk/by-partlabel/*-sdmmc-root --target /tmp/mnt
+  mount --source "${rootdev}" --target /tmp/mnt
   [ $? -ne 0 ] && exit
   echo "Flashing file $1 now..."
   dd if="/tmp/mnt$1" of=/dev/${mmcblk} bs=1M conv=fsync,notrunc
@@ -74,7 +76,7 @@ elif [[ "$compatible" == *"bananapi"*"mediatek,mt7986"* ]]; then # BPI-R3
   echo "EMMC Device = /dev/${mmcblk}"
   if [[ "$(get_mmctype)" == "SD" ]]; then
     mkdir -p /tmp/mnt
-    mount --source /dev/disk/by-partlabel/*-sdmmc-root --target /tmp/mnt
+    mount --source "${rootdev}" --target /tmp/mnt
     [ $? -ne 0 ] && exit
     echo "Reading file $1 now..."
     cp -f "/tmp/mnt$1" "/tmp/tempfile"
@@ -108,4 +110,3 @@ fi
 #echo 0 > /sys/block/mmcblk0boot0/force_ro 
 #echo 0 > /sys/block/mmcblk0boot1/force_ro 
 #dd if=/dev/zero of=/dev/mmcblk0boot1
-
