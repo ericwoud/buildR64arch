@@ -33,7 +33,7 @@ USE AT YOUR OWN RISK!!!
 
 You need:
 
-  - Banana Pi R64 or R3
+  - Banana Pi R64, R3 or R4
   - SD card
 
 ### Choose your setup
@@ -60,9 +60,9 @@ Change directory
 cd buildR64arch
 ```
 
-Set `SD_ERASE_SIZE_MB` in config.sh if using a cardreader with naming /dev/sdX. Only from a cardreader with naming /dev/mmcblkX
+Set `SD_ERASE_SIZE_MB` in build.sh if using a cardreader with naming /dev/sdX. Only from a cardreader with naming /dev/mmcblkX
 it is possible to read the erase size. Using this kind of reader the script will automatically read the erase size. 
-4MB is ok for most cards if you do not know the erase size. Later you can read it when the sd-card is inserted in a running bpir64/3.
+The default value of 4MB is ok for most cards if you do not know the erase size. Later you can read it when the sd-card is inserted in a running bpir64/3.
 
 Now format your SD card with:
 
@@ -126,7 +126,7 @@ If using a pre-build image, rename it to `bpir.img.gz`
 
 Boot the R64/R3 with the SD card with UART connected. When kernel starts keep 'shift E' keys pressed. When finised, you can reboot. 
 
-You can keep 'x' pressed instead if you want to enter a busybox ash.
+You can keep 'x' pressed instead if you want to enter a shell.
 
 Note for R3: To run on EMMC, only the switch most near to powerplug (D) should be down, the rest up.
 This is different from the normal switch settings. It is done so that you do not need mmcblk0boot0.
@@ -152,7 +152,9 @@ Switch boot-switch to EMMC and reboot.
 
 ## Using pre-build images for a quick try-out
 
-On github you will find downloadable images at the release branches. R64 only for now, image can be quite old. Prefer to use the script.
+On my site you will find downloadable images at the release branches. Prefer to use the script.
+
+https://ftp.woudstra.mywire.org/images/
 
 Write the image file for sd-card to the appropriate device, MAKE SURE YOU HAVE THE CORRECT DEVICE!
 ```
@@ -185,17 +187,7 @@ There are now 4 different bootchains supported, tested on R3 (R64 not yet tested
 
 ## R64: Using port 5 of the dsa switch
 
-Note: This does not work when running from emmc and the bootswitch is set to try from sdmmc first, position 1. Only under these two conditions combined, it seems eth1 does not get initialised correctly. The eth1 gmac works fine running from emmc, with sw1 set to 0, try boot from emmc first.
-
-Follow the steps below if you want to use a Router setup and run on emmc with sw1 set to 1. You will then not be using eth1 and port 5 of the dsa switch
-
-Port 5 is available and named aux. Wan and aux port are in a separate vlan. Eth1 is setup as outgoing port instead of wan port.
-
-One would expect the traffic goes a sort of ping pong slow software path: wan --- cpu --- eth0 --- dsa driver --- eth0 --- cpu --- aux --- eth1. But in fact it seems like hardware offloading kicks in and traffic is forwarded in the switch hardware from wan to aux, not taking the slow software path. Exactly what we want: wan --- aux --- eth1. ifstat shows us the traffic is not passing eth0 anymore.
-```
-ifstat -wi eth0,eth1
-```
-If you don't like this trick, then chose setup RTnoAUX.
+Now this setup is totally not functional. Use RTnoAUX (or AP) only!
 
 
 ## Setup as Access Point
