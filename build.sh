@@ -64,8 +64,7 @@ arch='aarch64'
 PREBUILT_PACKAGES+=" linux-${target}-git"
 case ${target} in
   bpir64)
-    SETUPBPIR=("RT       Router setup !!!BROKEN!!!"
-               "RTnoAUX  Router setup, not using aux port (dsa port 5)"
+    SETUPBPIR=("RT       Router setup"
                "AP       Access Point setup")
     WIFIMODULE="mt7615e"
     ;;
