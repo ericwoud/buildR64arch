@@ -185,11 +185,6 @@ There are now 4 different bootchains supported, tested on R3 (R64 not yet tested
 4. ATF - UBOOT - KERNEL using `fip` partition. When still booting with `fip` partition and having u-boot installed, change the contents of `/boot/bootcfg/linux` to read `/boot/u-boot.bin` and emtpy  `/boot/bootcfg/initrd`, then run `bpir-writefip`
 
 
-## R64: Using port 5 of the dsa switch
-
-Now this setup is totally not functional. Use RTnoAUX (or AP) only!
-
-
 ## Setup as Access Point
 
 When using a second or third R64/R3 as Access Point, and connecting router-lan-port to AP-lan-port, do the following:
