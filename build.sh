@@ -28,13 +28,13 @@ IMAGE_FILE="./bpir.img"        # Name of image
 
 NEEDED_PACKAGES="hostapd wireless-regdb iproute2 nftables f2fs-tools dosfstools\
  btrfs-progs patch sudo evtest parted linux-firmware binutils"
-NEEDED_PACKAGES_DEBIAN="openssh-server device-tree-compiler mmc-utils     dracut-core\
+NEEDED_PACKAGES_DEBIAN="openssh-server device-tree-compiler mmc-utils\
  libpam-systemd systemd-timesyncd systemd-resolved"
-NEEDED_PACKAGES_ALARM=" openssh        dtc                  mmc-utils-git dracut\
+NEEDED_PACKAGES_ALARM=" openssh        dtc                  mmc-utils-git\
  base dbus-broker-units"
 STRAP_PACKAGES_ALARM="pacman archlinuxarm-keyring inetutils"
 EXTRA_PACKAGES="nano screen i2c-tools ethtool iperf3"
-PREBUILT_PACKAGES="bpir-atf-git ssh-fix-reboot hostapd-launch"
+PREBUILT_PACKAGES="bpir-atf-git ssh-fix-reboot hostapd-launch bpir-initrd"
 SCRIPT_PACKAGES="curl ca-certificates udisks2 parted gzip bc f2fs-tools dosfstools debootstrap"
 SCRIPT_PACKAGES_ARCHLX="base-devel      uboot-tools  ncurses        openssl"
 SCRIPT_PACKAGES_DEBIAN="build-essential u-boot-tools libncurses-dev libssl-dev flex bison"
