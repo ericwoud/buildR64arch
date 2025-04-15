@@ -1,8 +1,13 @@
 #!/bin/bash
  
-# Tool for %PKGBASE% package, needs to run from initrd!
+# Tool needs to run from initrd!
 # Connect UART and when kernel starts, keep 'x' key pressed.
- 
+
+if [ -f "/etc/pacman.conf" ]; then
+  echo "ERROR: $(basename $0) needs to be run from initrd!"
+  exit 1
+fi
+
 function get_sysmmc {
   str=$(echo /sys/bus/platform/devices/${addr}.mmc/mmc_host/mmc*/mmc* | head -1)
   [ -e "$str" ] && echo ${str} || echo ""
