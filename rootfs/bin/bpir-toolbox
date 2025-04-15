@@ -157,7 +157,7 @@ fi
 # U-BOOT PKG #
 ##############
 if [[ $@ =~ "--uboot-install" ]]; then
-  cp -vf /boot/uboot/u-boot-${target}.bin /boot/u-boot.bin # This is the file that boots
+  cp -vf /usr/share/bpir-uboot/u-boot-${target}.bin /boot/u-boot.bin # This is the file that boots
   exit
 fi
 
