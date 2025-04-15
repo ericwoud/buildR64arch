@@ -92,6 +92,17 @@ For standard access point setup.
 
 After this, you are on your own. It is supposed to be a minimal installation of Arch Linux.
 
+## Ubuntu instead of ArchLinuxARM (EXPERIMENTAL)
+
+It is possible to install Ubuntu. Only the bpir-atf-git, linux-bpir-git, bpir-xxx tools, hostapd-launch,
+ssh-fix-reboot and optional bpir-uboot-git package are maintained through archlinux packages.
+
+On Ubuntu there is a small script to help upgrade these packages:
+```
+bpir-apt list|install|upgrade|remove [--reinstall] [pkgname...]
+```
+Only bpir-atf-git and bpir-uboot-git are normally excluded from upgrade. They need to be upgraded manually.
+
 
 ## R64 Build/Install emmc version using script again
 
