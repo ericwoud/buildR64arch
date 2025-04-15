@@ -94,8 +94,10 @@ After this, you are on your own. It is supposed to be a minimal installation of 
 
 ## Ubuntu instead of ArchLinuxARM (EXPERIMENTAL)
 
-It is possible to install Ubuntu. Only the bpir-atf-git, linux-bpir-git, bpir-xxx tools, hostapd-launch,
-ssh-fix-reboot and optional bpir-uboot-git package are maintained through archlinux packages.
+It is possible to build an image with Ubuntu instead. Only the linux-bpir-git, bpir-atf-git, bpir-toolbox,
+bpir-initrd, bpir-flash2emmc, hostapd-launch, ssh-fix-reboot and optional bpir-uboot-git package are maintained
+through archlinux packages. Any executables within these packages are build as static binaries, so they can
+be executed independantly.
 
 On Ubuntu there is a small script to help upgrade these packages:
 ```
