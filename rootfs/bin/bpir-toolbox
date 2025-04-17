@@ -4,10 +4,10 @@
 # Functions #
 #############
 function getconf {
-  conf=$(cat /boot/bootcfg/${1} 2>/dev/null)
+  conf=$(cat /boot/bootcfg/${2} 2>/dev/null)
   if [ -z "$conf" ]; then
-    conf="${2}"
-    echo -n "${conf}" >"/boot/bootcfg/${1}"
+    conf="${3}"
+    [[ "${1}" == "w" ]] && echo -n "${conf}" >"/boot/bootcfg/${2}"
   fi
   echo "${conf}"
 }
@@ -39,13 +39,13 @@ extlinux="/boot/extlinux/extlinux.conf"
 tmp="/tmp/bpir64-atf-git"
 mkdir -p $tmp
 mkdir -p /boot/bootcfg
-dtb=$(     getconf dtb     "$default_dtb")
-device=$(  getconf device  "$(echo $partlabelroot | cut -d'-' -f2)")
-linux=$(   getconf linux   "/boot/Image")
-cmdline=$( getconf cmdline "console=ttyS0,115200 debug=7 rw rootwait audit=0")
-initrd=$(  getconf initrd  "/boot/initramfs-bpir.img")
-atfdtb=$(  getconf atfdtb  "/boot/dtbs/${dtb}-atf.dtb")
-ddrsize=$( getconf ddrsize "$default_ddrsize")
+dtb=$(     getconf w dtb     "$default_dtb")
+device=$(  getconf w device  "$(echo $partlabelroot | cut -d'-' -f2)")
+linux=$(   getconf w linux   "/boot/Image")
+cmdline=$( getconf w cmdline "console=ttyS0,115200 debug=7 rw rootwait audit=0")
+initrd=$(  getconf w initrd  "/boot/initramfs-bpir.img")
+atfdtb=$(  getconf w atfdtb  "/boot/dtbs/${dtb}-atf.dtb")
+ddrsize=$( getconf r ddrsize "$default_ddrsize")
 
 ########## cleanup *-atf.dtb
 
