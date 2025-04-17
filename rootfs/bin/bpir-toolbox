@@ -119,18 +119,20 @@ if [[ $@ =~ "--atf" ]]; then
       dd bs=64k if=/dev/zero of="${atfdevice}" conv=fsync 2>/dev/null
       echo "Writing ${atffile} to ${atfdevice}"
       dd bs=64k if="${atffile}" of="${atfdevice}" conv=fsync
-      if [ -b ${headerdev}"boot0" ] && [ -b ${headerdev}"boot1" ]; then
-        bootpart="0"$(mmc extcsd read ${headerdev} | grep PARTITION_CONFIG | cut -f 2 -d'0' | cut -f 1 -d']')
-        bootpart=$(( ($bootpart & 0x38) >> 3 ))
-        echo "EXTCSD bootpart = $bootpart"
-        [ "$bootpart" -eq "1" ] && bootx="boot0"
-        [ "$bootpart" -eq "2" ] && bootx="boot1"
-        if [ ! -z "$bootx" ]; then
-          echo -e "Copying atf to ${headerdev}${bootx}"
-          echo 0 > /sys/block/${headerdev/'/dev/'/}${bootx}/force_ro
-          dd bs=4M if="${atfdevice}" of="${headerdev}${bootx}" conv=fsync
-          echo 1 > /sys/block/${headerdev/'/dev/'/}${bootx}/force_ro
-        fi
+    else
+      echo "Atf binary does not exist: ${atffile}"
+    fi
+    if [ -b ${headerdev}"boot0" ] && [ -b ${headerdev}"boot1" ]; then
+      bootpart="0"$(mmc extcsd read ${headerdev} | grep PARTITION_CONFIG | cut -f 2 -d'0' | cut -f 1 -d']')
+      bootpart=$(( ($bootpart & 0x38) >> 3 ))
+      echo "EXTCSD bootpart = $bootpart"
+      [ "$bootpart" -eq "1" ] && bootx="boot0"
+      [ "$bootpart" -eq "2" ] && bootx="boot1"
+      if [ ! -z "$bootx" ]; then
+        echo -e "Copying atf to ${headerdev}${bootx}"
+        echo 0 > /sys/block/${headerdev/'/dev/'/}${bootx}/force_ro
+        dd bs=4M if="${atfdevice}" of="${headerdev}${bootx}" conv=fsync
+        echo 1 > /sys/block/${headerdev/'/dev/'/}${bootx}/force_ro
       fi
     fi
   fi
