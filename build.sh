@@ -64,22 +64,27 @@ arch='aarch64'
 PREBUILT_PACKAGES+=" linux-${target}-git"
 case ${target} in
   bpir64)
+    DDRSIZE=("default    1 GB")
     SETUPBPIR=("RT       Router setup"
                "AP       Access Point setup")
     WIFIMODULE="mt7615e"
     ;;
   bpir3)
+    DDRSIZE=("default    2 GB")
     SETUPBPIR=("RT       Router setup, SFP module eth1 as wan"
                "RTnoSFP  Router setup, not using SFP module"
                "AP       Access Point setup")
     WIFIMODULE="mt7915e"
     ;;
   bpir3m)
+    DDRSIZE=("default    2 GB")
     SETUPBPIR=("RT       Router setup"
                "AP       Access Point setup")
     WIFIMODULE="mt7915e"
     ;;
   bpir4)
+    DDRSIZE=("default    4 GB"
+             "8          8 GB")
     SETUPBPIR=("RTnoSFP  Router setup, not using SFP module, wan=lan0"
                "AP       Access Point setup")
     WIFIMODULE="mt7915e"
@@ -311,6 +316,8 @@ function rootfs {
                  2>&1 | grep -v "is added as a dependency to a non-existent unit"
   done
   setupMACconfig
+  [[ "${ddrsize}" != "default" ]] && echo -n "${ddrsize}" | \
+                 $sudo tee $rootfsdir/boot/bootcfg/ddrsize
   schroot bpir-toolbox $bpir_write
 }
 
@@ -540,6 +547,16 @@ setupenv # Now that target and atfdevice are known.
 
 if [ "$r" = true ]; then
   if [ "$I" != true ]; then
+    if [ ${#DDRSIZE[@]} -gt 1 ]; then
+      PS3="Choose the size of ddr ram: "; COLUMNS=1
+      select ddrsize in "${DDRSIZE[@]}" "Quit" ; do
+        if (( REPLY > 0 && REPLY <= ${#DDRSIZE[@]} )) ; then break; else exit; fi
+      done
+    else
+      ddrsize=${DDRSIZE[0]}
+    fi
+    ddrsize=${ddrsize%% *}
+    echo "DDR-size="$ddrsize
     echo -e "\nCreate root filesystem\n"
     PS3="Choose distro to create root for: "; COLUMNS=1
     select distro in "${DISTROBPIR[@]}" "Quit" ; do
