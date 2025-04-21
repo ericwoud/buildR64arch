@@ -29,7 +29,8 @@ IMAGE_FILE="./bpir.img"        # Name of image
 NEEDED_PACKAGES="hostapd wireless-regdb iproute2 nftables f2fs-tools dosfstools\
  btrfs-progs patch sudo evtest parted linux-firmware binutils cpio"
 NEEDED_PACKAGES_DEBIAN="openssh-server device-tree-compiler mmc-utils\
- libpam-systemd systemd-timesyncd systemd-resolved kmod"
+ libpam-systemd systemd-timesyncd systemd-resolved kmod
+ iputils-ping apt-utils iw"
 NEEDED_PACKAGES_ALARM=" openssh        dtc                  mmc-utils-git\
  base dbus-broker-units"
 STRAP_PACKAGES_ALARM="pacman archlinuxarm-keyring inetutils"
@@ -347,8 +348,7 @@ function chrootfs {
 function compressimage {
   rm -f $IMAGE_FILE".xz" $IMAGE_FILE".gz"
   $sudo rm -vrf $rootfsdir/tmp/*
-  echo "Type Y + Y:"
-  yes | schroot pacman -Scc
+  $sudo rm -vrf $rootfsdir/var/cache/pacman/pkg/*
   finish
   [ "$x" = true ] && xz   --keep --force --verbose $IMAGE_FILE
   [ "$z" = true ] && dd if=$IMAGE_FILE status=progress | gzip >$IMAGE_FILE".gz"
