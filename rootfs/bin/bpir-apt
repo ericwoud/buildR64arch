@@ -5,7 +5,6 @@ needed="--needed"
 if [[ "$pkgs" =~ "--reinstall" ]]; then
   pkgs="${pkgs/"--reinstall"/""}"
   needed=""
-  echo JA
 fi
 
 brokenpkgs=$(pacman-static -Sp $(pacman-static -Qq) ${pkgs} 2>/dev/null | \
