@@ -12,6 +12,10 @@ function getconf {
   echo "${conf}"
 }
 
+function getdev {
+  blkid -t "PARTLABEL=$1" -l -o device
+}
+
 #################
 # Set variables #
 #################
@@ -36,7 +40,7 @@ default_dtb="${default_dtb/.dtb/}"
 
 extlinux="/boot/extlinux/extlinux.conf"
 
-tmp="/tmp/bpir64-atf-git"
+tmp="/tmp/bpir-toolbox-tmp"
 mkdir -p $tmp
 mkdir -p /boot/bootcfg
 dtb=$(     getconf w dtb     "$default_dtb")
@@ -56,57 +60,45 @@ headerfile="${atfdir}/${target}-atf-${device}-header${extra}.bin"
 atffile="${atfdir}/${target}-atf-${device}-atf${extra}.bin"
 bl31file="${atfdir}/${target}-atf-${device}-bl31${extra}.bin"
 
-fipdevice="/dev/disk/by-partlabel/${target}-${device}-fip"
-bootdevice="/dev/disk/by-partlabel/${target}-${device}-boot"
-atfdevice="/dev/disk/by-partlabel/${target}-${device}-atf"
+#########################################
+# Convert boot to FIP or BOOT partition #
+#########################################
 
-#######################
-# Convert FIP to BOOT #
-#######################
-if [[ $@ =~ "--fip2boot" ]] && [ -L ${fipdevice} ]; then
-  set -e
-  pkfip=$(lsblk -rno pkname ${fipdevice})
-  nrfip=$(cat "/sys/block/${pkfip}/$(basename $(realpath ${fipdevice}))/partition")
-  if [ -z "$pkfip" ] || [ -z "$nrfip" ]; then exit; fi
-  [ -e $tmp/boot ] && rm -rf $tmp/boot
-  echo "Moving files from /boot to $tmp/boot"
-  mv -fT /boot $tmp/boot
-  parted -s -- "/dev/$pkfip" name $nrfip ${target}-${device}-boot \
-                             set  $nrfip boot on
-  until [ -b ${bootdevice} ]; do sleep 1; done
-  mkfs.vfat -v -F 32 -S 512 -s 16 -n "${target^^}-BOOT" ${bootdevice}
-  mkdir /boot
-  mount -t vfat ${bootdevice} /boot
-  echo "Copying files from $tmp/boot to /boot"
-  cp -rfT $tmp/boot /boot
-  set +e
-fi
-
-#######################
-# Convert BOOT to FIP #
-#######################
-if [[ $@ =~ "--boot2fip" ]] && [ -L ${bootdevice} ]; then
-  set -e
-  pkfip=$(lsblk -rno pkname ${bootdevice})
-  nrfip=$(cat "/sys/block/${pkfip}/$(basename $(realpath ${bootdevice}))/partition")
-  if [ -z "$pkfip" ] || [ -z "$nrfip" ]; then exit; fi
-  [ -e $tmp/boot ] && rm -rf $tmp/boot
-  mkdir $tmp/boot
+if [[ $@ =~ "--fip2boot" ]] || [[ $@ =~ "--boot2fip" ]]; then
+  rm -rf $tmp/boot; mkdir $tmp/boot
   echo "Copying files from /boot to $tmp/boot"
   cp -rfT /boot/ $tmp/boot
-  while mountpoint /boot; do umount /boot; sleep 1; done
-  parted -s -- "/dev/$pkfip" name $nrfip ${target}-${device}-fip
-  until [ -b ${fipdevice} ]; do sleep 1; done
-  rm -rf /boot
-  echo "Moving files from $tmp/boot to /boot"
-  mv -fT $tmp/boot /boot
-  set +e
+  sync
+  fipdevice=$(getdev ${target}-${device}-fip)
+  [ -z "$fipdevice" ] && fipdevice=$(getdev ${target}-${device}-boot)
+  [ -z "$fipdevice" ] && exit
+  pkfip=$(lsblk -rno pkname ${fipdevice})
+  [ -z "$pkfip" ] && exit
+  nrfip=$(cat "/sys/block/${pkfip}/$(basename ${fipdevice})/partition")
+  [ -z "$nrfip" ] && exit
+  while mountpoint -q /boot; do umount -R /boot; sleep 0.1; done
+  if [[ $@ =~ "--fip2boot" ]]; then
+    parted -s -- "/dev/$pkfip" name $nrfip ${target}-${device}-boot \
+                               set  $nrfip boot on
+    mkfs.vfat -v -F 32 -S 512 -s 16 -n "${target^^}-BOOT" ${fipdevice}
+    rm -rf /boot; mkdir /boot; chmod 0700 /boot
+    sync
+    while mount ${fipdevice} /boot 2>/dev/null; ! mountpoint -q /boot
+    do echo "Waiting for /boot being mounted..."; sleep 0.1; done
+  else
+    parted -s -- "/dev/$pkfip" name $nrfip ${target}-${device}-fip
+    rm -rf /boot; mkdir /boot; chmod 0700 /boot
+  fi
+  echo "Copying files from $tmp/boot to /boot"
+  cp -rfT $tmp/boot /boot
+  sync
 fi
 
 ########################
 # Write ATF bootloader #
 ########################
 if [[ $@ =~ "--atf" ]]; then
+  atfdevice=$(getdev "${target}-${device}-atf")
   if [ -L ${atfdevice} ]; then
     headerdev="/dev/"$(lsblk -no pkname ${atfdevice})
     if [ -f "${headerfile}" ]; then
@@ -225,7 +217,8 @@ fi
 ##############################
 # Create and write fip image #
 ##############################
-if [ -L ${fipdevice} ]; then
+fipdevice=$(getdev ${target}-${device}-fip)
+if [ -n "${fipdevice}" ]; then
   imageid=$(od --skip-bytes=$((4*14)) --read-bytes=4 --address-radix=n -x \
               $linux | sed 's/ //g')
   fipfiles=""
