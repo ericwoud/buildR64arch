@@ -99,7 +99,7 @@ fi
 ########################
 if [[ $@ =~ "--atf" ]]; then
   atfdevice=$(getdev "${target}-${device}-atf")
-  if [ -L ${atfdevice} ]; then
+  if [ -n "${atfdevice}" ]; then
     headerdev="/dev/"$(lsblk -no pkname ${atfdevice})
     if [ -f "${headerfile}" ]; then
       echo Writing ${headerfile} to ${headerdev}
