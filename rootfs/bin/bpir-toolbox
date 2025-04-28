@@ -4,7 +4,7 @@
 # Functions #
 #############
 function getconf {
-  conf=$(cat /boot/bootcfg/${2} 2>/dev/null)
+  local conf=$(cat /boot/bootcfg/${2} 2>/dev/null)
   if [ -z "$conf" ]; then
     conf="${3}"
     [[ "${1}" == "w" ]] && echo -n "${conf}" >"/boot/bootcfg/${2}"
@@ -27,6 +27,16 @@ function imageid {
   else
     imageid_noarchive ${1}
   fi
+}
+
+function get_emmcbootpart {
+  local bootpart="0"$(mmc extcsd read ${1} | grep PARTITION_CONFIG | cut -f 2 -d'0' | cut -f 1 -d']')
+  echo $(( ($bootpart & 0x38) >> 3 ))
+}
+
+function set_emmcbootpart {
+  [ "$2" -eq "$(get_emmcbootpart ${1})" ] && return
+  mmc bootpart enable 7 1 ${1}
 }
 
 #################
@@ -127,17 +137,17 @@ if [[ $@ =~ "--atf" ]]; then
     else
       echo "Atf binary does not exist: ${atffile}"
     fi
-    if [ -b ${headerdev}"boot0" ] && [ -b ${headerdev}"boot1" ]; then
-      bootpart="0"$(mmc extcsd read ${headerdev} | grep PARTITION_CONFIG | cut -f 2 -d'0' | cut -f 1 -d']')
-      bootpart=$(( ($bootpart & 0x38) >> 3 ))
-      echo "EXTCSD bootpart = $bootpart"
-      [ "$bootpart" -eq "1" ] && bootx="boot0"
-      [ "$bootpart" -eq "2" ] && bootx="boot1"
-      if [ ! -z "$bootx" ]; then
-        echo -e "Copying atf to ${headerdev}${bootx}"
-        echo 0 > /sys/block/${headerdev/'/dev/'/}${bootx}/force_ro
-        dd bs=4M if="${atfdevice}" of="${headerdev}${bootx}" conv=fsync
-        echo 1 > /sys/block/${headerdev/'/dev/'/}${bootx}/force_ro
+    if [ -b "${headerdev}boot0" ]; then # Writing to EMMC boot device
+      hdr=$(head -c 4 "${atfdevice}")
+      if [[ "${hdr}" == "SDMM" ]] || [[ "${hdr}" == "BRLY" ]]; then
+        echo "Customised ATF able to boot from ${headerdev}"
+        set_emmcbootpart ${headerdev} 7
+      else
+        echo -e "ATF needs boot from ${headerdev}boot0, copying..."
+        echo 0 > /sys/block/${headerdev/'/dev/'/}boot0/force_ro
+        dd bs=4M if="${atfdevice}" of="${headerdev}boot0" conv=fsync
+        echo 1 > /sys/block/${headerdev/'/dev/'/}boot0/force_ro
+        set_emmcbootpart ${headerdev} 1
       fi
     fi
   fi
