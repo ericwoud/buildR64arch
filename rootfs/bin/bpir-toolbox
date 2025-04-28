@@ -16,6 +16,19 @@ function getdev {
   blkid -t "PARTLABEL=$1" -l -o device
 }
 
+function imageid_noarchive {
+  od --skip-bytes=$((4*14)) --read-bytes=4 --address-radix=n -x ${1} \
+    | sed 's/ //g'
+}
+
+function imageid {
+  if [[ "$(file -b --mime-type ${1})" == "application/x-xz" ]]; then
+    zstd -dcf --format=xz ${1} | imageid_noarchive -
+  else
+    imageid_noarchive ${1}
+  fi
+}
+
 #################
 # Set variables #
 #################
@@ -219,12 +232,10 @@ fi
 ##############################
 fipdevice=$(getdev ${target}-${device}-fip)
 if [ -n "${fipdevice}" ]; then
-  imageid=$(od --skip-bytes=$((4*14)) --read-bytes=4 --address-radix=n -x \
-              $linux | sed 's/ //g')
   fipfiles=""
   [ -f "$bl31file" ]   && fipfiles+=" --soc-fw $bl31file"
   [ -f "$linux" ]  && fipfiles+=" --nt-fw $linux"
-  if [[ "$imageid" == "5241644d" ]]; then # We have a linux kernel image
+  if [[ "$(imageid $linux)" == "5241644d" ]]; then # We have a linux kernel image
     [ -f "$atfdtb" ] && fipfiles+=" --nt-fw-config $atfdtb"
     [ -f "$initrd" ] && fipfiles+=" --tos-fw-extra2 $initrd"
   fi
