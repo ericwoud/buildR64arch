@@ -178,9 +178,6 @@ function formatimage {
   nrseg=$(( $esize_mb / 2 )); [[ $nrseg -lt 1 ]] && nrseg=1
   $sudo mkfs.f2fs -s $nrseg -t 0 -f -l "${target^^}-ROOT" ${mountdev}
   $sudo sync
-  if [ -b ${device}"boot0" ] && [[ "$compatible" == *"bananapi"*"mediatek,mt7622"* ]]; then
-    $sudo mmc bootpart enable 7 1 ${device}
-  fi
   $sudo lsblk -o name,mountpoint,label,partlabel,size,uuid "${device}"
 }
 
