@@ -221,8 +221,9 @@ bootargs="root=PARTLABEL=${partlabelroot} $origargs $cmdline"
 echo BOOTARGS = "$bootargs"
 fdtput -ts "$atfdtb" "/chosen" "bootargs" "$bootargs"
 fdtput -ts "$atfdtb" "/memory" "device_type" "memory"
-ds=$(printf "%x" $((ddrsize*4)))
-fdtput -tx "$atfdtb" "/memory" "reg" 00 40000000 00 ${ds}0000000
+d1=$(printf "%x" $((ddrsize >> 2)) )
+d2=$(printf "%x" $(( $((ddrsize << 2)) & 15 )) )
+fdtput -tx "$atfdtb" "/memory" "reg" 00 40000000 0${d1} ${d2}0000000
 if [ -f "$initrd" ];then
   ins="0x48000000"
   ine="0x$(printf '%x\n' $(( $ins + $(du -b $initrd | cut -f1) )))"
