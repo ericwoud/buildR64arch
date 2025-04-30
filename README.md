@@ -269,7 +269,9 @@ Do not forget, as the nvme will still have a lot to sync, the command: !!!
 ```
 sync
 ```
-
+Remember that now the Image file on the emmc-boot partition is in sync with the modules on nvme-root partition.
+This means that the rootfs om emmc is not really valid anymore to boot from. Only up until the initrd
+the emmc can be used.
 
 ## TODO:
 
