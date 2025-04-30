@@ -271,7 +271,12 @@ sync
 ```
 Remember that now the Image file on the emmc-boot partition is in sync with the modules on nvme-root partition.
 This means that the rootfs om emmc is not really valid anymore to boot from. Only up until the initrd
-the emmc can be used.
+the emmc can be used. If you want, make a copy of the current Image and initramfs-bpir.img with a different name,
+but still in /boot. If you want to boot emmc, change /boot/bootcfg/linux and /boot/bootcfg/initrd to the other files.
+
+## Setup booting from NVME on R3/R3mini/R4, using U-Boot
+
+It is also be possible to install the U-Boot package and have U-Boot do the startup from nvme.
 
 ## TODO:
 
