@@ -35,8 +35,8 @@ function get_emmcbootpart {
 }
 
 function set_emmcbootpart {
-  [ $2 -eq $(get_emmcbootpart ${1}) ] && return
-  mmc bootpart enable 7 1 ${1}
+  [ ${2} -eq $(get_emmcbootpart ${1}) ] && return
+  mmc bootpart enable ${2} 1 ${1}
 }
 
 #################
