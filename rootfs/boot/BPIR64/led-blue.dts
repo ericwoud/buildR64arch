@@ -1,14 +1,17 @@
 /dts-v1/;
 /plugin/;
 
+#define GPIO_ACTIVE_LOW 1
+#define LED_COLOR_ID_BLUE 3
+
 &{/leds} {
   blue {
     compatible = "gpio-leds";
     label = "bpi-r64:pio:blue";
-    gpios = <&pio 85 1>;
+    gpios = <&pio 85 GPIO_ACTIVE_LOW>;
     default-state = "keep";
     function = "gpio_out";
-    color = <3>;
+    color = <LED_COLOR_ID_BLUE>;
   };
 };
 
