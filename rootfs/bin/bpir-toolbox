@@ -64,7 +64,7 @@ default_dtb="${default_dtb/.dtb/}"
 extlinux="/boot/extlinux/extlinux.conf"
 
 tmp="/tmp/bpir-toolbox-tmp"
-mkdir -p $tmp
+mkdir -p "${tmp}/dtbos"
 mkdir -p /boot/bootcfg
 dtb=$(     getconf w dtb     "$default_dtb")
 device=$(  getconf w device  "$(echo $partlabelroot | cut -d'-' -f2)")
@@ -200,22 +200,23 @@ fi
 #################
 # Create DTBO's #
 #################
-cp -vf "/boot/dtbs/${dtb}.dtb" "/boot/dtbs/${dtb}-fixed.dtb"
-rm -rf /boot/dtbos/*.dtbo
-for bp in /boot/dtbos/*.dts; do
-  echo "Creating .dtbo from $(basename $bp)"
-  dtc -@ -q -I dts -O dtb -o ${bp/".dts"/".dtbo"} $bp
-  cat $bp | grep "//fdtput" | while read -r line ; do
-    echo fdtput "/boot/dtbs/${dtb}-fixed.dtb" ${line/"//fdtput"/""}
-         fdtput "/boot/dtbs/${dtb}-fixed.dtb" ${line/"//fdtput"/""}
+cp -vf "/boot/dtbs/${dtb}.dtb" "${tmp}/${dtb}-fixed.dtb"
+rm -rf /boot/dtbos/*.dtbo ${tmp}/dtbos/*.dtbo /boot/dtbs/${dtb}-fixed.dtb
+for dts in /boot/dtbos/*.dts; do
+  dtsname=$(basename $dts)
+  echo "Creating .dtbo from $dtsname"
+  dtc -@ -q -I dts -O dtb -o "${tmp}/dtbos/${dtsname/.dts/.dtbo}" $dts
+  cat $dts | grep "//fdtput" | while read -r line ; do
+    echo fdtput "${tmp}/${dtb}-fixed.dtb" ${line/"//fdtput"/""}
+         fdtput "${tmp}/${dtb}-fixed.dtb" ${line/"//fdtput"/""}
   done
 done
 
 ########################
 # Create a single .dtb #
 ########################
-fdtoverlay -vi "/boot/dtbs/${dtb}-fixed.dtb" -o "$atfdtb" \
-                /boot/dtbos/*.dtbo
+fdtoverlay -vi "${tmp}/${dtb}-fixed.dtb" -o "$atfdtb" \
+                ${tmp}/dtbos/*.dtbo
 origargs=$(fdtget -ts "$atfdtb" "/chosen" "bootargs")
 bootargs="root=PARTLABEL=${partlabelroot} $origargs $cmdline"
 echo BOOTARGS = "$bootargs"
