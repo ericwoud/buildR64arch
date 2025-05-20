@@ -27,7 +27,7 @@ IMAGE_SIZE_MB=7456             # Size of image
 IMAGE_FILE="./bpir.img"        # Name of image
 
 NEEDED_PACKAGES="hostapd wireless-regdb iproute2 nftables f2fs-tools dosfstools\
- btrfs-progs patch sudo evtest parted linux-firmware binutils cpio"
+ btrfs-progs patch sudo evtest parted linux-firmware binutils cpio mtd-utils"
 NEEDED_PACKAGES_DEBIAN="openssh-server device-tree-compiler mmc-utils\
  libpam-systemd systemd-timesyncd systemd-resolved kmod zstd
  iputils-ping apt-utils iw"
