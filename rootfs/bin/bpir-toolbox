@@ -249,6 +249,7 @@ fi
 # Format NAND #
 ###############
 if [[ $@ =~ "--nand-format" ]]; then
+  [[ "$(tr -d '\0' 2>/dev/null </proc/device-tree/compatible)" != "bananapi,"* ]] && exit 1
   i=0
   ubinr=$(mtdnr ubi)
   ubidetach -p /dev/mtd${ubinr}
@@ -273,6 +274,7 @@ fi
 # Update NAND #
 ###############
 if [[ $@ =~ "--nand-update" ]] || [[ $@ =~ "--nand-format" ]]; then
+  [[ "$(tr -d '\0' 2>/dev/null </proc/device-tree/compatible)" != "bananapi,"* ]] && exit 1
   ubinr=$(mtdnr ubi)
   fipnr=$(mtdnr fip)
   bl2nr=$(mtdnr bl2)
