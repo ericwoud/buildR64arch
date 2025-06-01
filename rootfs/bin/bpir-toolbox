@@ -39,20 +39,49 @@ function set_emmcbootpart {
   mmc bootpart enable ${2} 1 ${1}
 }
 
+function mtdnr {
+  cat /proc/mtd | grep '"'$1'"' | cut -d':' -f1 | tr -d [:alpha:]
+}
+
+function ubivol {
+  for u in /sys/class/ubi/${ubidev/"/dev/"/}_*/name; do
+    if [[ "$(cat $u)" == "$1" ]]; then
+      echo $(basename $(dirname $u))
+      return
+    fi
+  done
+}
+
+function ubiupdate {
+  if ! diff -q "$1" "$2"; then
+    echo "Updating "$(basename $1)" on NAND:"
+    cp -vf "$1" "$2"
+  fi
+}
+
+function get_ubidev {
+  local ubidevice
+  ubidevice="$(basename /sys/class/mtd/mtd${1}/ubi*)"
+  [ ! -e "/sys/class/ubi/$ubidevice" ] && return 1
+  echo "/dev/$ubidevice"
+  return 0
+}
+
+
 function write_extlinux {
-  mkdir -p $(dirname "$2")
-  cat <<-EOF | tee "$2"
+  mkdir -p $(dirname "$1")
+  cat <<-EOF | tee "$1"
 	DEFAULT linux-bpir-git
 	  MENU title U-Boot menu
 	  PROMPT 0
 	  TIMEOUT 50
 	LABEL linux-bpir-git
 	  MENU LABEL Archlinux AUR package BananaPi Routers
-	  LINUX ${linux:$1}
-	  INITRD ${initrd:$1}
-	  FDT ${atfdtb:$1}
-	  APPEND root=PARTLABEL=${partlabelroot} $cmdline
+	  LINUX ${2}
+	  INITRD ${3}
+	  FDT ${4}
 	EOF
+# Here append's double root= ?!?!?!
 }
 
 function write_dtb {
@@ -216,11 +245,83 @@ if [[ $@ =~ "--atf" ]]; then
   fi
 fi
 
+###############
+# Format NAND #
+###############
+if [[ $@ =~ "--nand-format" ]]; then
+  i=0
+  ubinr=$(mtdnr ubi)
+  ubidetach -p /dev/mtd${ubinr}
+  ubiformat -y /dev/mtd${ubinr}
+  ubiattach -p /dev/mtd${ubinr}
+  ubidev=$(get_ubidev ${ubinr})
+  [[ $? != 0 ]] && exit
+  [[ "$ubidev" == "/dev/ubi_ctrl" ]] && exit 1
+  ubimkvol ${ubidev} -n $i -N fip       -s 1MiB   -t static
+  ((i++))
+  ubimkvol ${ubidev} -n $i -N ubootenv  -s 128KiB
+  ((i++))
+  ubimkvol ${ubidev} -n $i -N ubootenv2 -s 128KiB
+  ((i++))
+  ubimkvol ${ubidev} -n $i -N rootfs    -m
+  while [ ! -e "${ubidev}_$i" ]; do sleep 0.1; done
+  mkfs.ubifs ${ubidev}_$i
+fi
+
+
+###############
+# Update NAND #
+###############
+if [[ $@ =~ "--nand-update" ]] || [[ $@ =~ "--nand-format" ]]; then
+  ubinr=$(mtdnr ubi)
+  fipnr=$(mtdnr fip)
+  bl2nr=$(mtdnr bl2)
+  atfbin="/usr/share/bpir-atf/${target}-atf-spim-nand-atf.bin"
+  dd if=/dev/mtdblock${bl2nr} of="$tmp/dump.bin" bs=$(du -b "$atfbin" | cut -f1) count=1 >/dev/null 2>&1
+  if ! diff "$tmp/dump.bin" "$atfbin"; then
+    echo "Updating bl2 on NAND:"
+    dd if="$atfbin" of=/dev/mtdblock${bl2nr}
+  fi
+  ubidev=$(get_ubidev ${ubinr})
+  if [[ $? != 0 ]]; then
+    ubiattach -p /dev/mtd${ubinr}
+    ubidev=$(get_ubidev ${ubinr})
+    [[ $? != 0 ]] && exit
+  fi
+  if [[ "$ubidev" == "/dev/ubi_ctrl" ]] || [[ "$ubidev" == "/dev/ubi*" ]]; then exit 1; fi
+  ubirootfs=$(ubivol rootfs)
+  mkdir -p $tmp/mnt
+  mount -t ubifs ${ubirootfs} $tmp/mnt
+  while ! mountpoint -q $tmp/mnt; do sleep 0.1; done
+  mkdir -p $tmp/mnt/boot/extlinux $tmp/mnt/boot/dtbs
+  [ -f "${linux}.gz" ] && ubootlinux="${linux}.gz" || ubootlinux="${linux}"
+  write_dtb "$tmp/atf.dtb" \
+            "root=" \
+            "/boot/dtbs/${dtb}.dtb" \
+	    /usr/share/buildR64arch/boot/${target^^}/*.dts \
+	    /usr/share/buildR64arch/boot/${target^^}-EMMC/*.dts
+  ubiupdate "$tmp/atf.dtb" "$tmp/mnt/boot/dtbs/mt7986a-bananapi-bpi-r3-atf.dtb"
+  write_extlinux "$tmp/extlinux.conf" \
+                 "${ubootlinux}" \
+                 "${initrd}" \
+                 "${atfdtb}"
+  ubiupdate "$tmp/extlinux.conf" "$tmp/mnt/boot/extlinux/extlinux.conf"
+  ubiupdate "$ubootlinux" "$tmp/mnt$ubootlinux"
+  ubiupdate "$initrd" "$tmp/mnt$initrd"
+  sync
+  ls -lR $tmp/mnt
+  while mountpoint -q $tmp/mnt; do umount $tmp/mnt; sleep 0.1; done
+  exit
+fi
+
 ############
 # EXTLINUX #
 ############
 if [[ $@ =~ "--extlinux" ]] || ( [[ $@ =~ "--uboot-install" ]] && [ ! -f "$extlinux" ] ) ; then
-  write_extlinux 5 "${extlinux}"
+  write_extlinux "${extlinux}" \
+                 "${linux:5}" \
+                 "${initrd:5}" \
+                 "${atfdtb:5}"
   [[ $@ =~ "--extlinux" ]] && exit
 fi
 
