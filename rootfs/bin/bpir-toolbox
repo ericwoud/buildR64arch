@@ -134,8 +134,8 @@ function write_dtb {
 #################
 # Set variables #
 #################
-rootdev=$(lsblk -pilno pkname,type,mountpoint | grep -G 'part /$' |  head -n1 | cut -d " " -f1)
-partlabelroot=$(lsblk -plno partlabel $rootdev | grep -G '\-root$' )
+rootdev=$(lsblk -pilno pkname,type,mountpoint | grep -G 'part /$' | head -n1 | cut -d " " -f1)
+partlabelroot=$(lsblk -plno partlabel --properties-by blkid $rootdev | grep -G '\-root$' | head -n1)
 [ -z "$partlabelroot" ] && exit
 target=$(echo $partlabelroot | cut -d'-' -f1)
 
