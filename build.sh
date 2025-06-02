@@ -155,7 +155,7 @@ function formatimage {
   fi
   $sudo wipefs --all --force "${device}"
   $sudo sync
-  $sudo partprobe "${device}"; udevadm settle
+  $sudo partprobe "${device}"; $sudo udevadm settle
   $sudo parted -s -- "${device}" mklabel gpt
   [[ $? != 0 ]] && exit
   $sudo parted -s -- "${device}" unit kiB \
@@ -169,7 +169,8 @@ function formatimage {
     print
   $sudo partprobe "${device}"; $sudo udevadm settle
   while 
-    mountdev=$(lsblk -prno partlabel,name $device | grep -P '^bpir' | grep -- -root | cut -d' ' -f2)
+    mountdev=$(lsblk -prno partlabel,name --properties-by blkid $device | \
+               grep -P '^bpir' | grep -- -root | cut -d' ' -f2)
     [ -z "$mountdev" ]
   do sleep 0.1; done
   waitdev "${mountdev}"
@@ -178,7 +179,7 @@ function formatimage {
   nrseg=$(( $esize_mb / 2 )); [[ $nrseg -lt 1 ]] && nrseg=1
   $sudo mkfs.f2fs -s $nrseg -t 0 -f -l "${target^^}-ROOT" ${mountdev}
   $sudo sync
-  $sudo lsblk -o name,mountpoint,label,partlabel,size,uuid "${device}"
+  $sudo lsblk -o name,mountpoint,label,partlabel,size,uuid --properties-by blkid "${device}"
 }
 
 function resolv {
@@ -519,8 +520,8 @@ else
     $sudo partprobe $loopdev; udevadm settle
     device=$loopdev
   else
-    readarray -t options < <(lsblk -prno partlabel,pkname | grep -P '^bpir' \
-        | grep -- -root | grep -v ${pkroot} | grep -v 'boot0$\|boot1$\|boot2$')
+    readarray -t options < <(lsblk -prno partlabel,pkname --properties-by blkid | \
+        grep -P '^bpir' | grep -- -root | grep -v ${pkroot} | grep -v 'boot0$\|boot1$\|boot2$')
     if [ ${#options[@]} -gt 1 ]; then
       PS3="Choose device to work on: "; COLUMNS=1
       select choice in "${options[@]}" "Quit" ; do
@@ -531,7 +532,7 @@ else
     fi
     device=$(echo $choice | cut -d' ' -f2)
   fi
-  pr=$(lsblk -prno partlabel $device | grep -P '^bpir' | grep -- -root)
+  pr=$(lsblk -prno partlabel --properties-by blkid $device | grep -P '^bpir' | grep -- -root)
   target=$(echo $pr | cut -d'-' -f1)
   atfdevice=$(echo $pr | cut -d'-' -f2)
 fi
@@ -596,8 +597,10 @@ echo 'KERNELS=="'${device/"/dev/"/""}'", ENV{UDISKS_IGNORE}="1"' | $sudo tee $no
 
 [ "$F" = true ] && formatimage
 
-mountdev=$(lsblk -prno partlabel,name $device | grep -P '^bpir' | grep -- -root | cut -d' ' -f2)
-bootdev=$( lsblk -prno partlabel,name $device | grep -P '^bpir' | grep -- -boot | cut -d' ' -f2)
+mountdev=$(lsblk -prno partlabel,name --properties-by blkid $device | \
+           grep -P '^bpir' | grep -- -root | cut -d' ' -f2)
+bootdev=$( lsblk -prno partlabel,name --properties-by blkid $device | \
+           grep -P '^bpir' | grep -- -boot | cut -d' ' -f2)
 echo "Mountdev = $mountdev"
 echo "Bootdev  = $bootdev"
 [ -z "$mountdev" ] && exit
