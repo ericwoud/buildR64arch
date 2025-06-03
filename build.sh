@@ -169,8 +169,7 @@ function formatimage {
     print
   $sudo partprobe "${device}"; $sudo udevadm settle
   while 
-    mountdev=$(lsblk -prno partlabel,name -e 31 $device | \
-               grep -P '^bpir' | grep -- -root | cut -d' ' -f2)
+    mountdev=$($sudo blkid ${device}* -t PARTLABEL=${target}-${atfdevice}-root -o device)
     [ -z "$mountdev" ]
   do sleep 0.1; done
   waitdev "${mountdev}"
@@ -179,7 +178,6 @@ function formatimage {
   nrseg=$(( $esize_mb / 2 )); [[ $nrseg -lt 1 ]] && nrseg=1
   $sudo mkfs.f2fs -s $nrseg -t 0 -f -l "${target^^}-ROOT" ${mountdev}
   $sudo sync
-  $sudo lsblk -o name,mountpoint,label,partlabel,size,uuid -e 31 "${device}"
 }
 
 function resolv {
@@ -520,8 +518,8 @@ else
     $sudo partprobe $loopdev; udevadm settle
     device=$loopdev
   else
-    readarray -t options < <(lsblk -prno partlabel,pkname -e 31 | \
-        grep -P '^bpir' | grep -- -root | grep -v ${pkroot} | grep -v 'boot0$\|boot1$\|boot2$')
+    readarray -t options < <($sudo blkid -s PARTLABEL | \
+        grep -E 'PARTLABEL="bpir' | grep -E -- '-root"' | grep -v ${pkroot} | grep -v 'boot0$\|boot1$\|boot2$')
     if [ ${#options[@]} -gt 1 ]; then
       PS3="Choose device to work on: "; COLUMNS=1
       select choice in "${options[@]}" "Quit" ; do
@@ -530,9 +528,9 @@ else
     else
       choice=${options[0]}
     fi
-    device=$(echo $choice | cut -d' ' -f2)
+    device=$($sudo lsblk -npo pkname $(echo $choice | cut -d' ' -f1 | tr -d :))
   fi
-  pr=$(lsblk -prno partlabel -e 31 $device | grep -P '^bpir' | grep -- -root)
+  pr=$($sudo blkid -s PARTLABEL ${device}*| grep -E 'PARTLABEL="bpir' | grep -E -- '-root"' | cut -d'"' -f2)
   target=$(echo $pr | cut -d'-' -f1)
   atfdevice=$(echo $pr | cut -d'-' -f2)
 fi
@@ -597,10 +595,8 @@ echo 'KERNELS=="'${device/"/dev/"/""}'", ENV{UDISKS_IGNORE}="1"' | $sudo tee $no
 
 [ "$F" = true ] && formatimage
 
-mountdev=$(lsblk -prno partlabel,name -e 31 $device | \
-           grep -P '^bpir' | grep -- -root | cut -d' ' -f2)
-bootdev=$( lsblk -prno partlabel,name -e 31 $device | \
-           grep -P '^bpir' | grep -- -boot | cut -d' ' -f2)
+mountdev=$($sudo blkid -s PARTLABEL ${device}* | grep -E 'PARTLABEL="bpir' | grep -E -- '-root"' | cut -d' ' -f1 | tr -d :)
+bootdev=$( $sudo blkid -s PARTLABEL ${device}* | grep -E 'PARTLABEL="bpir' | grep -E -- '-boot"' | cut -d' ' -f1 | tr -d :)
 echo "Mountdev = $mountdev"
 echo "Bootdev  = $bootdev"
 [ -z "$mountdev" ] && exit
