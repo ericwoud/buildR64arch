@@ -132,6 +132,10 @@ function waitdev {
   done
 }
 
+function parts {
+  $sudo lsblk $1 -lnpo name
+}
+
 function formatimage {
   esize_mb=$(cat /sys/block/${device/"/dev/"/""}/device/preferred_erase_size) 
   [ -z "$esize_mb" ] && esize_mb=$SD_ERASE_SIZE_MB || esize_mb=$(( $esize_mb /1024 /1024 ))
@@ -169,7 +173,7 @@ function formatimage {
     print
   $sudo partprobe "${device}"; $sudo udevadm settle
   while 
-    mountdev=$($sudo blkid ${device}* -t PARTLABEL=${target}-${atfdevice}-root -o device)
+    mountdev=$($sudo blkid $(parts ${device}) -t PARTLABEL=${target}-${atfdevice}-root -o device)
     [ -z "$mountdev" ]
   do sleep 0.1; done
   waitdev "${mountdev}"
@@ -530,7 +534,7 @@ else
     fi
     device=$($sudo lsblk -npo pkname $(echo $choice | cut -d' ' -f1 | tr -d :))
   fi
-  pr=$($sudo blkid -s PARTLABEL ${device}*| grep -E 'PARTLABEL="bpir' | grep -E -- '-root"' | cut -d'"' -f2)
+  pr=$($sudo blkid -s PARTLABEL $(parts ${device})| grep -E 'PARTLABEL="bpir' | grep -E -- '-root"' | cut -d'"' -f2)
   target=$(echo $pr | cut -d'-' -f1)
   atfdevice=$(echo $pr | cut -d'-' -f2)
 fi
@@ -595,8 +599,8 @@ echo 'KERNELS=="'${device/"/dev/"/""}'", ENV{UDISKS_IGNORE}="1"' | $sudo tee $no
 
 [ "$F" = true ] && formatimage
 
-mountdev=$($sudo blkid -s PARTLABEL ${device}* | grep -E 'PARTLABEL="bpir' | grep -E -- '-root"' | cut -d' ' -f1 | tr -d :)
-bootdev=$( $sudo blkid -s PARTLABEL ${device}* | grep -E 'PARTLABEL="bpir' | grep -E -- '-boot"' | cut -d' ' -f1 | tr -d :)
+mountdev=$($sudo blkid -s PARTLABEL $(parts ${device}) | grep -E 'PARTLABEL="bpir' | grep -E -- '-root"' | cut -d' ' -f1 | tr -d :)
+bootdev=$( $sudo blkid -s PARTLABEL $(parts ${device}) | grep -E 'PARTLABEL="bpir' | grep -E -- '-boot"' | cut -d' ' -f1 | tr -d :)
 echo "Mountdev = $mountdev"
 echo "Bootdev  = $bootdev"
 [ -z "$mountdev" ] && exit
