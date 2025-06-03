@@ -175,6 +175,13 @@ headerfile="${atfdir}/${target}-atf-${device}-header${extra}.bin"
 atffile="${atfdir}/${target}-atf-${device}-atf${extra}.bin"
 bl31file="${atfdir}/${target}-atf-${device}-bl31${extra}.bin"
 
+# Copy DTBO's if there are none.
+if [ ! -d "/boot/dtbos/" ]; then
+  mkdir -p "/boot/dtbos/"
+  cp -vf /usr/share/buildR64arch/boot/${target^^}/*             "/boot/dtbos/" 2>/dev/null
+  cp -vf /usr/share/buildR64arch/boot/${target^^}-${device^^}/* "/boot/dtbos/" 2>/dev/null
+fi
+
 #########################################
 # Convert boot to FIP or BOOT partition #
 #########################################
@@ -207,6 +214,7 @@ if [[ $@ =~ "--fip2boot" ]] || [[ $@ =~ "--boot2fip" ]]; then
   echo "Copying files from $tmp/boot to /boot"
   cp -rfT $tmp/boot /boot
   sync
+  exit
 fi
 
 ########################
@@ -243,6 +251,7 @@ if [[ $@ =~ "--atf" ]]; then
       fi
     fi
   fi
+  exit
 fi
 
 ###############
@@ -344,41 +353,31 @@ if [[ $@ =~ "--uboot-remove" ]]; then
   exit
 fi
 
-###############
-# Copy DTBO's #
-###############
-if [ ! -d "/boot/dtbos/" ]; then
-  mkdir -p "/boot/dtbos/"
-  cp -vf /usr/share/buildR64arch/boot/${target^^}/*                "/boot/dtbos/" 2>/dev/null
-  cp -vf /usr/share/buildR64arch/boot/${target^^}-${device^^}/* "/boot/dtbos/" 2>/dev/null
-fi
-
-########################
-# Create a single .dtb #
-########################
-rm -v /boot/dtbos/*.dtbo /boot/dtbs/*-fixed.dtb 2>/dev/null # not used anymore
-write_dtb "$atfdtb" \
-          "root=PARTLABEL=${partlabelroot}" \
-          "/boot/dtbs/${dtb}.dtb" \
-	  /boot/dtbos/*.dts
-
-##############################
-# Create and write fip image #
-##############################
-fipdevice=$(getdev ${target}-${device}-fip)
-if [ -n "${fipdevice}" ]; then
-  fipfiles=""
-  [ -f "$bl31file" ]   && fipfiles+=" --soc-fw $bl31file"
-  [ -f "$linux" ]  && fipfiles+=" --nt-fw $linux"
-  if [[ "$(imageid $linux)" == "5241644d" ]]; then # We have a linux kernel image
-    [ -f "$atfdtb" ] && fipfiles+=" --nt-fw-config $atfdtb"
-    [ -f "$initrd" ] && fipfiles+=" --tos-fw-extra2 $initrd"
+#########################################
+# Create single dtb and write fip image #
+#########################################
+if [[ $@ =~ "--write2fip" ]]; then
+  rm -v /boot/dtbos/*.dtbo /boot/dtbs/*-fixed.dtb 2>/dev/null # not used anymore
+  write_dtb "$atfdtb" \
+            "root=PARTLABEL=${partlabelroot}" \
+            "/boot/dtbs/${dtb}.dtb" \
+            /boot/dtbos/*.dts
+  fipdevice=$(getdev ${target}-${device}-fip)
+  if [ -n "${fipdevice}" ]; then
+    fipfiles=""
+    [ -f "$bl31file" ]   && fipfiles+=" --soc-fw $bl31file"
+    [ -f "$linux" ]  && fipfiles+=" --nt-fw $linux"
+    if [[ "$(imageid $linux)" == "5241644d" ]]; then # We have a linux kernel image
+      [ -f "$atfdtb" ] && fipfiles+=" --nt-fw-config $atfdtb"
+      [ -f "$initrd" ] && fipfiles+=" --tos-fw-extra2 $initrd"
+    fi
+    fiptool --verbose create $tmp/fip.bin $fipfiles
+    fiptool info $tmp/fip.bin
+    echo Writing FIP to: ${fipdevice}
+    dd bs=1M of=${fipdevice} if=/dev/zero conv=fsync 2>/dev/null
+    dd bs=1M of=${fipdevice} if=$tmp/fip.bin conv=fsync
   fi
-  fiptool --verbose create $tmp/fip.bin $fipfiles
-  fiptool info $tmp/fip.bin
-  echo Writing FIP to: ${fipdevice}
-  dd bs=1M of=${fipdevice} if=/dev/zero conv=fsync 2>/dev/null
-  dd bs=1M of=${fipdevice} if=$tmp/fip.bin conv=fsync
+  exit
 fi
 
 exit 0
