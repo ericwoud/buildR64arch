@@ -135,7 +135,7 @@ function write_dtb {
 # Set variables #
 #################
 rootdev=$(lsblk -pilno pkname,type,mountpoint | grep -G 'part /$' | head -n1 | cut -d " " -f1)
-partlabelroot=$(lsblk -plno partlabel --properties-by blkid $rootdev | grep -G '\-root$' | head -n1)
+partlabelroot=$(lsblk -plno partlabel --properties-by blkid -e 31 $rootdev | grep -G '\-root$' | head -n1)
 [ -z "$partlabelroot" ] && exit
 target=$(echo $partlabelroot | cut -d'-' -f1)
 
@@ -280,9 +280,11 @@ if [[ $@ =~ "--nand-update" ]] || [[ $@ =~ "--nand-format" ]]; then
   bl2nr=$(mtdnr bl2)
   atfbin="/usr/share/bpir-atf/${target}-atf-spim-nand-atf.bin"
   dd if=/dev/mtdblock${bl2nr} of="$tmp/dump.bin" bs=$(du -b "$atfbin" | cut -f1) count=1 >/dev/null 2>&1
+  #nanddump -nf "$tmp/dump.bin" -l $(du -b "$atfbin" | cut -f1) /dev/mtd${bl2nr}
   if ! diff "$tmp/dump.bin" "$atfbin"; then
     echo "Updating bl2 on NAND:"
     dd if="$atfbin" of=/dev/mtdblock${bl2nr}
+    #flashcp -v "$atfbin" /dev/mtd${bl2nr}
   fi
   ubidev=$(get_ubidev ${ubinr})
   if [[ $? != 0 ]]; then
