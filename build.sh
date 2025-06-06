@@ -159,7 +159,7 @@ function formatimage {
   fi
   $sudo wipefs --all --force "${device}"
   $sudo sync
-  $sudo partprobe "${device}"; $sudo udevadm settle
+  $sudo partprobe "${device}"; $sudo udevadm settle 2>/dev/null
   $sudo parted -s -- "${device}" mklabel gpt
   [[ $? != 0 ]] && exit
   $sudo parted -s -- "${device}" unit kiB \
@@ -171,7 +171,7 @@ function formatimage {
     name 2 ${target}-${atfdevice}-fip \
     name 3 ${target}-${atfdevice}-root \
     print
-  $sudo partprobe "${device}"; $sudo udevadm settle
+  $sudo partprobe "${device}"; $sudo udevadm settle 2>/dev/null
   while 
     mountdev=$($sudo blkid $(parts ${device}) -t PARTLABEL=${target}-${atfdevice}-root -o device)
     [ -z "$mountdev" ]
