@@ -34,7 +34,7 @@ NEEDED_PACKAGES_DEBIAN="openssh-server device-tree-compiler mmc-utils\
 NEEDED_PACKAGES_ALARM=" openssh        dtc                  mmc-utils-git\
  base dbus-broker-units"
 STRAP_PACKAGES_ALARM="pacman archlinuxarm-keyring inetutils"
-EXTRA_PACKAGES="nano screen i2c-tools ethtool iperf3 debootstrap"
+EXTRA_PACKAGES="nano screen i2c-tools ethtool iperf3"
 PREBUILT_PACKAGES="bpir-atf-git bpir-uboot-git ssh-fix-reboot hostapd-launch bpir-initrd"
 SCRIPT_PACKAGES="curl ca-certificates udisks2 parted gzip bc f2fs-tools dosfstools debootstrap"
 SCRIPT_PACKAGES_ARCHLX="base-devel      uboot-tools  ncurses        openssl"
