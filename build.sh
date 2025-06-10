@@ -150,7 +150,7 @@ function formatimage {
   else
     root_end_kb=$(( ($ROOT_END_MB/$esize_mb*$esize_mb)*1024 ))
   fi
-  for part in $(parts "${device}"); do $sudo umount $part; done
+  for part in $(parts "${device}"); do $sudo umount "${part}" 2>/dev/null; done
   if [ "$l" != true ]; then
     $sudo parted -s "${device}" unit MiB print
     echo -e "\nAre you sure you want to format "$device"???"
