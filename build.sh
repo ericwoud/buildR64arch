@@ -512,9 +512,9 @@ if [ "$F" = true ]; then
     PS3="Choose atfdevice to format image for: "; COLUMNS=1
     atfdevices=()
     [[ $target != "bpir3m" ]] && atfdevices+=("sdmmc SD Card")
-    atfdevices+=("emmc  EMMC onboard" "nvme  NVME onboard" "Quit")
-    select atfdevice in "${atfdevices[@]}" ; do
-      if (( REPLY > 0 && REPLY <= 2 )) ; then break; else exit; fi
+    atfdevices+=("emmc  EMMC onboard" "nvme  NVME onboard")
+    select atfdevice in "${atfdevices[@]}" "Quit" ; do
+      if (( REPLY > 0 && REPLY <= ${#atfdevices[@]} )) ; then break; else exit; fi
     done
     atfdevice=${atfdevice%% *}
   fi
