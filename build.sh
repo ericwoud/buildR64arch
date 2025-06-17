@@ -95,7 +95,7 @@ case ${target} in
     exit
     ;;
 esac
-} 
+}
 
 # End of default configuration values
 
@@ -136,8 +136,12 @@ function parts {
   $sudo lsblk $1 -lnpo name
 }
 
-function formatimage {
-  esize_mb=$(cat /sys/block/${device/"/dev/"/""}/device/preferred_erase_size) 
+function formatimage_nvme {
+  echo TODO
+}
+
+function formatimage_mmc {
+  esize_mb=$(cat /sys/block/${device/"/dev/"/""}/device/preferred_erase_size)
   [ -z "$esize_mb" ] && esize_mb=$SD_ERASE_SIZE_MB || esize_mb=$(( $esize_mb /1024 /1024 ))
   echo "Erase size = $esize_mb MB"
   minimalrootstart_kb=$(( $ATF_END_KB + ($MINIMAL_SIZE_FIP_MB * 1024) ))
@@ -172,7 +176,7 @@ function formatimage {
     name 3 ${target}-${atfdevice}-root \
     print
   $sudo partprobe "${device}"; $sudo udevadm settle 2>/dev/null
-  while 
+  while
     mountdev=$($sudo blkid $(parts ${device}) -t PARTLABEL=${target}-${atfdevice}-root -o device)
     [ -z "$mountdev" ]
   do sleep 0.1; done
@@ -257,7 +261,7 @@ function rootfs {
 	#RemoteFileSigLevel = Required
 	${serv}
 	EOF
-    $sudo sed -i 's|\\n|\n|g' $rootfsdir/etc/pacman.conf 
+    $sudo sed -i 's|\\n|\n|g' $rootfsdir/etc/pacman.conf
     until schroot pacman-static -Syu --noconfirm --overwrite \\* build-r64-arch-utils-git
     do sleep 2; done
     until schroot bpir-apt install $PREBUILT_PACKAGES
@@ -420,12 +424,18 @@ function ctrl_c() {
 
 export LC_ALL=C
 export LANG=C
-export LANGUAGE=C 
+export LANGUAGE=C
 
 [ -f "config.sh" ] && source config.sh
 
+[ -f "/etc/bpir-is-initrd" ] && initrd=true
+
 cd "$(dirname -- "$(realpath -- "${BASH_SOURCE[0]}")")"
-[ $USER = "root" ] && sudo="" || sudo="sudo"
+if [ $USER = "root" ] || [ "$initrd" = true ]; then
+  sudo=""
+else
+  sudo="sudo"
+fi
 while getopts ":rlcbxzpRFBIP" opt $args; do
   if [[ "${opt}" == "?" ]]; then echo "Unknown option -$OPTARG"; exit; fi
   declare "${opt}=true"
@@ -433,7 +443,11 @@ while getopts ":rlcbxzpRFBIP" opt $args; do
 done
 [ -z "$argcnt" ] && c=true
 if [ "$l" = true ]; then
-  if [ $argcnt -eq 1 ]; then 
+  if [ "$initrd" = true ]; then
+    echo "Loopdev not supported in initrd!"
+    exit 1
+  fi
+  if [ $argcnt -eq 1 ]; then
     c=true
   else
     [ ! -f $IMAGE_FILE ] && F=true
@@ -458,30 +472,30 @@ echo "Compatible:" $compatible
 hostarch=$(uname -m)
 echo "Host Arch:" $hostarch
 
-if [ ! -f "/etc/arch-release" ]; then ### Ubuntu / Debian
-  for package in $SCRIPT_PACKAGES $SCRIPT_PACKAGES_DEBIAN; do 
-    if ! dpkg -l $package >/dev/null; then missing+=" $package"; fi
-  done
-  instcmd="sudo apt-get install $missing"
-else
-  for package in $SCRIPT_PACKAGES $SCRIPT_PACKAGES_ARCHLX; do 
-    if ! pacman -Qi $package >/dev/null; then missing+=" $package"; fi
-  done
-  instcmd="sudo pacman -Syu $missing"
+if [ "$initrd" != true ]; then
+  if [ ! -f "/etc/arch-release" ]; then ### Ubuntu / Debian
+    for package in $SCRIPT_PACKAGES $SCRIPT_PACKAGES_DEBIAN; do
+      if ! dpkg -l $package >/dev/null; then missing+=" $package"; fi
+    done
+    instcmd="sudo apt-get install $missing"
+  else
+    for package in $SCRIPT_PACKAGES $SCRIPT_PACKAGES_ARCHLX; do
+      if ! pacman -Qi $package >/dev/null; then missing+=" $package"; fi
+    done
+    instcmd="sudo pacman -Syu $missing"
+  fi
+  if [ ! -z "$missing" ]; then
+    echo -e "\nInstall these packages with command:\n${instcmd}\n"
+    exit
+  fi
+  rootdevice=$(mount | grep -E '\s+on\s+/\s+' | cut -d' ' -f1)
+  rootdev=$(lsblk -sprno name ${rootdevice} | tail -2 | head -1)
+  echo "rootdev=$rootdev , do not use."
+  [ -z $rootdev ] && exit
+  pkroot=$(lsblk -srno name ${rootdevice} | tail -1)
+  echo "pkroot=$pkroot , do not use."
+  [ -z $pkroot ] && exit
 fi
-if [ ! -z "$missing" ]; then
-  echo -e "\nInstall these packages with command:\n${instcmd}\n"
-  exit
-fi
-
-rootdevice=$(mount | grep -E '\s+on\s+/\s+' | cut -d' ' -f1)
-rootdev=$(lsblk -sprno name ${rootdevice} | tail -2 | head -1)
-echo "rootdev=$rootdev , do not use."
-[ -z $rootdev ] && exit
-
-pkroot=$(lsblk -srno name ${rootdevice} | tail -1)
-echo "pkroot=$pkroot , do not use."
-[ -z $pkroot ] && exit
 
 [ "$I" = true ] && source config.sh
 
@@ -495,7 +509,7 @@ if [ "$F" = true ]; then
     PS3="Choose atfdevice to format image for: "; COLUMNS=1
     atfdevices=()
     [[ $target != "bpir3m" ]] && atfdevices+=("sdmmc SD Card")
-    atfdevices+=("emmc  EMMC onboard" "Quit")
+    atfdevices+=("emmc  EMMC onboard" "nvme  NVME onboard" "Quit")
     select atfdevice in "${atfdevices[@]}" ; do
       if (( REPLY > 0 && REPLY <= 2 )) ; then break; else exit; fi
     done
@@ -579,7 +593,7 @@ if [ "$r" = true ]; then
     case ${atfdevice} in
       sdmmc|emmc) bpir_write="--fip2boot" ;;
       nand)       bpir_write="--boot2fip" ;;
-      *) echo "Unknown atfdevice '${atfdevice}'"; exit ;;
+      *) echo "Unknown atfdevice '${atfdevice}'" ;;
     esac
   fi
 fi
@@ -597,7 +611,9 @@ $sudo mkdir -p "/run/udev/rules.d"
 noautomountrule="/run/udev/rules.d/10-no-automount-bpir.rules"
 echo 'KERNELS=="'${device/"/dev/"/""}'", ENV{UDISKS_IGNORE}="1"' | $sudo tee $noautomountrule
 
-[ "$F" = true ] && formatimage
+if [ "$F" = true ]; then
+  [ "${atfdevice}" == "nvme" ] && formatimage_nvme || formatimage_mmc
+fi
 
 mountdev=$($sudo blkid -s PARTLABEL $(parts ${device}) | grep -E 'PARTLABEL="bpir' | grep -E -- '-root"' | cut -d' ' -f1 | tr -d :)
 bootdev=$( $sudo blkid -s PARTLABEL $(parts ${device}) | grep -E 'PARTLABEL="bpir' | grep -E -- '-boot"' | cut -d' ' -f1 | tr -d :)
