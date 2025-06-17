@@ -133,9 +133,10 @@ function write_dtb {
 
 function download {
   echo "Download $1..."
-  until curl -L $repo'/'$1 | xz -dc - | tar x -C /
+  pkg=$(cat $tmp/ericwoud/$1-*/desc | grep "%FILENAME%" -A1 | head -n 2 | tail -n1)
+  [ -z "$pkg" ] && return
+  until curl -L $repo'/'$pkg | xz -dc - | tar x -C /
   do sleep 2; done
-
 }
 
 #################
