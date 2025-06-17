@@ -431,7 +431,7 @@ export LANGUAGE=C
 [ -f "/etc/bpir-is-initrd" ] && initrd=true
 
 cd "$(dirname -- "$(realpath -- "${BASH_SOURCE[0]}")")"
-if [ $USER = "root" ] || [ "$initrd" = true ]; then
+if [ "$USER" = "root" ] || [ "$initrd" = true ]; then
   sudo=""
 else
   sudo="sudo"
