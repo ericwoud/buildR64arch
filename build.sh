@@ -495,6 +495,9 @@ if [ "$initrd" != true ]; then
   pkroot=$(lsblk -srno name ${rootdevice} | tail -1)
   echo "pkroot=$pkroot , do not use."
   [ -z $pkroot ] && exit
+else
+ rootdev="undefined"
+ pkroot="undefined"
 fi
 
 [ "$I" = true ] && source config.sh
