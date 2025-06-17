@@ -144,8 +144,8 @@ function download {
 tmp="/tmp/bpir-toolbox-tmp"
 rootdev=$(lsblk -pilno name,type,mountpoint | grep -G 'part /$' | head -n1 | cut -d " " -f1)
 if [ -z "$rootdev" ]; then
-  target=$(cat /etc/bpir-is-initrd 2>/dev/null)
-  if [ -n "$target" ] && [[ $@ =~ "--nand-" ]]; then # Writing NAND while running from initrd
+  if [ -f "/etc/bpir-is-initrd" ] && [[ $@ =~ "--nand-" ]]; then # Writing NAND while running from initrd
+    source /etc/bpir-is-initrd
     mkdir -p "$tmp/ericwoud"
     repo="ftp://ftp.woudstra.mywire.org/repo/aarch64"
     until curl -L ${repo}/ericwoud.db | tar -xz -C "$tmp/ericwoud"
