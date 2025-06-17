@@ -134,9 +134,10 @@ function write_dtb {
 function download {
   echo "Download $1..."
   pkg=$(cat $tmp/ericwoud/$1-*/desc 2>/dev/null | grep "%FILENAME%" -A1 | head -n 2 | tail -n1)
-  [ -z "$pkg" ] && return
+  [ -z "$pkg" ] && return 1
   until curl -L $repo'/'$pkg | xz -dc - | tar x -mC /
   do sleep 2; done
+  return 0
 }
 
 #################
@@ -145,17 +146,19 @@ function download {
 tmp="/tmp/bpir-toolbox-tmp"
 rootdev=$(lsblk -pilno name,type,mountpoint | grep -G 'part /$' | head -n1 | cut -d " " -f1)
 if [ -z "$rootdev" ]; then
-  if [ -f "/etc/bpir-is-initrd" ] && [[ $@ =~ "--nand-" ]]; then # Writing NAND while running from initrd
-    source /etc/bpir-is-initrd
-    mkdir -p "$tmp/ericwoud"
-    repo="ftp://ftp.woudstra.mywire.org/repo/aarch64"
-    until curl -L ${repo}/ericwoud.db | tar -xz -mC "$tmp/ericwoud"
-    do sleep 2; done
-    download linux-${target}-git
-    [ ! -f /boot/Image ] && download linux-bpir-git
-    download bpir-atf-git
-    download bpir-uboot-git
-    bpir-initrd
+  if [ -f "/etc/bpir-is-initrd" ]; then  # Writing NAND while running from initrd
+    if [[ $@ =~ "--nand-" ]] || [[ $@ =~ "--download2root" ]]; then
+      source /etc/bpir-is-initrd
+      mkdir -p "$tmp/ericwoud"
+      repo="ftp://ftp.woudstra.mywire.org/repo/aarch64"
+      until curl -L ${repo}/ericwoud.db | tar -xz -mC "$tmp/ericwoud"
+      do sleep 2; done
+      download linux-${target}-git
+      [[ $? == 1 ]] && download linux-bpir-git
+      download bpir-atf-git
+      download bpir-uboot-git
+      bpir-initrd
+    fi
   else
     echo "Need to mount '/' first (and '/boot' if applicable)"
     exit 1
