@@ -610,9 +610,11 @@ if [ "$l" = true ] && [ $(stat --printf="%s" $IMAGE_FILE) -eq 0 ]; then
   $sudo losetup --set-capacity $device
 fi
 
-$sudo mkdir -p "/run/udev/rules.d"
-noautomountrule="/run/udev/rules.d/10-no-automount-bpir.rules"
-echo 'KERNELS=="'${device/"/dev/"/""}'", ENV{UDISKS_IGNORE}="1"' | $sudo tee $noautomountrule
+if [ "$initrd" != true ]; then
+  $sudo mkdir -p "/run/udev/rules.d"
+  noautomountrule="/run/udev/rules.d/10-no-automount-bpir.rules"
+  echo 'KERNELS=="'${device/"/dev/"/""}'", ENV{UDISKS_IGNORE}="1"' | $sudo tee $noautomountrule
+fi
 
 if [ "$F" = true ]; then
   [ "${atfdevice}" == "nvme" ] && formatimage_nvme || formatimage_mmc
