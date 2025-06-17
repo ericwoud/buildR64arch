@@ -155,6 +155,7 @@ if [ -z "$rootdev" ]; then
     [ ! -f /boot/Image ] && download linux-bpir-git
     download bpir-atf-git
     download bpir-uboot-git
+    bpir-initrd
   else
     echo "Need to mount '/' first (and '/boot' if applicable)"
     exit 1
