@@ -660,6 +660,7 @@ setupqemu
 [ ! -d "$rootfsdir/dev" ] && $sudo mkdir $rootfsdir/dev
 $sudo mount --rbind --make-rslave /dev  $rootfsdir/dev # install gnupg needs it
 [[ $? != 0 ]] && exit
+[ ! -d "$rootfsdir/dev/pts" ] && $sudo mkdir $rootfsdir/dev/pts
 $sudo mount --rbind --make-rslave /dev/pts  $rootfsdir/dev/pts
 [[ $? != 0 ]] && exit
 if [ "$r" = true ]; then bootstrap &
