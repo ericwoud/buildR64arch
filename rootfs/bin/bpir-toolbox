@@ -135,7 +135,7 @@ function download {
   echo "Download $1..."
   pkg=$(cat $tmp/ericwoud/$1-*/desc | grep "%FILENAME%" -A1 | head -n 2 | tail -n1)
   [ -z "$pkg" ] && return
-  until curl -L $repo'/'$pkg | xz -dc - | tar x -C /
+  until curl -L $repo'/'$pkg | xz -dc - | tar x -mC /
   do sleep 2; done
 }
 
