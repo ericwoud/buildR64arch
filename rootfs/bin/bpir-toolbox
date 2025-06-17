@@ -149,7 +149,7 @@ if [ -z "$rootdev" ]; then
     source /etc/bpir-is-initrd
     mkdir -p "$tmp/ericwoud"
     repo="ftp://ftp.woudstra.mywire.org/repo/aarch64"
-    until curl -L ${repo}/ericwoud.db | tar -xz -C "$tmp/ericwoud"
+    until curl -L ${repo}/ericwoud.db | tar -xz -mC "$tmp/ericwoud"
     do sleep 2; done
     download linux-${target}-git
     [ ! -f /boot/Image ] && download linux-bpir-git
