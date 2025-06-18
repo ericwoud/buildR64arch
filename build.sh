@@ -176,14 +176,13 @@ function formatimage_nvme {
     while
       [ -z "$($sudo blkid $(parts ${device}) -t PARTLABEL=${target}-${atfdevice}-root -o device)" ]
     do sleep 0.1; done
-  fi
-  waitdev "${mountdev}"
-  if [ "$l" != true ]; then
+  elif [ "$l" != true ]; then
     $sudo parted -s "${device}" unit MiB print
     echo -e "\nAre you sure you want to format "${mountdev}"???"
     read -p "Type <format> to format: " prompt
     [[ $prompt != "format" ]] && exit
   fi
+  waitdev "${mountdev}"
   $sudo blkdiscard -fv "${mountdev}"
   waitdev "${mountdev}"
   $sudo mkfs.btrfs -f -L "${target^^}-ROOT" ${mountdev}
