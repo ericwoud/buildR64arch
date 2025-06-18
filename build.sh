@@ -36,9 +36,10 @@ NEEDED_PACKAGES_ALARM=" openssh        dtc                  mmc-utils-git\
 STRAP_PACKAGES_ALARM="pacman archlinuxarm-keyring inetutils"
 EXTRA_PACKAGES="nano screen i2c-tools ethtool iperf3 curl wget debootstrap"
 PREBUILT_PACKAGES="bpir-atf-git bpir-uboot-git ssh-fix-reboot hostapd-launch bpir-initrd"
-SCRIPT_PACKAGES="curl ca-certificates udisks2 parted gzip bc f2fs-tools dosfstools debootstrap"
-SCRIPT_PACKAGES_ARCHLX="base-devel      uboot-tools  ncurses        openssl"
-SCRIPT_PACKAGES_DEBIAN="build-essential u-boot-tools libncurses-dev libssl-dev flex bison"
+SCRIPT_PACKAGES="curl ca-certificates parted gzip bc f2fs-tools btrfs-progs dosfstools debootstrap"
+#  udisks2 
+#SCRIPT_PACKAGES_ARCHLX="base-devel      uboot-tools  ncurses        openssl"
+#SCRIPT_PACKAGES_DEBIAN="build-essential u-boot-tools libncurses-dev libssl-dev flex bison"
 
 TIMEZONE="Europe/Paris"              # Timezone
 USERNAME="user"
@@ -523,12 +524,12 @@ echo "Host Arch:" $hostarch
 
 if [ "$initrd" != true ]; then
   if [ ! -f "/etc/arch-release" ]; then ### Ubuntu / Debian
-    for package in $SCRIPT_PACKAGES $SCRIPT_PACKAGES_DEBIAN; do
+    for package in $SCRIPT_PACKAGES; do
       if ! dpkg -l $package >/dev/null; then missing+=" $package"; fi
     done
     instcmd="sudo apt-get install $missing"
   else
-    for package in $SCRIPT_PACKAGES $SCRIPT_PACKAGES_ARCHLX; do
+    for package in $SCRIPT_PACKAGES; do
       if ! pacman -Qi $package >/dev/null; then missing+=" $package"; fi
     done
     instcmd="sudo pacman -Syu $missing"
