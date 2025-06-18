@@ -1,5 +1,6 @@
 /src/
 /images/
+/uartboot/
 /tools/arch-*.sh
 /override.sh
 /*.diff

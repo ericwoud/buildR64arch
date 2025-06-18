@@ -375,6 +375,14 @@ function rootfs {
   schroot bpir-toolbox $bpir_write
 }
 
+function uartbootbuild {
+  trap ctrl_c INT
+  schroot bpir-toolbox --uartboot
+  mkdir -p ./uartboot
+  cp -vf "$rootfsdir/tmp/uartboot/fip.bin"                         ./uartboot/uart-${target}-fip.bin
+  cp -vf "$rootfsdir/usr/share/bpir-atf/${target}-atf-ram-atf.bin" ./uartboot/uart-${target}-atf.bin
+}
+
 function setupMACconfig {
   file="$rootfsdir/etc/systemd/network/mac.txt"
   while [ ! -z "$(cat $file | grep 'aa:bb:cc:dd:ee:ff')" ]; do
@@ -485,7 +493,7 @@ if [ "$USER" = "root" ] || [ "$initrd" = true ]; then
 else
   sudo="sudo"
 fi
-while getopts ":rlcbxzpRFBIP" opt $args; do
+while getopts ":rlcbxzpuRFBIP" opt $args; do
   if [[ "${opt}" == "?" ]]; then echo "Unknown option -$OPTARG"; exit; fi
   declare "${opt}=true"
   ((argcnt++))
@@ -724,6 +732,9 @@ $sudo mount --rbind --make-rslave /sys  $rootfsdir/sys
 $sudo mount --rbind --make-rslave /run  $rootfsdir/run
 [[ $? != 0 ]] && exit
 if [ "$r" = true ]; then rootfs &
+  mainPID=$! ; wait $mainPID ; unset mainPID
+fi
+if [ "$u" = true ]; then uartbootbuild &
   mainPID=$! ; wait $mainPID ; unset mainPID
 fi
 [ "$c" = true ] && chrootfs
