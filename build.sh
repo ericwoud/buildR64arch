@@ -1,3 +1,4 @@
+
 #!/bin/bash
 
 # Set default configuration values
@@ -138,6 +139,55 @@ function parts {
 
 function formatimage_nvme {
   echo TODO
+  for part in $(parts "${device}"); do $sudo umount "${part}" 2>/dev/null; done
+  if [ "$l" != true ]; then
+    $sudo parted -s "${device}" unit MiB print
+    echo -e "\nDo you want to wipe all partitions from "$device"???"
+    read -p "Type <wipeall> to wipe all: " prompt
+  else
+    prompt="wipeall"
+  fi
+  if [[ $prompt == "wipeall" ]]; then
+    $sudo wipefs --all --force "${device}"
+    $sudo sync
+    $sudo partprobe "${device}"; $sudo udevadm settle 2>/dev/null
+    $sudo parted -s -- "${device}" mklabel gpt
+    [[ $? != 0 ]] && exit
+    $sudo partprobe "${device}"; $sudo udevadm settle 2>/dev/null
+  fi
+  mountdev=$($sudo blkid $(parts ${device}) -t PARTLABEL=${target}-${atfdevice}-root -o device)
+  if [ -z "$mountdev" ]; then
+    $sudo parted -s -- "${device}" unit GiB print
+    read -p "Enter GiB or percentage of start of root partition: " rootstart_gb
+    read -p "Enter GiB or percentage of end of root partition: " rootend_gb
+    $sudo parted -s -- "${device}" unit GiB \
+      mkpart ${target}-${atfdevice}-root btrfs $rootstart_gb $rootend_gb
+    [[ $? != 0 ]] && exit 1
+    $sudo partprobe "${device}"; $sudo udevadm settle 2>/dev/null
+    while
+      mountdev=$($sudo blkid $(parts ${device}) -t PARTLABEL=${target}-${atfdevice}-root -o device)
+      [ -z "$mountdev" ]
+    do sleep 0.1; done
+    waitdev "${mountdev}"
+    partnum=$(cat /sys/class/block/$(basename ${mountdev})/partition)
+    [ -z "$partnum" ] && exit 1
+    $sudo parted -s -- "${device}" set "$partnum" boot on
+    $sudo partprobe "${device}"; $sudo udevadm settle 2>/dev/null
+    while
+      [ -z "$($sudo blkid $(parts ${device}) -t PARTLABEL=${target}-${atfdevice}-root -o device)" ]
+    do sleep 0.1; done
+  fi
+  waitdev "${mountdev}"
+  if [ "$l" != true ]; then
+    $sudo parted -s "${device}" unit MiB print
+    echo -e "\nAre you sure you want to format "${mountdev}"???"
+    read -p "Type <format> to format: " prompt
+    [[ $prompt != "format" ]] && exit
+  fi
+  $sudo blkdiscard -fv "${mountdev}"
+  waitdev "${mountdev}"
+  $sudo mkfs.btrfs -f -L "${target^^}-ROOT" ${mountdev}
+  $sudo sync
 }
 
 function formatimage_mmc {
