@@ -165,7 +165,7 @@ if [ -z "$rootdev" ]; then
   fi
 else
   partlabelroot=$(blkid $rootdev -s PARTLABEL -o value)
-  [ -z "$partlabelroot" ] && exit
+  [ -z "$partlabelroot" ] && exit 1
   target=$(echo $partlabelroot | cut -d'-' -f1)
 fi
 
@@ -222,11 +222,11 @@ if [[ $@ =~ "--fip2boot" ]] || [[ $@ =~ "--boot2fip" ]]; then
   sync
   fipdevice=$(getdev ${target}-${device}-fip)
   [ -z "$fipdevice" ] && fipdevice=$(getdev ${target}-${device}-boot)
-  [ -z "$fipdevice" ] && exit
+  [ -z "$fipdevice" ] && exit 1
   pkfip=$(lsblk -rno pkname ${fipdevice})
-  [ -z "$pkfip" ] && exit
+  [ -z "$pkfip" ] && exit 1
   nrfip=$(cat "/sys/block/${pkfip}/$(basename ${fipdevice})/partition")
-  [ -z "$nrfip" ] && exit
+  [ -z "$nrfip" ] && exit 1
   while mountpoint -q /boot; do umount -R /boot; sleep 0.1; done
   if [[ $@ =~ "--fip2boot" ]]; then
     parted -s -- "/dev/$pkfip" name $nrfip ${target}-${device}-boot \
@@ -243,7 +243,6 @@ if [[ $@ =~ "--fip2boot" ]] || [[ $@ =~ "--boot2fip" ]]; then
   echo "Copying files from $tmp/boot to /boot"
   cp -rfT $tmp/boot /boot
   sync
-  exit
 fi
 
 ########################
@@ -280,7 +279,6 @@ if [[ $@ =~ "--atf" ]]; then
       fi
     fi
   fi
-  exit
 fi
 
 ###############
@@ -294,7 +292,7 @@ if [[ $@ =~ "--nand-format" ]]; then
   ubiformat -y /dev/mtd${ubinr}
   ubiattach -p /dev/mtd${ubinr}
   ubidev=$(get_ubidev ${ubinr})
-  [[ $? != 0 ]] && exit
+  [[ $? != 0 ]] && exit 1
   [[ "$ubidev" == "/dev/ubi_ctrl" ]] && exit 1
   ubimkvol ${ubidev} -n $i -N fip       -s 1MiB   -t static
   ((i++))
@@ -328,7 +326,7 @@ if [[ $@ =~ "--nand-update" ]] || [[ $@ =~ "--nand-format" ]]; then
   if [[ $? != 0 ]]; then
     ubiattach -p /dev/mtd${ubinr}
     ubidev=$(get_ubidev ${ubinr})
-    [[ $? != 0 ]] && exit
+    [[ $? != 0 ]] && exit 1
   fi
   if [[ "$ubidev" == "/dev/ubi_ctrl" ]] || [[ "$ubidev" == "/dev/ubi*" ]]; then exit 1; fi
   ubifip=$(ubivol fip)
@@ -361,7 +359,6 @@ if [[ $@ =~ "--nand-update" ]] || [[ $@ =~ "--nand-format" ]]; then
   sync
   ls -lR $tmp/mnt
   while mountpoint -q $tmp/mnt; do umount $tmp/mnt; sleep 0.1; done
-  exit
 fi
 
 ############
@@ -372,7 +369,7 @@ if [[ $@ =~ "--extlinux" ]] || ( [[ $@ =~ "--uboot-install" ]] && [ ! -f "$extli
                  "${linux:5}" \
                  "${initrd:5}" \
                  "${atfdtb:5}"
-  [[ $@ =~ "--extlinux" ]] && exit
+  [[ $@ =~ "--extlinux" ]] && exit 0
 fi
 
 ##############
@@ -380,20 +377,18 @@ fi
 ##############
 if [[ $@ =~ "--uboot-install" ]]; then
   cp -vf /usr/share/bpir-uboot/u-boot-${target}.bin /boot/u-boot.bin # This is the file that boots
-  exit
 fi
 
 if [[ $@ =~ "--uboot-remove" ]]; then
   rm -vf "/boot/u-boot.bin"
   rm -vf $extlinux
   rmdir -v $(dirname $extlinux)
-  exit
 fi
 
 #########################################
 # Create single dtb and write fip image #
 #########################################
-if [[ $@ =~ "--write2fip" ]]; then
+if [[ $@ =~ "--write2fip" ]] || [[ $@ =~ "--boot2fip" ]]; then
   rm -v /boot/dtbos/*.dtbo /boot/dtbs/*-fixed.dtb 2>/dev/null # not used anymore
   write_dtb "$atfdtb" \
             "root=PARTLABEL=${partlabelroot}" \
@@ -414,7 +409,6 @@ if [[ $@ =~ "--write2fip" ]]; then
     dd bs=1M of=${fipdevice} if=/dev/zero conv=fsync 2>/dev/null
     dd bs=1M of=${fipdevice} if=$tmp/fip.bin conv=fsync
   fi
-  exit
 fi
 
 exit 0
