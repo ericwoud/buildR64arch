@@ -1,4 +1,3 @@
-
 #!/bin/bash
 
 # Set default configuration values
