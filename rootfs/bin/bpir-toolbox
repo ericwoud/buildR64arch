@@ -88,6 +88,7 @@ function write_dtb {
   cp -vf "$3" "${tmp}/fixed.dtb"
   rm -rf ${tmp}/dtbos/* 
   for dts in "${@:4}"; do
+    [[ "$dts" =~ '*' ]] && continue
     dtsname=$(basename $dts)
     echo "Creating .dtbo from $dtsname"
     cat $dts | grep -v -e '^#define' > "${tmp}/dtbos/${dtsname}"
