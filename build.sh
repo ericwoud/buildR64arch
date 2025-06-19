@@ -633,7 +633,6 @@ if [ "$r" = true ]; then
       ddrsize=${DDRSIZE[0]}
     fi
     ddrsize=${ddrsize%% *}
-    echo "DDR-size="$ddrsize
     echo -e "\nCreate root filesystem\n"
     PS3="Choose distro to create root for: "; COLUMNS=1
     select distro in "${DISTROBPIR[@]}" "Quit" ; do
@@ -690,6 +689,8 @@ if [ "$rootdev" == "$(realpath $mountdev)" ]; then
   echo "Target device == Root device, exiting!"
   exit
 fi
+
+echo "DDR-size="$ddrsize
 
 rootfsdir="/tmp/bpirootfs.$$"
 echo "Rootfsdir="$rootfsdir
