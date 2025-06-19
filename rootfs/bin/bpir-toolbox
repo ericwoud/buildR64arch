@@ -373,8 +373,8 @@ if [[ $@ =~ "--uartboot" ]]; then
 	    /usr/share/buildR64arch/boot/${target^^}/*.dts \
 	    /usr/share/buildR64arch/boot/${target^^}-EMMC/*.dts
   cp -vf "${atfdir}/${target}-atf-ram-atf${extra}.bin" \
-          "/tmp/uartboot/uart-${target}-atf{extra}.bin" 2>/dev/null
-  fipfile="/tmp/uartboot/uart-${target}-fip{extra}.bin"
+          "/tmp/uartboot/uart-${target}-atf${extra}.bin" 2>/dev/null
+  fipfile="/tmp/uartboot/uart-${target}-fip${extra}.bin"
   echo "Creating Image.xz..."
   xz -e9cC crc32 ${linux} > $tmp/Image.xz
   fipfiles=""
