@@ -379,8 +379,7 @@ function uartbootbuild {
   trap ctrl_c INT
   schroot bpir-toolbox --uartboot
   mkdir -p ./uartboot
-  cp -vf "$rootfsdir/tmp/uartboot/fip.bin"                         ./uartboot/uart-${target}-fip.bin
-  cp -vf "$rootfsdir/usr/share/bpir-atf/${target}-atf-ram-atf.bin" ./uartboot/uart-${target}-atf.bin
+  cp -vf "$rootfsdir/tmp/uartboot/*.bin" ./uartboot/
 }
 
 function setupMACconfig {
