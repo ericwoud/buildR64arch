@@ -372,7 +372,7 @@ function rootfs {
   setupMACconfig
   [[ "${ddrsize}" != "default" ]] && echo -n "${ddrsize}" | \
                  $sudo tee $rootfsdir/boot/bootcfg/ddrsize
-  schroot bpir-toolbox $bpir_write
+  schroot bpir-toolbox --atf $bpir_write
 }
 
 function uartbootbuild {
