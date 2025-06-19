@@ -371,7 +371,7 @@ function rootfs {
   done
   setupMACconfig
   if [[ "${ddrsize}" == "default" ]]; then
-    rm -f $rootfsdir/boot/bootcfg/ddrsize 2>/dev/null
+    $sudo rm -f $rootfsdir/boot/bootcfg/ddrsize 2>/dev/null
   else
     echo -n "${ddrsize}" | $sudo tee $rootfsdir/boot/bootcfg/ddrsize
   fi
