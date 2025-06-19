@@ -362,6 +362,32 @@ if [[ $@ =~ "--nand-update" ]] || [[ $@ =~ "--nand-format" ]]; then
 fi
 
 ############
+# UARTBOOT #
+############
+if [[ $@ =~ "--uartboot" ]]; then
+  mkdir -p /tmp/uartboot
+  rm -rf /tmp/uartboot/*
+  write_dtb "$tmp/atf.dtb" \
+            "root=" \
+            "/boot/dtbs/${dtb}.dtb" \
+	    /usr/share/buildR64arch/boot/${target^^}/*.dts \
+	    /usr/share/buildR64arch/boot/${target^^}-EMMC/*.dts
+  cp "${atfdir}/${target}-atf-ram-atf${extra}.bin" \
+          "/tmp/uartboot/uart-${target}-atf{extra}.bin"
+  fipfile="/tmp/uartboot/uart-${target}-fip{extra}.bin"
+  echo "Creating Image.xz..."
+  xz -e9cC ${linux} > $tmp/Image.xz
+  fipfiles=""
+  uartbl31file="${atfdir}/${target}-atf-ram-bl31${extra}.bin"
+  [ -f "$uartbl31file" ] && fipfiles+=" --soc-fw $uartbl31file"
+  fipfiles+=" --nt-fw $tmp/Image.xz"
+  fipfiles+=" --nt-fw-config $tmp/atf.dtb"
+  fipfiles+=" --tos-fw-extra2 $initrd"
+  fiptool --verbose create $fipfile $fipfiles
+  fiptool info $fipfile
+fi
+
+############
 # EXTLINUX #
 ############
 if [[ $@ =~ "--extlinux" ]] || ( [[ $@ =~ "--uboot-install" ]] && [ ! -f "$extlinux" ] ) ; then
