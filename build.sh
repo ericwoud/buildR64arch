@@ -482,6 +482,7 @@ export LC_ALL=C
 export LANG=C
 export LANGUAGE=C
 
+ddrsize="default"
 [ -f "config.sh" ] && source config.sh
 
 [ -f "/etc/bpir-is-initrd" ] && initrd=true
