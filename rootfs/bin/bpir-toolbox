@@ -376,7 +376,7 @@ if [[ $@ =~ "--uartboot" ]]; then
           "/tmp/uartboot/uart-${target}-atf{extra}.bin"
   fipfile="/tmp/uartboot/uart-${target}-fip{extra}.bin"
   echo "Creating Image.xz..."
-  xz -e9cC ${linux} > $tmp/Image.xz
+  xz -e9cC crc32 ${linux} > $tmp/Image.xz
   fipfiles=""
   uartbl31file="${atfdir}/${target}-atf-ram-bl31${extra}.bin"
   [ -f "$uartbl31file" ] && fipfiles+=" --soc-fw $uartbl31file"
