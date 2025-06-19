@@ -415,7 +415,7 @@ fi
 #########################################
 # Create single dtb and write fip image #
 #########################################
-if [[ $@ =~ "--write2fip" ]] || [[ $@ =~ "--boot2fip" ]]; then
+if [[ $@ =~ "--write2fip" ]] || [[ $@ =~ "--boot2fip" ]] || [[ $@ =~ "--fip2boot" ]]; then
   rm -v /boot/dtbos/*.dtbo /boot/dtbs/*-fixed.dtb 2>/dev/null # not used anymore
   write_dtb "$atfdtb" \
             "root=PARTLABEL=${partlabelroot}" \
