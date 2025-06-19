@@ -370,8 +370,11 @@ function rootfs {
                  2>&1 | grep -v "is added as a dependency to a non-existent unit"
   done
   setupMACconfig
-  [[ "${ddrsize}" != "default" ]] && echo -n "${ddrsize}" | \
-                 $sudo tee $rootfsdir/boot/bootcfg/ddrsize
+  if [[ "${ddrsize}" == "default" ]]; then
+    rm -f $rootfsdir/boot/bootcfg/ddrsize 2>/dev/null
+  else
+    echo -n "${ddrsize}" | $sudo tee $rootfsdir/boot/bootcfg/ddrsize
+  fi
   schroot bpir-toolbox --atf $bpir_write
 }
 
