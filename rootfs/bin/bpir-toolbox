@@ -56,6 +56,8 @@ function ubiupdate {
   if ! diff -q "$1" "$2"; then
     echo "Updating "$(basename $1)" on NAND:"
     cp -vf "$1" "$2"
+  else
+    echo "Skipping "$(basename $1)" on NAND"
   fi
 }
 
@@ -313,7 +315,6 @@ fi
 if [[ $@ =~ "--nand-update" ]] || [[ $@ =~ "--nand-format" ]]; then
   [[ "$(tr -d '\0' 2>/dev/null </proc/device-tree/compatible)" != "bananapi,"* ]] && exit 1
   ubinr=$(mtdnr ubi)
-  fipnr=$(mtdnr fip)
   bl2nr=$(mtdnr bl2)
   atfbin="/usr/share/bpir-atf/${target}-atf-spim-nand-atf.bin"
   dd if=/dev/mtdblock${bl2nr} of="$tmp/dump.bin" bs=$(du -b "$atfbin" | cut -f1) count=1 >/dev/null 2>&1
@@ -322,6 +323,8 @@ if [[ $@ =~ "--nand-update" ]] || [[ $@ =~ "--nand-format" ]]; then
     echo "Updating bl2 on NAND:"
     dd if="$atfbin" of=/dev/mtdblock${bl2nr}
     #flashcp -v "$atfbin" /dev/mtd${bl2nr}
+  else
+    echo "Skipping bl2 on NAND"
   fi
   ubidev=$(get_ubidev ${ubinr})
   if [[ $? != 0 ]]; then
@@ -337,6 +340,8 @@ if [[ $@ =~ "--nand-update" ]] || [[ $@ =~ "--nand-format" ]]; then
   if ! diff "$tmp/dump.bin" "$tmp/fip.bin"; then
     echo "Updating fip on NAND"
     ubiupdatevol ${ubifip} $tmp/fip.bin
+  else
+    echo "Skipping fip on NAND"
   fi
   ubirootfs=$(ubivol rootfs)
   mkdir -p $tmp/mnt
