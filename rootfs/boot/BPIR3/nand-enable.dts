@@ -37,13 +37,13 @@
 
       partition@0 {
         label = "bl2";
-        reg = <0x0 0x200000>;
+        reg = <0x0 0x100000>;
 //      read-only;
       };
 
-      partition@200000 {
+      partition@580000 {
         label = "ubi";
-        reg = <0x200000 0x7e00000>;
+        reg = <0x580000 0x7a80000>;
       };
     };
   };
