@@ -336,10 +336,10 @@ if [[ $@ =~ "--nand-update" ]] || [[ $@ =~ "--nand-format" ]]; then
   ubifip=$(ubivol fip)
   fiptool --verbose create $tmp/fip.bin --nt-fw "/usr/share/bpir-uboot/u-boot-${target}-emmc.bin"
   fiptool info $tmp/fip.bin
-  dd if=${ubifip} of="$tmp/dump.bin"
+  dd if="/dev/${ubifip}" of="$tmp/dump.bin"
   if ! diff "$tmp/dump.bin" "$tmp/fip.bin"; then
     echo "Updating fip on NAND"
-    ubiupdatevol ${ubifip} $tmp/fip.bin
+    ubiupdatevol "/dev/${ubifip}" $tmp/fip.bin
   else
     echo "Skipping fip on NAND"
   fi
