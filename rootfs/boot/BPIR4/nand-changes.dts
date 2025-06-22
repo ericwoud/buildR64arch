@@ -1,10 +1,25 @@
 /dts-v1/;
 /plugin/;
 
-&{/} {
-  chosen {
-    bpirnote = "removed bl2 nand partition read-only";
+#define MTK_PUPD_SET_R1R0_00 100
+
+&spi0_flash_pins {
+    conf-pu {
+      pins = "SPI0_CS", "SPI0_HOLD", "SPI0_WP";
+      drive-strength = <8>;
+      bias-pull-up = <MTK_PUPD_SET_R1R0_00>;
+    };
+
+    conf-pd {
+      pins = "SPI0_CLK", "SPI0_MOSI", "SPI0_MISO";
+      drive-strength = <8>;
+      bias-pull-down = <MTK_PUPD_SET_R1R0_00>;
+    };
+};
+
+&spi_nand {
+    spi-cs-setup-delay-ns = <15>;
+    spi-cs-hold-delay-ns = <15>;
     /* remove from main .dtb as overlay file cannot delete a property */
     //fdtput -d /soc/spi@11007000/spi_nand@0/partitions/partition@0 read-only
-  };
 };
