@@ -364,6 +364,7 @@ if [[ $@ =~ "--nand-update" ]] || [[ $@ =~ "--nand-format" ]]; then
   ubiupdate "$initrd" "$tmp/mnt$initrd"
   sync
   ls -lR $tmp/mnt
+  sync
   while mountpoint -q $tmp/mnt; do umount $tmp/mnt; sleep 0.1; done
 fi
 
