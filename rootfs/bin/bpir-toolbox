@@ -439,8 +439,7 @@ if [[ $@ =~ "--write2fip" ]] || [[ $@ =~ "--boot2fip" ]] || [[ $@ =~ "--fip2boot
     fiptool --verbose create $tmp/fip.bin $fipfiles
     fiptool info $tmp/fip.bin
     echo Writing FIP to: ${fipdevice}
-    dd bs=1M of=${fipdevice} if=/dev/zero conv=fsync 2>/dev/null
-    dd bs=1M of=${fipdevice} if=$tmp/fip.bin conv=fsync
+    dd bs=4M of=${fipdevice} if=$tmp/fip.bin conv=fsync
   fi
 fi
 
