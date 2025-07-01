@@ -354,7 +354,7 @@ if [[ $@ =~ "--nand-update" ]] || [[ $@ =~ "--nand-format" ]]; then
             "/boot/dtbs/${dtb}.dtb" \
 	    /usr/share/buildR64arch/boot/${target^^}/*.dts \
 	    /usr/share/buildR64arch/boot/${target^^}-EMMC/*.dts
-  ubiupdate "$tmp/atf.dtb" "$tmp/mnt/boot/dtbs/mt7986a-bananapi-bpi-r3-atf.dtb"
+  ubiupdate "$tmp/atf.dtb" "$tmp/mnt${atfdtb}"
   write_extlinux "$tmp/extlinux.conf" \
                  "${ubootlinux}" \
                  "${initrd}" \
