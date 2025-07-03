@@ -78,7 +78,7 @@ function write_extlinux {
 	  PROMPT 0
 	  TIMEOUT 50
 	LABEL linux-bpir-git
-	  MENU LABEL Archlinux AUR package BananaPi Routers
+	  MENU LABEL Archlinux ARM for BananaPi Routers
 	  LINUX ${2}
 	  INITRD ${3}
 	  FDT ${4}
