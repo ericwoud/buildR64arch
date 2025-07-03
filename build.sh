@@ -655,6 +655,7 @@ if [ "$r" = true ]; then
     case ${atfdevice} in
       sdmmc|emmc) bpir_write="--fip2boot" ;;
       nand)       bpir_write="--boot2fip" ;;
+      nvme)       bpir_write="--extlinux" ;;
       *) echo "Unknown atfdevice '${atfdevice}'" ;;
     esac
   fi
