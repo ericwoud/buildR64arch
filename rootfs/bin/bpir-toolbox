@@ -398,10 +398,11 @@ fi
 # EXTLINUX #
 ############
 if [[ $@ =~ "--extlinux" ]] || ( [[ $@ =~ "--uboot-install" ]] && [ ! -f "$extlinux" ] ) ; then
+  if mountpoint -q /boot/; then skip=5; else skip=0; fi
   write_extlinux "${extlinux}" \
-                 "${linux:5}" \
-                 "${initrd:5}" \
-                 "${atfdtb:5}"
+                 "${linux:$skip}" \
+                 "${initrd:$skip}" \
+                 "${atfdtb:$skip}"
   [[ $@ =~ "--extlinux" ]] && exit 0
 fi
 
