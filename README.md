@@ -33,7 +33,7 @@ USE AT YOUR OWN RISK!!!
 
 You need:
 
-  - Banana Pi R64, R3 or R4
+  - Banana Pi R64, R3, R3mini or R4
   - SD card
 
 ### Choose your setup
@@ -61,7 +61,7 @@ cd buildR64arch
 ```
 
 Set `SD_ERASE_SIZE_MB` in build.sh if using a cardreader with naming /dev/sdX. Only from a cardreader with naming /dev/mmcblkX
-it is possible to read the erase size. Using this kind of reader the script will automatically read the erase size. 
+it is possible to read the erase size. Using this kind of reader the script will automatically read the erase size.
 The default value of 4MB is ok for most cards if you do not know the erase size. Later you can read it when the sd-card is inserted in a running bpir64/3.
 
 Now format your SD card with:
@@ -77,6 +77,7 @@ Optionally enter chroot environment on the SD card:
 ./build.sh
 ```
 
+This script is also available when running linux on the board. It is also available from the initramdisk.
 
 ## Deployment
 
@@ -137,7 +138,7 @@ Then copy the bpir.img.gz to the SD card /tmp/ folder. It is accessable without 
 
 If using a pre-build image, rename it to `bpir.img.gz`
 
-Boot the R64/R3 with the SD card with UART connected. When kernel starts keep 'shift E' keys pressed. When finised, you can reboot. 
+Boot the R64/R3 with the SD card with UART connected. When kernel starts keep 'shift E' keys pressed. When finised, you can reboot.
 
 You can keep 'x' pressed instead if you want to enter a shell.
 
@@ -185,6 +186,96 @@ bpir-writefip
 If something goes wrong and you cannot boot, insert the card in your laptop/computer and use the chroot option to undo the changes. Then use the `bpir-writefip` command again. On EMMC (specially on the R3) it will be much more complicated.
 
 
+## NAND distro-boot + linux-recovery
+
+This method is now the prefered method of installing other then SD-card. Just get this installed on NAND, set switches to NAND and you can boot linux from sdmmc/emmc/nvme/nand. The nand image contains:
+
+U-Boot that scans emmc/nvme/nand for (/boot)/extlinux/extlinux.conf and boots it.
+The partition that contains this file needs to have the boot flag set.
+
+If it fails on emmc and nvme, it boots the linux initramdisk on nand. It contains
+all basic utilities needed to setup an internet connection and install any distro.
+
+There are some basic utilities on the initrd, but perhaps it is still missing some tools and/or kernel modules.
+It contains my bpi router scripts bpir-build bpir-toolbox, but also:
+ debootstrap wget curl nano parted mkfs-btrfs tar xz gzip zstd, etc, etc.
+
+> Note: All images (sdmms/emmc/nvme/uart) all have the same initramdisk. You can interrupt normal boot by keeping 'x' pressed during  early **linux** booting. You will then enter a bash shell from initramdisk.
+
+Setup my archlinuxarm image on sd-card, via my script or prebuild image. Another possibility is to use my uartboot image.
+
+After booting from uartboot, first make internet connection with:
+```p
+bpir-dhcpc <interfacename>
+```
+bpir-toolbox needs to download some files needed to build the image, only when booting from uart. SD image has all included.
+
+When running archlinuxarm from sd-card or the initrd from uartboot on the BPI-R3/R3M/R4, you can:
+
+```p
+bpir-toolbox --nand-format
+```
+This will format and install the image.
+
+I need to add more documentation about 'bpir-toolbox', but you can look into the file to see which options to use.
+
+'bpir-build' to install archlinuxarm (or experimental ubuntu) on nvme is added pretty recently also, so also needs documentation and testing. Basically the steps are:
+
+`bpir-build` can be run from the sd-card image, but it can also be run when booted the initrd on nand. When booted from nand, first use `bpir-dhcpd` to connect to the internet again. Once connected to the internet you can use:
+
+```
+bpir-build -F
+```
+ and go through the menu.
+
+But of course you can just manually use parted and debootstrap to install any other distro. Add extlinux.conf and set the bootflag. You will need to find a suitable linux kernel then also.
+
+If you have used bpir-build to build the nvme/emmc rootfs, you can also use the same tool when running from the initramdisk to enter it via chroot. Just run the command without arguments.
+
+This all needs more testing...
+
+Note: Use archlinuxarm (not ubuntu) for now to build and write the image to nand. There is still a small issue in ubuntu, which is missing the bpi-r3m airoha firmware files in the standard linux-firmware package.
+
+
+
+## Recovery UART boot to a linux rescue image
+
+The files can be found here:
+
+[https://ftp.woudstra.mywire.org/uartboot/](https://ftp.woudstra.mywire.org/uartboot/)
+
+Find the correct `mtk_uartboot` executable for your system. I have build files for the R64, R3, R3mini, R4. Only the R3 is tested at the moment.
+
+Make sure you have socat installed, edit /dev/ttyXXXX, and run :
+
+```
+sudo bash -c "./mtk_uartboot -p uart-bpir3m-atf.bin -f uart-bpir3m-fip.bin --aarch64 -s /dev/ttyUSB0 ; socat - /dev/ttyUSB0,raw,echo=0,b115200"
+```
+
+The files are quite large, so get a cup of coffee when uploading it to the board.
+
+It has the initrd for emmc inside, which drops to a bash shell. The initrd can run my installscript and/or debootstrap. First setup your internet connection on eth0 or any other interface (defaults to wan):
+
+```p
+bpir-dhcpc eth0
+```
+Now you're ready to use 'bpir-build' 'bpir-toolbox' 'debootstrap' 'wget' 'curl' 'nano' 'parted' 'mkfs-btrfs' 'tar' 'xz' 'gzip' 'zstd', etc, etc.
+
+You could use:
+```p
+bpir-toolbox --nand-format
+```
+It will download necessary files and install uboot on nand. This version of U-Boot uses the standard distroboot and is setup to scan sd/emmc - nvme - nand, for extlinux.conf in this order. Need to have the boot flag set on the partition where this file can be found. If nothing is found on sd/emmc/nvme, it loads the same rescue initrd, but now from nand.
+
+I need to add more documentation about 'bpir-toolbox', but you can look into the file to see which options to use. 'bpir-build' to install on nvme is added pretty recently also, so also needs documentation and testing.
+
+Run
+```
+bpir-build -F
+```
+and go through menu to install on nvme
+
+
 ## Different bootchains supported
 
 There are now 4 different bootchains supported, tested on R3 (R64 not yet tested, but should work). First make sure you are using the latest 'atf' with the following command: `pacman -Sy bpir64-atf-git`
@@ -193,7 +284,7 @@ There are now 4 different bootchains supported, tested on R3 (R64 not yet tested
 
 2. ATF - KERNEL using `boot` partition. Default boot method. The latest atf can boot from `boot` partition instead of `fip` partition, see https://forum.banana-pi.org/t/bpi-r3-bpi-r64-atf-with-fat32-load-capabilities/15345 . ATF will directly load the kernel from the boot (fat32) partition. Change your setup with the following command: `bpir-writefip --fip2boot`. It will rename the fip partiion to the boot partition and move all files from boot folder to boot partition. Change back to `fip` with `bpir-writefip --boot2fip`.
 
-3. ATF - UBOOT - KERNEL using `boot` partition. U-Boot uses distro-boot to keep the package simple, using a flexible startup environment. With `boot` partition present execute the following command:`pacman -Sy bpir-uboot-git` . U-Boot will be loaded from `/boot/u-boot.bin`
+3. ATF - UBOOT - KERNEL using `boot` partition. U-Boot uses distro-boot to keep the package simple, using a flexible startup environment. With `boot` partition present execute the following command:`pacman -Sy bpir-uboot-git` . Copy the appropriate .bin from: `/usr/share/bpir-uboot/` to `/boot/u-boot.bin`. At boot, U-Boot will be loaded from `/boot/u-boot.bin`
 
 4. ATF - UBOOT - KERNEL using `fip` partition. When still booting with `fip` partition and having u-boot installed, change the contents of `/boot/bootcfg/linux` to read `/boot/u-boot.bin` and emtpy  `/boot/bootcfg/initrd`, then run `bpir-writefip`
 
