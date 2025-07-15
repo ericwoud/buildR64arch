@@ -36,7 +36,7 @@ NEEDED_PACKAGES_ALARM=" openssh        dtc                  mmc-utils-git\
 STRAP_PACKAGES_ALARM="pacman archlinuxarm-keyring inetutils"
 EXTRA_PACKAGES="nano screen i2c-tools ethtool iperf3 curl wget debootstrap usbutils"
 PREBUILT_PACKAGES="bpir-atf-git bpir-uboot-git ssh-fix-reboot hostapd-launch bpir-initrd"
-SCRIPT_PACKAGES="curl ca-certificates parted gzip bc f2fs-tools btrfs-progs dosfstools debootstrap"
+SCRIPT_PACKAGES="curl ca-certificates parted gzip f2fs-tools btrfs-progs dosfstools debootstrap"
 #  udisks2 
 #SCRIPT_PACKAGES_ARCHLX="base-devel      uboot-tools  ncurses        openssl"
 #SCRIPT_PACKAGES_DEBIAN="build-essential u-boot-tools libncurses-dev libssl-dev flex bison"
