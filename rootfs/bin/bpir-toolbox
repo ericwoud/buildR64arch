@@ -119,18 +119,11 @@ function write_dtb {
   d1=$(printf "%x" $((ddrsize >> 2)) )
   d2=$(printf "%x" $(( $((ddrsize << 2)) & 15 )) )
   fdtput -tx "$1" "/memory" "reg" 00 40000000 0${d1} ${d2}0000000
-  if [ -f "$initrd" ];then
+  if [ -f "$initrd" ]; then
     ins="0x48000000"
     ine="0x$(printf '%x\n' $(( $ins + $(du -b $initrd | cut -f1) )))"
     fdtput -tx "$1" "/chosen" "linux,initrd-end" "$ine"
     fdtput -tx "$1" "/chosen" "linux,initrd-start" "$ins"
-  else
-    echo -n "EMPTYBYT" > "$tmp/initrd"
-    initrd="$tmp/initrd"
-  fi
-  if [ ! -f "$1" ];then
-    echo -n "EMPTYBYT" > "$tmp/atfdtb"
-    atfdtb="$tmp/atfdtb"
   fi
 }
 
