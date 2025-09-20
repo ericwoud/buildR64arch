@@ -124,7 +124,7 @@ Make sure your internet connection is working on the R64. Ping 8.8.8.8 should wo
 Choose `emmc` in the script instead of `sdmmc`. Now format the emmc and let it setup rootfs.
 
 
-## R64/R3 Build/Install emmc version using image
+## R64/R3 Build/Install emmc version using image [DEPRICATED]
 
 Create an SD card for the R64/R3.
 ```
@@ -145,7 +145,7 @@ You can keep 'x' pressed instead if you want to enter a shell.
 Note for R3: To run on EMMC, only the switch most near to powerplug (D) should be down, the rest up.
 This is different from the normal switch settings. It is done so that you do not need mmcblk0boot0.
 
-## R3-MINI & R4 Build/Install emmc version using image
+## R3-MINI & R4 Build/Install emmc version using image (openwrt on nand)
 
 Create an EMMC card for the R3-MINI/R4 and have it compressed to a .gz file.
 ```
@@ -186,7 +186,7 @@ bpir-writefip
 If something goes wrong and you cannot boot, insert the card in your laptop/computer and use the chroot option to undo the changes. Then use the `bpir-writefip` command again. On EMMC (specially on the R3) it will be much more complicated.
 
 
-## NAND distro-boot + linux-recovery
+## All boards: NAND distro-boot + linux-recovery [RECOMMENDED]
 
 This method is now the prefered method of installing other then SD-card. Just get this installed on NAND, set switches to NAND and you can boot linux from sdmmc/emmc/nvme/nand. The nand image contains:
 
@@ -202,13 +202,16 @@ It contains my bpi router scripts bpir-build bpir-toolbox, but also:
 
 > Note: All images (sdmms/emmc/nvme/uart) all have the same initramdisk. You can interrupt normal boot by keeping 'x' pressed during  early **linux** booting. You will then enter a bash shell from initramdisk.
 
-Setup my archlinuxarm image on sd-card, via my script or prebuild image. Another possibility is to use my uartboot image.
+Setup my archlinuxarm image on sd-card, via my script or prebuild image. Another possibility is to use my uartboot image, specially usefull for the R3-mini.
 
-After booting from uartboot, first make internet connection with:
-```p
-bpir-dhcpc <interfacename>
-```
-bpir-toolbox needs to download some files needed to build the image, only when booting from uart. SD image has all included.
+
+	####	UARTBOOT ONLY
+	
+	After booting from uartboot, first make internet connection with:
+	
+	bpir-dhcpc <interfacename>
+	
+	bpir-toolbox needs to download some files needed to build the image, only when booting from uart. SD image has all included.
 
 When running archlinuxarm from sd-card or the initrd from uartboot on the BPI-R3/R3M/R4, you can:
 
