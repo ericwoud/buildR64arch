@@ -205,7 +205,7 @@ It contains my bpi router scripts bpir-build bpir-toolbox, but also:
 Setup my archlinuxarm image on sd-card, via my script or prebuild image. Another possibility is to use my uartboot image, specially usefull for the R3-mini.
 
 
-	####	UARTBOOT ONLY
+	UARTBOOT ONLY
 	
 	After booting from uartboot, first make internet connection with:
 	
