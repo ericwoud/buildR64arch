@@ -184,7 +184,7 @@ extlinux="/boot/extlinux/extlinux.conf"
 mkdir -p "${tmp}/dtbos"
 mkdir -p /boot/bootcfg
 dtb=$(     getconf r dtb     "$default_dtb")
-device=$(  getconf w device  "$(echo $partlabelroot | cut -d'-' -f2)")
+device=$(  getconf r device  "$(echo $partlabelroot | cut -d'-' -f2)")
 linux=$(   getconf w linux   "/boot/Image")
 cmdline=$( getconf w cmdline "console=ttyS0,115200 debug=7 rw rootwait audit=0")
 initrd=$(  getconf w initrd  "/boot/initramfs-bpir.img")
