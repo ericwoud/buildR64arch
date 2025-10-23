@@ -13,7 +13,7 @@ function getconf {
 }
 
 function getdev {
-  blkid -t "PARTLABEL=$1" -l -o device
+  blkid -t "PARTLABEL=${target}-${device}-$1" -l -o device
 }
 
 function imageid_noarchive {
@@ -200,9 +200,9 @@ headerfile="${atfdir}/${target}-atf-${device}-header${extra}.bin"
 atffile="${atfdir}/${target}-atf-${device}-atf${extra}.bin"
 bl31file="${atfdir}/${target}-atf-${device}-bl31${extra}.bin"
 
-atfdevice=$(getdev "${target}-${device}-atf")
-fipdevice=$(getdev ${target}-${device}-fip)
-bootdevice=$(getdev ${target}-${device}-boot)
+atfdevice=$(getdev atf)
+fipdevice=$(getdev fip)
+bootdevice=$(getdev boot)
 
 # Copy DTBO's if there are none.
 if [ ! -d "/boot/dtbos/" ]; then
