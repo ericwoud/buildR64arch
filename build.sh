@@ -681,7 +681,7 @@ if [ "$F" = true ]; then
 fi
 
 mountdev=$($sudo blkid -s PARTLABEL $(parts ${device}) | grep -E 'PARTLABEL="bpir' | grep -E -- '-root"' | cut -d' ' -f1 | tr -d :)
-bootdev=$( $sudo blkid -s PARTLABEL $(parts ${device}) | grep -E 'PARTLABEL="bpir' | grep -E -- '-boot"' | cut -d' ' -f1 | tr -d :)
+bootdev=$( $sudo blkid -s PARTLABEL $(parts ${device}) | grep -E 'PARTLABEL="'     | grep -E -- 'boot"'  | cut -d' ' -f1 | tr -d :)
 echo "Mountdev = $mountdev"
 echo "Bootdev  = $bootdev"
 [ -z "$mountdev" ] && exit
