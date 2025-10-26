@@ -204,6 +204,11 @@ atfdevice=$(getdev atf)
 fipdevice=$(getdev fip)
 bootdevice=$(getdev boot)
 
+fipbootdevice="${fipdevice}"
+[ -z "$fipbootdevice" ] && fipbootdevice="${bootdevice}"
+pkfipboot=$(lsblk -rno pkname ${fipbootdevice} 2>/dev/null)
+nrfipboot=$(cat "/sys/block/${pkfipboot}/$(basename ${fipbootdevice})/partition" 2>/dev/null)
+
 # Copy DTBO's if there are none.
 if [ ! -d "/boot/dtbos/" ]; then
   mkdir -p "/boot/dtbos/"
@@ -220,24 +225,20 @@ if [[ $@ =~ "--fip2boot" ]] || [[ $@ =~ "--boot2fip" ]]; then
   echo "Copying files from /boot to $tmp/boot"
   cp -rfT /boot/ $tmp/boot
   sync
-  fipbootdevice="${fipdevice}"
-  [ -z "$fipbootdevice" ] && fipbootdevice="${bootdevice}"
   [ -z "$fipbootdevice" ] && exit 1
-  pkfip=$(lsblk -rno pkname ${fipbootdevice})
-  [ -z "$pkfip" ] && exit 1
-  nrfip=$(cat "/sys/block/${pkfip}/$(basename ${fipbootdevice})/partition")
-  [ -z "$nrfip" ] && exit 1
+  [ -z "$pkfipboot" ] && exit 1
+  [ -z "$nrfipboot" ] && exit 1
   while mountpoint -q /boot; do umount -R /boot; sleep 0.1; done
   if [[ $@ =~ "--fip2boot" ]]; then
-    parted -s -- "/dev/$pkfip" name $nrfip ${target}-${device}-boot \
-                               set  $nrfip boot on
+    parted -s -- "/dev/$pkfipboot" name $nrfipboot ${target}-${device}-boot \
+                               set  $nrfipboot boot on
     mkfs.vfat -v -F 32 -S 512 -s 16 -n "${target^^}-BOOT" ${fipbootdevice}
     rm -rf /boot; mkdir /boot; chmod 0700 /boot
     sync
     while mount ${fipbootdevice} /boot 2>/dev/null; ! mountpoint -q /boot
     do echo "Waiting for /boot being mounted..."; sleep 0.1; done
   else
-    parted -s -- "/dev/$pkfip" name $nrfip ${target}-${device}-fip
+    parted -s -- "/dev/$pkfipboot" name $nrfipboot ${target}-${device}-fip
     rm -rf /boot; mkdir /boot; chmod 0700 /boot
   fi
   echo "Copying files from $tmp/boot to /boot"
