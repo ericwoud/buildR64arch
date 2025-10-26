@@ -206,8 +206,12 @@ bootdevice=$(getdev boot)
 
 fipbootdevice="${fipdevice}"
 [ -z "$fipbootdevice" ] && fipbootdevice="${bootdevice}"
-pkfipboot=$(lsblk -rno pkname ${fipbootdevice} 2>/dev/null)
-nrfipboot=$(cat "/sys/block/${pkfipboot}/$(basename ${fipbootdevice})/partition" 2>/dev/null)
+if [ -n "$fipbootdevice" ]; then
+  pkfipboot=$(lsblk -rno pkname ${fipbootdevice} 2>/dev/null)
+  [ -z "$pkfipboot" ] && exit 1
+  nrfipboot=$(cat "/sys/block/${pkfipboot}/$(basename ${fipbootdevice})/partition" 2>/dev/null)
+  [ -z "$nrfipboot" ] && exit 1
+fi
 
 # Copy DTBO's if there are none.
 if [ ! -d "/boot/dtbos/" ]; then
@@ -226,8 +230,6 @@ if [[ $@ =~ "--fip2boot" ]] || [[ $@ =~ "--boot2fip" ]]; then
   cp -rfT /boot/ $tmp/boot
   sync
   [ -z "$fipbootdevice" ] && exit 1
-  [ -z "$pkfipboot" ] && exit 1
-  [ -z "$nrfipboot" ] && exit 1
   while mountpoint -q /boot; do umount -R /boot; sleep 0.1; done
   if [[ $@ =~ "--fip2boot" ]]; then
     parted -s -- "/dev/$pkfipboot" name $nrfipboot ${target}-${device}-boot \
