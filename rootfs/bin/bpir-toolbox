@@ -35,7 +35,7 @@ function fix_partlabelfipboot {
       sync
     fi
   else
-    echo "This atf does not use extended partition name"
+    echo "This atf uses standard 'fip' or 'boot' partition name"
     if [[ "${partlabelfipboot}" != "${typefipboot}" ]]; then
       echo "Changing partlabel $fipbootdevice to ${typefipboot}"
       parted -s -- "/dev/$pkfipboot" name $nrfipboot ${typefipboot}
