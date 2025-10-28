@@ -221,7 +221,7 @@ function formatimage_mmc {
     mkpart primary $rootstart_kb $root_end_kb \
     set 1 legacy_boot on \
     name 1 ${target}-${atfdevice}-atf \
-    name 2 ${target}-${atfdevice}-fip \
+    name 2 fip \
     name 3 ${target}-${atfdevice}-root \
     print
   $sudo partprobe "${device}"; $sudo udevadm settle 2>/dev/null
