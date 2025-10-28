@@ -12,8 +12,36 @@ function getconf {
   echo "${conf}"
 }
 
+function parts {
+  lsblk $1 -lnpo name 2>/dev/null
+}
+
 function getdev {
-  blkid -t "PARTLABEL=${target}-${device}-$1" -l -o device
+  local dev=$(blkid -t "PARTLABEL=${target}-${device}-$1" -l -o device)
+  if [ -n "${dev}" ]; then echo "${dev}"; return; fi
+  [ -z "${atfdevice}" ] && return
+  local pkdev=$(lsblk -rno pkname "${atfdevice}")
+  [ -z "${pkdev}" ] && return
+  dev=$(blkid -t "PARTLABEL=$1" -o device $(parts "${pkdev}"))
+  [ -n "${dev}" ] && echo "${dev}"
+}
+
+function fix_partlabelfipboot {
+  if grep "${target}-${device}-" "${atffile}" 2>/dev/null; then
+    if [[ "${partlabelfipboot}" != "${target}-${device}-${typefipboot}" ]]; then
+      echo "This atf uses extended partition name, so:"
+      echo "Changing partlabel $fipbootdevice to ${target}-${device}-${typefipboot}"
+      parted -s -- "/dev/$pkfipboot" name $nrfipboot ${target}-${device}-${typefipboot}
+      sync
+    fi
+  else
+    if [[ "${partlabelfipboot}" != "${typefipboot}" ]]; then
+      echo "This atf does not use extended partition name, so:"
+      echo "Changing partlabel $fipbootdevice to ${typefipboot}"
+      parted -s -- "/dev/$pkfipboot" name $nrfipboot ${typefipboot}
+      sync
+    fi
+  fi
 }
 
 function imageid_noarchive {
@@ -37,6 +65,22 @@ function get_emmcbootpart {
 function set_emmcbootpart {
   [ ${2} -eq $(get_emmcbootpart ${1}) ] && return
   mmc bootpart enable ${2} 1 ${1}
+}
+
+function fix_emmcbootpart {
+  if [ -b "${1}boot0" ]; then # Writing to EMMC boot device
+    local hdr=$(head -c 4 "${atfdevice}")
+    if [[ "${hdr}" == "SDMM" ]] || [[ "${hdr}" == "BRLY" ]]; then
+      echo "Customised ATF able to boot from ${1}"
+      set_emmcbootpart ${1} 7
+    else
+      echo -e "ATF needs boot from ${1}boot0, copying..."
+      echo 0 > /sys/block/${1/'/dev/'/}boot0/force_ro
+      dd bs=4M if="${atfdevice}" of="${1}boot0" conv=fsync
+      echo 1 > /sys/block/${1/'/dev/'/}boot0/force_ro
+      set_emmcbootpart ${1} 1
+    fi
+  fi
 }
 
 function mtdnr {
@@ -69,7 +113,6 @@ function get_ubidev {
   return 0
 }
 
-
 function write_extlinux {
   mkdir -p $(dirname "$1")
   cat <<-EOF | tee "$1"
@@ -83,7 +126,6 @@ function write_extlinux {
 	  INITRD ${3}
 	  FDT ${4}
 	EOF
-# Here append's double root= ?!?!?!
 }
 
 function write_dtb {
@@ -201,17 +243,21 @@ atffile="${atfdir}/${target}-atf-${device}-atf${extra}.bin"
 bl31file="${atfdir}/${target}-atf-${device}-bl31${extra}.bin"
 
 atfdevice=$(getdev atf)
-fipdevice=$(getdev fip)
-bootdevice=$(getdev boot)
-
-fipbootdevice="${fipdevice}"
-[ -z "$fipbootdevice" ] && fipbootdevice="${bootdevice}"
+fipbootdevice=$(getdev fip)
+[ -z "$fipbootdevice" ] && fipbootdevice=$(getdev boot)
 if [ -n "$fipbootdevice" ]; then
   pkfipboot=$(lsblk -rno pkname ${fipbootdevice} 2>/dev/null)
   [ -z "$pkfipboot" ] && exit 1
   nrfipboot=$(cat "/sys/block/${pkfipboot}/$(basename ${fipbootdevice})/partition" 2>/dev/null)
   [ -z "$nrfipboot" ] && exit 1
+  partlabelfipboot=$(blkid $fipbootdevice -s PARTLABEL -o value)
+  [ -z "$partlabelfipboot" ] && exit 1
+  typefipboot=$(echo ${partlabelfipboot} | cut -d "-" -f3)
+  [ -z "${typefipboot}" ] && typefipboot="${partlabelfipboot}"
 fi
+
+echo "partlabelfipboot=$partlabelfipboot"
+echo "typefipboot=$typefipboot"
 
 # Copy DTBO's if there are none.
 if [ ! -d "/boot/dtbos/" ]; then
@@ -232,17 +278,23 @@ if [[ $@ =~ "--fip2boot" ]] || [[ $@ =~ "--boot2fip" ]]; then
   [ -z "$fipbootdevice" ] && exit 1
   while mountpoint -q /boot; do umount -R /boot; sleep 0.1; done
   if [[ $@ =~ "--fip2boot" ]]; then
-    parted -s -- "/dev/$pkfipboot" name $nrfipboot ${target}-${device}-boot \
+    parted -s -- "/dev/$pkfipboot" name $nrfipboot boot \
                                set  $nrfipboot boot on
+    sync
     mkfs.vfat -v -F 32 -S 512 -s 16 -n "${target^^}-BOOT" ${fipbootdevice}
     rm -rf /boot; mkdir /boot; chmod 0700 /boot
     sync
     while mount ${fipbootdevice} /boot 2>/dev/null; ! mountpoint -q /boot
     do echo "Waiting for /boot being mounted..."; sleep 0.1; done
+    typefipboot="boot"
   else
-    parted -s -- "/dev/$pkfipboot" name $nrfipboot ${target}-${device}-fip
+    parted -s -- "/dev/$pkfipboot" name $nrfipboot fip
     rm -rf /boot; mkdir /boot; chmod 0700 /boot
+    typefipboot="fip"
   fi
+  sync
+  fix_partlabelfipboot
+  sync
   echo "Copying files from $tmp/boot to /boot"
   cp -rfT $tmp/boot /boot
   sync
@@ -267,19 +319,8 @@ if [[ $@ =~ "--atf" ]]; then
     else
       echo "Atf binary does not exist: ${atffile}"
     fi
-    if [ -b "${headerdev}boot0" ]; then # Writing to EMMC boot device
-      hdr=$(head -c 4 "${atfdevice}")
-      if [[ "${hdr}" == "SDMM" ]] || [[ "${hdr}" == "BRLY" ]]; then
-        echo "Customised ATF able to boot from ${headerdev}"
-        set_emmcbootpart ${headerdev} 7
-      else
-        echo -e "ATF needs boot from ${headerdev}boot0, copying..."
-        echo 0 > /sys/block/${headerdev/'/dev/'/}boot0/force_ro
-        dd bs=4M if="${atfdevice}" of="${headerdev}boot0" conv=fsync
-        echo 1 > /sys/block/${headerdev/'/dev/'/}boot0/force_ro
-        set_emmcbootpart ${headerdev} 1
-      fi
-    fi
+    fix_emmcbootpart "${headerdev}"
+    fix_partlabelfipboot
   fi
 fi
 
@@ -431,7 +472,7 @@ if [[ $@ =~ "--write2fip" ]] || [[ $@ =~ "--boot2fip" ]] || [[ $@ =~ "--fip2boot
             "root=PARTLABEL=${partlabelroot}" \
             "/boot/dtbs/${dtb}.dtb" \
             /boot/dtbos/*.dts
-  if [ -n "${fipdevice}" ]; then
+  if [[ "${typefipboot}" == "fip" ]]; then
     fipfiles=""
     [ -f "$bl31file" ]   && fipfiles+=" --soc-fw $bl31file"
     [ -f "$linux" ]  && fipfiles+=" --nt-fw $linux"
@@ -441,8 +482,8 @@ if [[ $@ =~ "--write2fip" ]] || [[ $@ =~ "--boot2fip" ]] || [[ $@ =~ "--fip2boot
     fi
     fiptool --verbose create $tmp/fip.bin $fipfiles
     fiptool info $tmp/fip.bin
-    echo Writing FIP to: ${fipdevice}
-    dd bs=4M of=${fipdevice} if=$tmp/fip.bin conv=fsync
+    echo Writing FIP to: ${fipbootdevice}
+    dd bs=4M of=${fipbootdevice} if=$tmp/fip.bin conv=fsync
   fi
 fi
 
