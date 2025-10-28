@@ -28,15 +28,15 @@ function getdev {
 
 function fix_partlabelfipboot {
   if grep "${target}-${device}-" "${atffile}" 2>/dev/null; then
+    echo "This atf uses extended partition name"
     if [[ "${partlabelfipboot}" != "${target}-${device}-${typefipboot}" ]]; then
-      echo "This atf uses extended partition name, so:"
       echo "Changing partlabel $fipbootdevice to ${target}-${device}-${typefipboot}"
       parted -s -- "/dev/$pkfipboot" name $nrfipboot ${target}-${device}-${typefipboot}
       sync
     fi
   else
+    echo "This atf does not use extended partition name"
     if [[ "${partlabelfipboot}" != "${typefipboot}" ]]; then
-      echo "This atf does not use extended partition name, so:"
       echo "Changing partlabel $fipbootdevice to ${typefipboot}"
       parted -s -- "/dev/$pkfipboot" name $nrfipboot ${typefipboot}
       sync
@@ -254,10 +254,8 @@ if [ -n "$fipbootdevice" ]; then
   [ -z "$partlabelfipboot" ] && exit 1
   typefipboot=$(echo ${partlabelfipboot} | cut -d "-" -f3)
   [ -z "${typefipboot}" ] && typefipboot="${partlabelfipboot}"
+  echo "Type of bootchain (fip or boot): $typefipboot"
 fi
-
-echo "partlabelfipboot=$partlabelfipboot"
-echo "typefipboot=$typefipboot"
 
 # Copy DTBO's if there are none.
 if [ ! -d "/boot/dtbos/" ]; then
