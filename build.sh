@@ -31,10 +31,10 @@ NEEDED_PACKAGES="hostapd wireless-regdb iproute2 nftables f2fs-tools dosfstools\
 NEEDED_PACKAGES_DEBIAN="openssh-server device-tree-compiler mmc-utils\
  libpam-systemd systemd-timesyncd systemd-resolved kmod zstd
  iputils-ping apt-utils iw\
- linux-firmware-other linux-firmware-mediatek"
+ linux-firmware"
 NEEDED_PACKAGES_ALARM=" openssh        dtc                  mmc-utils-git\
  base dbus-broker-units\
- linux-firmware"
+ linux-firmware-other linux-firmware-mediatek"
 STRAP_PACKAGES_ALARM="pacman archlinuxarm-keyring inetutils"
 EXTRA_PACKAGES="nano screen i2c-tools ethtool iperf3 curl wget debootstrap usbutils"
 PREBUILT_PACKAGES="bpir-atf-git bpir-uboot-git ssh-fix-reboot hostapd-launch bpir-initrd"
