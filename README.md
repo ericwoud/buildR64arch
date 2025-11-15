@@ -222,6 +222,11 @@ This will format and install the image.
 
 I need to add more documentation about 'bpir-toolbox', but you can look into the file to see which options to use.
 
+```p
+bpir-toolbox --nand-force-erase
+```
+This will erase all blocks from nand, even erase all the bad blocks, all blocks are reset to normal.
+
 'bpir-build' to install archlinuxarm (or experimental ubuntu) on nvme is added pretty recently also, so also needs documentation and testing. Basically the steps are:
 
 `bpir-build` can be run from the sd-card image, but it can also be run when booted the initrd on nand. When booted from nand, first use `bpir-dhcpd` to connect to the internet again. Once connected to the internet you can use:
