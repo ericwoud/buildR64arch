@@ -208,12 +208,28 @@ else
 fi
 
 case ${target} in
-  bpir64) default_ddrsize=1;;
-  bpir3)  default_ddrsize=2;;
-  bpir3m) default_ddrsize=2;;
-  bpir4)  default_ddrsize=4;;
-  *)      echo "Unknown target ${target}"; exit 1;;
+  bpir64)
+    default_ddrsize=1
+    nandtype="snand"
+    ;;
+  bpir3)
+    default_ddrsize=2
+    nandtype="spim-nand"
+    ;;
+  bpir3m)
+    default_ddrsize=2
+    nandtype="spim-nand"
+    ;;
+  bpir4)
+    default_ddrsize=4
+    nandtype="spim-nand"
+    ;;
+  *)
+    echo "Unknown target ${target}"
+    exit 1
+    ;;
 esac
+
 default_dtb="${target/m/-mini}"
 default_dtb="${default_dtb/bpir/-bananapi-bpi-r}"
 default_dtb=$(shopt -s nullglob; cd /boot/dtbs; echo "mt"*"${default_dtb}.dtb" | head -n 1)
@@ -354,7 +370,7 @@ if [[ $@ =~ "--nand-update" ]] || [[ $@ =~ "--nand-format" ]]; then
   [[ "$(tr -d '\0' 2>/dev/null </proc/device-tree/compatible)" != "bananapi,"* ]] && exit 1
   ubinr=$(mtdnr ubi)
   bl2nr=$(mtdnr bl2)
-  atfbin="/usr/share/bpir-atf/${target}-atf-spim-nand-atf${extra}.bin"
+  atfbin="/usr/share/bpir-atf/${target}-atf-${nandtype}-atf${extra}.bin"
   dd if=/dev/mtdblock${bl2nr} of="$tmp/dump.bin" bs=$(du -b "$atfbin" | cut -f1) count=1 >/dev/null 2>&1
   #nanddump -nf "$tmp/dump.bin" -l $(du -b "$atfbin" | cut -f1) /dev/mtd${bl2nr}
   if ! diff "$tmp/dump.bin" "$atfbin"; then
@@ -373,7 +389,7 @@ if [[ $@ =~ "--nand-update" ]] || [[ $@ =~ "--nand-format" ]]; then
   if [[ "$ubidev" == "/dev/ubi_ctrl" ]] || [[ "$ubidev" == "/dev/ubi*" ]]; then exit 1; fi
   ubifip=$(ubivol fip)
   fipfiles=""
-  nandbl31file="/usr/share/bpir-atf/${target}-atf-spim-nand-bl31${extra}.bin"
+  nandbl31file="/usr/share/bpir-atf/${target}-atf-${nandtype}-bl31${extra}.bin"
   [ -f "$nandbl31file" ] && fipfiles+=" --soc-fw $nandbl31file"
   fipfiles+=" --nt-fw /usr/share/bpir-uboot/u-boot-${target}-emmc.bin"
   fiptool --verbose create $tmp/fip.bin $fipfiles
