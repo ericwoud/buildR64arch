@@ -350,7 +350,6 @@ if [[ $@ =~ "--nand-force-erase" ]]; then
     echo EEE: flash_erase --noskipbad "/dev/$i" 0 0
   done
   echo N >/sys/kernel/debug/mtd/expert_analysis_mode
-  exit 1
 fi
 
 ###############
