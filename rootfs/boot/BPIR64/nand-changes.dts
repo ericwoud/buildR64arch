@@ -5,6 +5,6 @@
   chosen {
     bpirnote = "removed bl2 nand partition read-only";
     /* remove from main .dtb as overlay file cannot delete a property */
-    //fdtput -d /soc/spi@1100d000/flash@0/partitions/partition@0 read-only
+    //fdtput -d /spi@1100d000/flash@0/partitions/partition@0 read-only
   };
 };
