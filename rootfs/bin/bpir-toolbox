@@ -338,6 +338,21 @@ if [[ $@ =~ "--atf" ]]; then
   fi
 fi
 
+####################
+# Force erase NAND #
+####################
+if [[ $@ =~ "--nand-force-erase" ]]; then
+  [[ "$(tr -d '\0' 2>/dev/null </proc/device-tree/compatible)" != "bananapi,"* ]] && exit 1
+  ubinr=$(mtdnr ubi)
+  ubidetach -p /dev/mtd${ubinr} 2>/dev/null
+  echo Y >/sys/kernel/debug/mtd/expert_analysis_mode
+  for i in $(cat /proc/mtd | tail -n+2 | cut -d' ' -f1 | tr -d ':'); do
+    echo EEE: flash_erase --noskipbad "/dev/$i" 0 0
+  done
+  echo N >/sys/kernel/debug/mtd/expert_analysis_mode
+  exit 1
+fi
+
 ###############
 # Format NAND #
 ###############
@@ -345,7 +360,7 @@ if [[ $@ =~ "--nand-format" ]]; then
   [[ "$(tr -d '\0' 2>/dev/null </proc/device-tree/compatible)" != "bananapi,"* ]] && exit 1
   i=0
   ubinr=$(mtdnr ubi)
-  ubidetach -p /dev/mtd${ubinr}
+  ubidetach -p /dev/mtd${ubinr} 2>/dev/null
   ubiformat -y /dev/mtd${ubinr}
   ubiattach -p /dev/mtd${ubinr}
   ubidev=$(get_ubidev ${ubinr})
