@@ -347,7 +347,7 @@ if [[ $@ =~ "--nand-force-erase" ]]; then
   ubidetach -p /dev/mtd${ubinr} 2>/dev/null
   echo Y >/sys/kernel/debug/mtd/expert_analysis_mode
   for i in $(cat /proc/mtd | tail -n+2 | cut -d' ' -f1 | tr -d ':'); do
-    echo EEE: flash_erase --noskipbad "/dev/$i" 0 0
+    flash_erase --noskipbad "/dev/$i" 0 0
   done
   echo N >/sys/kernel/debug/mtd/expert_analysis_mode
 fi
