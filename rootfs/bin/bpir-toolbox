@@ -382,6 +382,9 @@ fi
 ###############
 if [[ $@ =~ "--nand-update" ]] || [[ $@ =~ "--nand-format" ]]; then
   [[ "$(tr -d '\0' 2>/dev/null </proc/device-tree/compatible)" != "bananapi,"* ]] && exit 1
+  nandbl31file="/usr/share/bpir-atf/${target}-atf-${nandtype}-bl31${extra}.bin"
+  ubootfile="/usr/share/bpir-uboot/u-boot-${target}.bin"
+  [ ! -f "$ubootfile" ] && exit 1
   ubinr=$(mtdnr ubi)
   bl2nr=$(mtdnr bl2)
   atfbin="/usr/share/bpir-atf/${target}-atf-${nandtype}-atf${extra}.bin"
@@ -403,9 +406,8 @@ if [[ $@ =~ "--nand-update" ]] || [[ $@ =~ "--nand-format" ]]; then
   if [[ "$ubidev" == "/dev/ubi_ctrl" ]] || [[ "$ubidev" == "/dev/ubi*" ]]; then exit 1; fi
   ubifip=$(ubivol fip)
   fipfiles=""
-  nandbl31file="/usr/share/bpir-atf/${target}-atf-${nandtype}-bl31${extra}.bin"
   [ -f "$nandbl31file" ] && fipfiles+=" --soc-fw $nandbl31file"
-  fipfiles+=" --nt-fw /usr/share/bpir-uboot/u-boot-${target}-emmc.bin"
+  fipfiles+=" --nt-fw ${ubootfile}"
   fiptool --verbose create $tmp/fip.bin $fipfiles
   fiptool info $tmp/fip.bin
   dd if="/dev/${ubifip}" of="$tmp/dump.bin"
