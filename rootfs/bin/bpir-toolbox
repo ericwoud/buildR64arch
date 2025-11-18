@@ -477,7 +477,6 @@ if [[ $@ =~ "--extlinux" ]] || ( [[ $@ =~ "--uboot-install" ]] && [ ! -f "$extli
                  "${linux:$skip}" \
                  "${initrd:$skip}" \
                  "${atfdtb:$skip}"
-  [[ $@ =~ "--extlinux" ]] && exit 0
 fi
 
 ##############
