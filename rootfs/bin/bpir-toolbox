@@ -516,4 +516,5 @@ if [[ $@ =~ "--write2fip" ]] || [[ $@ =~ "--boot2fip" ]] || [[ $@ =~ "--fip2boot
   fi
 fi
 
+sync
 exit 0
