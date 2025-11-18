@@ -5,7 +5,7 @@
   asm-sel-hog {
     output-low;
     /* remove from main .dtb as overlay file cannot delete a property */
-    //fdtput -d /pinctrl@10211000/asm_sel output-high
+    //fdtput -d /pinctrl@10211000/asm-sel-hog output-high
   };
 };
 
