@@ -160,6 +160,7 @@ function formatimage_nvme {
   mountdev=$($sudo blkid $(parts ${device}) -t PARTLABEL=${target}-${atfdevice}-root -o device)
   if [ -z "$mountdev" ]; then
     $sudo parted -s -- "${device}" unit GiB print
+    echo "To enter percentage: append the number with a '%' without space (e.g. 100%)."
     read -p "Enter GiB or percentage of start of root partition: " rootstart_gb
     read -p "Enter GiB or percentage of end of root partition: " rootend_gb
     $sudo parted -s -- "${device}" unit GiB \
@@ -574,7 +575,9 @@ if [ "$F" = true ]; then
     PS3="Choose atfdevice to format image for: "; COLUMNS=1
     atfdevices=()
     [[ $target != "bpir3m" ]] && atfdevices+=("sdmmc SD Card")
-    atfdevices+=("emmc  EMMC onboard" "nvme  NVME onboard")
+    atfdevices+=("emmc  EMMC onboard")
+    [[ $target == "bpir64" ]] && atfdevices+=("sata  SATA onboard") \
+                              || atfdevices+=("nvme  NVME onboard")
     select atfdevice in "${atfdevices[@]}" "Quit" ; do
       if (( REPLY > 0 && REPLY <= ${#atfdevices[@]} )) ; then break; else exit; fi
     done
@@ -658,6 +661,7 @@ if [ "$r" = true ]; then
       sdmmc|emmc) bpir_write="--fip2boot" ;;
       nand)       bpir_write="--boot2fip" ;;
       nvme)       bpir_write="--extlinux" ;;
+      sata)       bpir_write="--extlinux" ;;
       *) echo "Unknown atfdevice '${atfdevice}'" ;;
     esac
   fi
@@ -679,7 +683,11 @@ if [ "$initrd" != true ]; then
 fi
 
 if [ "$F" = true ]; then
-  [ "${atfdevice}" == "nvme" ] && formatimage_nvme || formatimage_mmc
+  if [ "${atfdevice}" == "nvme" ] || [ "${atfdevice}" == "sata" ]; then
+    formatimage_nvme
+  else
+    formatimage_mmc
+  fi
 fi
 
 mountdev=$($sudo blkid -s PARTLABEL $(parts ${device}) | grep -E 'PARTLABEL="bpir' | grep -E -- '-root"' | cut -d' ' -f1 | tr -d :)
