@@ -13,7 +13,7 @@ brokenpkgs=$(echo $brokenpkgs)
 brokenpkgs=${brokenpkgs//" "/","}
 
 if [ "$1" == "install" ] || [ "$1" == "upgrade" ]; then
-  pacman-static -Syu --noconfirm ${needed} --overwrite \* --assume-installed=$brokenpkgs ${pkgs}
+  pacman-static -Syu --noconfirm ${needed} --assume-installed=$brokenpkgs ${pkgs}
 elif [ "$1" == "remove" ]; then
   pacman-static -R --noconfirm --assume-installed=$brokenpkgs ${pkgs}
   rempkgs=$(pacman-static -Qdtq)
