@@ -190,7 +190,7 @@ If something goes wrong and you cannot boot, insert the card in your laptop/comp
 
 This method is now the prefered method of installing other then SD-card. Just get this installed on NAND, set switches to NAND and you can boot linux from sdmmc/emmc/nvme/nand. The nand image contains:
 
-U-Boot that scans emmc/nvme/nand for (/boot)/extlinux/extlinux.conf and boots it. Alternatively it scans for a boot.scr, see [example howto create a bootscr for distroboot](https://wiki.gentoo.org/wiki/PINE64_ROCKPro64/Installing_U-Boot#Creating_boot.scr)
+U-Boot that scans emmc/nvme/nand for (/boot)/extlinux/extlinux.conf and boots it. Alternatively it scans for a boot.scr, see [example howto create a bootscr for distroboot](https://wiki.gentoo.org/wiki/PINE64_ROCKPro64/Installing_U-Boot#Creating_boot.scr), but extlinux.conf is preferred, boot.scr only for backward compatibility.
 
 The partition that contains this file needs to have the boot flag set.
 
