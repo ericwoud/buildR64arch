@@ -28,11 +28,11 @@ IMAGE_FILE="./bpir.img"        # Name of image
 
 NEEDED_PACKAGES="hostapd wireless-regdb iproute2 nftables f2fs-tools dosfstools\
  btrfs-progs patch sudo evtest parted binutils cpio mtd-utils diffutils"
-NEEDED_PACKAGES_DEBIAN="openssh-server device-tree-compiler mmc-utils\
- libpam-systemd systemd-timesyncd systemd-resolved kmod zstd
+NEEDED_PACKAGES_DEBIAN="openssh-server device-tree-compiler mmc-utils     u-boot-tools\
+ libpam-systemd systemd-timesyncd systemd-resolved kmod zstd\
  iputils-ping apt-utils iw\
  linux-firmware"
-NEEDED_PACKAGES_ALARM=" openssh        dtc                  mmc-utils-git\
+NEEDED_PACKAGES_ALARM=" openssh        dtc                  mmc-utils-git uboot-tools\
  base dbus-broker-units\
  linux-firmware-other linux-firmware-mediatek"
 STRAP_PACKAGES_ALARM="pacman archlinuxarm-keyring inetutils"
