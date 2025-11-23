@@ -12,6 +12,9 @@
     /* remove from main .dtb as overlay file cannot delete a node */
     //fdtput -r /spi@1100d000/flash@0/partitions
     partitions {
+      compatible = "fixed-partitions";
+      #address-cells = <1>;
+      #size-cells = <1>;
       partition@0 {
         label = "bl2";
         reg = <0x0 0x80000>;
