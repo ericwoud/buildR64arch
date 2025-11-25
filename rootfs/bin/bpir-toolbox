@@ -113,6 +113,29 @@ function get_ubidev {
   return 0
 }
 
+function _ubimkvol {
+  if [[ "${1}" == "image" ]]; then
+    local OPTIND=2  n s t N m option
+    while getopts ":n:s:t:N:m" option; do
+      case "${option}" in
+        n) n="${OPTARG}";;
+        s) s="${OPTARG}";;
+        m) m="true";;
+        t) t="${OPTARG}";;
+        N) N="${OPTARG}";;
+      esac
+    done
+    (
+      echo -e "[${N}-volume]\nmode=ubi\nimage=$tmp/${N}.bin\nvol_id=${i}\nvol_name=${N}\nvol_alignment=1"
+      [[ ${m} == "true" ]]   && echo "vol_flags=autoresize" || echo "vol_size=${s}"
+      [[ ${t} == "static" ]] && echo "vol_type=static"      || echo "vol_type=dynamic"
+      echo
+    ) >> $tmp/ubinize.conf
+  else
+    ubimkvol $@
+  fi
+}
+
 function write_extlinux {
   mkdir -p $(dirname "$1")
   cat <<-EOF | tee "$1"
@@ -239,6 +262,7 @@ default_dtb="${default_dtb/.dtb/}"
 
 extlinux="/boot/extlinux/extlinux.conf"
 
+rm -rf "${tmp}"
 mkdir -p "${tmp}/dtbos"
 mkdir -p /boot/bootcfg
 dtb=$(     getconf r dtb     "$default_dtb")
@@ -355,9 +379,11 @@ fi
 ###############
 # Format NAND #
 ###############
-if [[ $@ =~ "--nand-format" ]]; then
+ubidev=""
+if [[ $@ =~ "--nand-image" ]]; then
+  ubidev="image"
+elif [[ $@ =~ "--nand-format" ]]; then
   [[ "$(tr -d '\0' 2>/dev/null </proc/device-tree/compatible)" != "bananapi,"* ]] && exit 1
-  i=0
   ubinr=$(mtdnr ubi)
   ubidetach -p /dev/mtd${ubinr} 2>/dev/null
   ubiformat -y /dev/mtd${ubinr}
@@ -365,38 +391,35 @@ if [[ $@ =~ "--nand-format" ]]; then
   ubidev=$(get_ubidev ${ubinr})
   [[ $? != 0 ]] && exit 1
   [[ "$ubidev" == "/dev/ubi_ctrl" ]] && exit 1
-  ubimkvol ${ubidev} -n $i -N fip       -s 1MiB   -t static
-  ((i++))
-  ubimkvol ${ubidev} -n $i -N ubootenv  -s 128KiB
-  ((i++))
-  ubimkvol ${ubidev} -n $i -N ubootenv2 -s 128KiB
-  ((i++))
-  ubimkvol ${ubidev} -n $i -N rootfs    -m
-  while [ ! -e "${ubidev}_$i" ]; do sleep 0.1; done
-  mkfs.ubifs ${ubidev}_$i
 fi
-
+if [ -n "${ubidev}" ]; then
+  rm -f $tmp/ubinize.conf
+  i=0
+  _ubimkvol ${ubidev} -n $i -N fip       -s 1MiB   -t static
+  ((i++))
+  _ubimkvol ${ubidev} -n $i -N ubootenv  -s 128KiB
+  ((i++))
+  _ubimkvol ${ubidev} -n $i -N ubootenv2 -s 128KiB
+  ((i++))
+  _ubimkvol ${ubidev} -n $i -N rootfs    -m
+  if [ ${ubidev} != "image" ]; then
+    while [ ! -e "${ubidev}_${i}" ]; do sleep 0.1; done
+    mkfs.ubifs ${ubidev}_${i}
+  fi
+fi
 
 ###############
 # Update NAND #
 ###############
-if [[ $@ =~ "--nand-update" ]] || [[ $@ =~ "--nand-format" ]]; then
+if [[ $@ =~ "--nand-update" ]] || [[ $@ =~ "--nand-format" ]] || [[ $@ =~ "--nand-image" ]]; then
   [[ "$(tr -d '\0' 2>/dev/null </proc/device-tree/compatible)" != "bananapi,"* ]] && exit 1
   nandbl31file="/usr/share/bpir-atf/${target}-atf-${nandtype}-bl31${extra}.bin"
+  atfbin="/usr/share/bpir-atf/${target}-atf-${nandtype}-atf${extra}.bin"
+  [ -f "${linux}.gz" ] && ubootlinux="${linux}.gz" || ubootlinux="${linux}"
   ubootfile="/usr/share/bpir-uboot/u-boot-${target}.bin"
   [ ! -f "$ubootfile" ] && exit 1
   ubinr=$(mtdnr ubi)
   bl2nr=$(mtdnr bl2)
-  atfbin="/usr/share/bpir-atf/${target}-atf-${nandtype}-atf${extra}.bin"
-  dd if=/dev/mtdblock${bl2nr} of="$tmp/dump.bin" bs=$(du -b "$atfbin" | cut -f1) count=1 >/dev/null 2>&1
-  #nanddump -nf "$tmp/dump.bin" -l $(du -b "$atfbin" | cut -f1) /dev/mtd${bl2nr}
-  if ! diff "$tmp/dump.bin" "$atfbin"; then
-    echo "Updating bl2 on NAND:"
-    dd if="$atfbin" of=/dev/mtdblock${bl2nr}
-    #flashcp -v "$atfbin" /dev/mtd${bl2nr}
-  else
-    echo "Skipping bl2 on NAND"
-  fi
   ubidev=$(get_ubidev ${ubinr})
   if [[ $? != 0 ]]; then
     ubiattach -p /dev/mtd${ubinr}
@@ -404,42 +427,67 @@ if [[ $@ =~ "--nand-update" ]] || [[ $@ =~ "--nand-format" ]]; then
     [[ $? != 0 ]] && exit 1
   fi
   if [[ "$ubidev" == "/dev/ubi_ctrl" ]] || [[ "$ubidev" == "/dev/ubi*" ]]; then exit 1; fi
-  ubifip=$(ubivol fip)
   fipfiles=""
   [ -f "$nandbl31file" ] && fipfiles+=" --soc-fw $nandbl31file"
   fipfiles+=" --nt-fw ${ubootfile}"
   fiptool --verbose create $tmp/fip.bin $fipfiles
   fiptool info $tmp/fip.bin
-  dd if="/dev/${ubifip}" of="$tmp/dump.bin"
-  if ! diff "$tmp/dump.bin" "$tmp/fip.bin"; then
-    echo "Updating fip on NAND"
-    ubiupdatevol "/dev/${ubifip}" $tmp/fip.bin
-  else
-    echo "Skipping fip on NAND"
-  fi
-  ubirootfs=$(ubivol rootfs)
-  mkdir -p $tmp/mnt
-  mount -t ubifs ${ubirootfs} $tmp/mnt
-  while ! mountpoint -q $tmp/mnt; do sleep 0.1; done
-  mkdir -p $tmp/mnt/boot/extlinux $tmp/mnt/boot/dtbs
-  [ -f "${linux}.gz" ] && ubootlinux="${linux}.gz" || ubootlinux="${linux}"
   write_dtb "$tmp/atf.dtb" \
             "root=" \
             "/boot/dtbs/${dtb}.dtb" \
 	    /usr/share/buildR64arch/boot/${target^^}/*.dts \
 	    /usr/share/buildR64arch/boot/${target^^}-NAND/*.dts
-  ubiupdate "$tmp/atf.dtb" "$tmp/mnt${atfdtb}"
   write_extlinux "$tmp/extlinux.conf" \
                  "${ubootlinux}" \
                  "${initrd}" \
                  "${atfdtb}"
-  ubiupdate "$tmp/extlinux.conf" "$tmp/mnt/boot/extlinux/extlinux.conf"
-  ubiupdate "$ubootlinux" "$tmp/mnt$ubootlinux"
-  ubiupdate "$initrd" "$tmp/mnt$initrd"
-  sync
-  ls -lR $tmp/mnt
-  sync
-  while mountpoint -q $tmp/mnt; do umount $tmp/mnt; sleep 0.1; done
+  mkdir -p $tmp/mnt
+  if [[ $@ =~ "--nand-image" ]]; then
+    mkdir -p $tmp/mnt/boot/extlinux $tmp/mnt/boot/dtbs
+    cp -vf "$tmp/atf.dtb" "$tmp/mnt${atfdtb}"
+    cp -vf "$tmp/extlinux.conf" "$tmp/mnt/boot/extlinux/extlinux.conf"
+    cp -vf "$ubootlinux" "$tmp/mnt$ubootlinux"
+    cp -vf "$initrd" "$tmp/mnt$initrd"
+    mkfs.ubifs -m 2048 -e 124KiB -c 800 -r "$tmp/mnt" "$tmp/rootfs.bin"
+    echo > "$tmp/ubootenv.bin"
+    echo > "$tmp/ubootenv2.bin"
+    mkdir -p /tmp/nandimage
+    cp -vf "${atfdir}/${target}-atf-${nandtype}-atf${extra}.bin" \
+             "/tmp/nandimage/nand-${target}-bl2${extra}.bin" 2>/dev/null
+    nandfile="/tmp/nandimage/nand-${target}-ubi${extra}.bin"
+    ubinize -o "${nandfile}" -m 2048 -p 128KiB "$tmp/ubinize.conf"
+    ls -l "/tmp/nandimage"
+  else
+    ubifip=$(ubivol fip)
+    ubirootfs=$(ubivol rootfs)
+    dd if=/dev/mtdblock${bl2nr} of="$tmp/dump.bin" bs=$(du -b "$atfbin" | cut -f1) count=1 >/dev/null 2>&1
+    #nanddump -nf "$tmp/dump.bin" -l $(du -b "$atfbin" | cut -f1) /dev/mtd${bl2nr}
+    if ! diff "$tmp/dump.bin" "$atfbin"; then
+      echo "Updating bl2 on NAND:"
+      dd if="$atfbin" of=/dev/mtdblock${bl2nr}
+      #flashcp -v "$atfbin" /dev/mtd${bl2nr}
+    else
+      echo "Skipping bl2 on NAND"
+    fi
+    dd if="/dev/${ubifip}" of="$tmp/dump.bin"
+    if ! diff "$tmp/dump.bin" "$tmp/fip.bin"; then
+      echo "Updating fip on NAND"
+      ubiupdatevol "/dev/${ubifip}" $tmp/fip.bin
+    else
+      echo "Skipping fip on NAND"
+    fi
+    mount -t ubifs ${ubirootfs} $tmp/mnt
+    while ! mountpoint -q $tmp/mnt; do sleep 0.1; done
+    mkdir -p $tmp/mnt/boot/extlinux $tmp/mnt/boot/dtbs
+    ubiupdate "$tmp/atf.dtb" "$tmp/mnt${atfdtb}"
+    ubiupdate "$tmp/extlinux.conf" "$tmp/mnt/boot/extlinux/extlinux.conf"
+    ubiupdate "$ubootlinux" "$tmp/mnt$ubootlinux"
+    ubiupdate "$initrd" "$tmp/mnt$initrd"
+    sync
+    ls -lR $tmp/mnt
+    sync
+    while mountpoint -q $tmp/mnt; do umount $tmp/mnt; sleep 0.1; done
+  fi
 fi
 
 ############
@@ -466,6 +514,7 @@ if [[ $@ =~ "--uartboot" ]]; then
   fipfiles+=" --tos-fw-extra2 $initrd"
   fiptool --verbose create $fipfile $fipfiles
   fiptool info $fipfile
+  ls -l "/tmp/uartboot"
 fi
 
 ############
