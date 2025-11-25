@@ -1,6 +1,7 @@
 /src/
 /images/
 /uartboot/
+/nandimage/
 /tools/arch-*.sh
 /override.sh
 /*.diff

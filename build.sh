@@ -385,7 +385,10 @@ function uartbootbuild {
   trap ctrl_c INT
   schroot bpir-toolbox --uartboot
   mkdir -p ./uartboot
-  cp -vf "$rootfsdir/tmp/uartboot/"*".bin" ./uartboot/
+  cp -vf "$rootfsdir/tmp/uartboot/"*".bin"  ./uartboot/
+  schroot bpir-toolbox --nand-image
+  mkdir -p ./nandimage
+  cp -vf "$rootfsdir/tmp/nandimage/"*".bin" ./nandimage/
 }
 
 function setupMACconfig {
