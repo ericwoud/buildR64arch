@@ -316,7 +316,7 @@ function rootfs {
     $sudo sed -i 's|\\n|\n|g' $rootfsdir/etc/pacman.conf
     until schroot pacman-static -Syu --noconfirm --overwrite \\* build-r64-arch-utils-git
     do sleep 2; done
-    until schroot bpir-apt install $PREBUILT_PACKAGES
+    until schroot bpir-apt install --overwrite $PREBUILT_PACKAGES pacman-static
     do sleep 2; done
   else # ArchLinuxArm
     sshd="sshd"
