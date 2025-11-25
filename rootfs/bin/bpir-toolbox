@@ -395,7 +395,7 @@ fi
 if [ -n "${ubidev}" ]; then
   rm -f $tmp/ubinize.conf
   i=0
-  _ubimkvol ${ubidev} -n $i -N fip       -s 1MiB   -t static
+  _ubimkvol ${ubidev} -n $i -N fip       -s 2MiB   -t static
   ((i++))
   _ubimkvol ${ubidev} -n $i -N ubootenv  -s 128KiB
   ((i++))
