@@ -412,21 +412,11 @@ fi
 # Update NAND #
 ###############
 if [[ $@ =~ "--nand-update" ]] || [[ $@ =~ "--nand-format" ]] || [[ $@ =~ "--nand-image" ]]; then
-  [[ "$(tr -d '\0' 2>/dev/null </proc/device-tree/compatible)" != "bananapi,"* ]] && exit 1
   nandbl31file="/usr/share/bpir-atf/${target}-atf-${nandtype}-bl31${extra}.bin"
   atfbin="/usr/share/bpir-atf/${target}-atf-${nandtype}-atf${extra}.bin"
   [ -f "${linux}.gz" ] && ubootlinux="${linux}.gz" || ubootlinux="${linux}"
   ubootfile="/usr/share/bpir-uboot/u-boot-${target}.bin"
   [ ! -f "$ubootfile" ] && exit 1
-  ubinr=$(mtdnr ubi)
-  bl2nr=$(mtdnr bl2)
-  ubidev=$(get_ubidev ${ubinr})
-  if [[ $? != 0 ]]; then
-    ubiattach -p /dev/mtd${ubinr}
-    ubidev=$(get_ubidev ${ubinr})
-    [[ $? != 0 ]] && exit 1
-  fi
-  if [[ "$ubidev" == "/dev/ubi_ctrl" ]] || [[ "$ubidev" == "/dev/ubi*" ]]; then exit 1; fi
   fipfiles=""
   [ -f "$nandbl31file" ] && fipfiles+=" --soc-fw $nandbl31file"
   fipfiles+=" --nt-fw ${ubootfile}"
@@ -458,6 +448,16 @@ if [[ $@ =~ "--nand-update" ]] || [[ $@ =~ "--nand-format" ]] || [[ $@ =~ "--nan
     ubinize -o "${nandfile}" -m 2048 -p 128KiB "$tmp/ubinize.conf"
     ls -l "/tmp/nandimage"
   else
+    [[ "$(tr -d '\0' 2>/dev/null </proc/device-tree/compatible)" != "bananapi,"* ]] && exit 1
+    bl2nr=$(mtdnr bl2)
+    ubinr=$(mtdnr ubi)
+    ubidev=$(get_ubidev ${ubinr})
+    if [[ $? != 0 ]]; then
+      ubiattach -p /dev/mtd${ubinr}
+      ubidev=$(get_ubidev ${ubinr})
+      [[ $? != 0 ]] && exit 1
+    fi
+    if [[ "$ubidev" == "/dev/ubi_ctrl" ]] || [[ "$ubidev" == "/dev/ubi*" ]]; then exit 1; fi
     ubifip=$(ubivol fip)
     ubirootfs=$(ubivol rootfs)
     dd if=/dev/mtdblock${bl2nr} of="$tmp/dump.bin" bs=$(du -b "$atfbin" | cut -f1) count=1 >/dev/null 2>&1
