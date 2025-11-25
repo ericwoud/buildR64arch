@@ -6,6 +6,11 @@ if [[ "$pkgs" =~ "--reinstall" ]]; then
   pkgs="${pkgs/"--reinstall"/""}"
   needed=""
 fi
+overwrite=""
+if [[ "$pkgs" =~ "--overwrite" ]]; then
+  pkgs="${pkgs/"--overwrite"/""}"
+  overwrite='--overwrite \*'
+fi
 
 brokenpkgs=$(pacman-static -Sp $(pacman-static -Qq) ${pkgs} 2>/dev/null | \
              grep ':: unable to satisfy dependency' | cut -d"'" -f2)
@@ -13,7 +18,7 @@ brokenpkgs=$(echo $brokenpkgs)
 brokenpkgs=${brokenpkgs//" "/","}
 
 if [ "$1" == "install" ] || [ "$1" == "upgrade" ]; then
-  pacman-static -Syu --noconfirm ${needed} --assume-installed=$brokenpkgs ${pkgs}
+  pacman-static -Syu --noconfirm ${needed} ${overwrite} --assume-installed=$brokenpkgs ${pkgs}
 elif [ "$1" == "remove" ]; then
   pacman-static -R --noconfirm --assume-installed=$brokenpkgs ${pkgs}
   rempkgs=$(pacman-static -Qdtq)
