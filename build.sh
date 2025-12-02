@@ -12,6 +12,7 @@ BACKUPREPOURL='https://github.com/ericwoud/buildRKarch/releases/download/repo-$a
 DEBOOTSTR_RELEASE="noble"
 DEBOOTSTR_SOURCE="http://ports.ubuntu.com/ubuntu-ports"
 DEBOOTSTR_COMPNS="main,restricted,universe,multiverse"
+DEBOOTSTR_PACKAGES="apt-utils ca-certificates gnupg"
 #DEBOOTSTR_RELEASE="bullseye"
 #DEBOOTSTR_SOURCE="http://ftp.debian.org/debian/"
 #DEBOOTSTR_COMPNS="main,contrib,non-free"
@@ -30,14 +31,13 @@ NEEDED_PACKAGES="hostapd wireless-regdb iproute2 nftables f2fs-tools dosfstools\
  btrfs-progs patch sudo evtest parted binutils cpio mtd-utils diffutils"
 NEEDED_PACKAGES_DEBIAN="openssh-server device-tree-compiler mmc-utils     u-boot-tools\
  libpam-systemd systemd-timesyncd systemd-resolved kmod zstd\
- iputils-ping apt-utils iw\
- linux-firmware"
+ iputils-ping iw"
 NEEDED_PACKAGES_ALARM=" openssh        dtc                  mmc-utils-git uboot-tools\
- base dbus-broker-units\
- linux-firmware-other linux-firmware-mediatek"
+ base dbus-broker-units"
 STRAP_PACKAGES_ALARM="pacman archlinuxarm-keyring inetutils"
 EXTRA_PACKAGES="nano screen i2c-tools ethtool iperf3 curl wget debootstrap usbutils"
-PREBUILT_PACKAGES="bpir-atf-git bpir-uboot-git ssh-fix-reboot hostapd-launch bpir-initrd"
+PREBUILT_PACKAGES="bpir-atf-git bpir-uboot-git ssh-fix-reboot hostapd-launch bpir-initrd\
+ linux-firmware-other linux-firmware-mediatek"
 SCRIPT_PACKAGES="curl ca-certificates parted gzip f2fs-tools btrfs-progs dosfstools debootstrap"
 #  udisks2 
 #SCRIPT_PACKAGES_ARCHLX="base-devel      uboot-tools  ncurses        openssl"
@@ -54,7 +54,8 @@ TARGETS=("bpir64 Bananapi-R64"
          "bpir4  Bananapi-R4")
 
 DISTROBPIR=("alarm    ArchLinuxARM"
-            "ubuntu   Ubuntu")
+            "ubuntu   Ubuntu (experimental with bugs)")
+##### !!!!! remove bugs
 
 QEMU="https://github.com/multiarch/qemu-user-static/releases/download/v7.2.0-1/qemu-aarch64-static.tar.gz"
 QEMUFILE="qemu-aarch64-static"
@@ -253,17 +254,17 @@ function bootstrap {
   eval repo=${BACKUPREPOURL}
   if [ "$distro" == "ubuntu" ]; then
     until $sudo debootstrap --arch=arm64 --no-check-gpg --components=$DEBOOTSTR_COMPNS \
-                     --variant=minbase $DEBOOTSTR_RELEASE $rootfsdir $DEBOOTSTR_SOURCE
+                     --variant=minbase --include="${DEBOOTSTR_PACKAGES// /,}" \
+                     $DEBOOTSTR_RELEASE $rootfsdir $DEBOOTSTR_SOURCE
     do sleep 2; done
-  fi
-  until pacmanpkg=$(curl -L $repo'/ericwoud.db' | tar -xzO --wildcards "pacman-static*/desc" \
-        | grep "%FILENAME%" -A1 | tail -n 1)
-  do sleep 2; done
-  until curl -L $repo'/'$pacmanpkg | xz -dc - | $sudo tar x -C $rootfsdir
-  do sleep 2; done
-  [ ! -d "$rootfsdir/usr" ] && return
-  $sudo mkdir -p $rootfsdir/{etc/pacman.d,var/lib/pacman}
-  if [ "$distro" == "alarm" ]; then
+  elif [ "$distro" == "alarm" ]; then
+    until pacmanpkg=$(curl -L $repo'/ericwoud.db' | tar -xzO --wildcards "pacman-static*/desc" \
+          | grep "%FILENAME%" -A1 | tail -n 1)
+    do sleep 2; done
+    until curl -L $repo'/'$pacmanpkg | xz -dc - | $sudo tar x -C $rootfsdir
+    do sleep 2; done
+    [ ! -d "$rootfsdir/usr" ] && return
+    $sudo mkdir -p $rootfsdir/{etc/pacman.d,var/lib/pacman}
     resolv
     echo 'Server = '"$ALARM_MIRROR/$arch"'/$repo' | \
       $sudo tee $rootfsdir/etc/pacman.d/mirrorlist
@@ -296,27 +297,19 @@ function rootfs {
     sshd="ssh"
     wheel="sudo"
     groups="audio,games,lp,video,$wheel"
-    echo -e 'APT::Install-Suggests "0";'"\n"'APT::Install-Recommends "0";' | $sudo tee \
-            $rootfsdir/etc/apt/apt.conf.d/99onlyneeded
-    until schroot apt-get install --yes $NEEDED_PACKAGES $NEEDED_PACKAGES_DEBIAN $EXTRA_PACKAGES
+    echo -e 'APT::Install-Suggests "0";'"\n"'APT::Install-Recommends "0";' | \
+        $sudo tee $rootfsdir/etc/apt/apt.conf.d/99onlyneeded
+    echo "deb [arch=arm64] http://ftp.woudstra.mywire.org/apt-repo stable main" | \
+        $sudo tee $rootfsdir/etc/apt/sources.list.d/ericwoud.list
+    $sudo mkdir -p $rootfsdir/usr/share/keyrings/
+    until schroot gpg --batch --yes --keyserver "hkps://keyserver.ubuntu.com:443" --recv-keys $REPOKEY
     do sleep 2; done
-    cat <<-EOF | $sudo tee $rootfsdir/etc/pacman.conf
-	[options]
-	Architecture = aarch64
-	#IgnorePkg =
-	#IgnoreGroup =
-	#NoUpgrade   =
-	#NoExtract   =
-	CheckSpace
-	SigLevel    = Never
-	LocalFileSigLevel = Optional
-	#RemoteFileSigLevel = Required
-	${serv}
-	EOF
-    $sudo sed -i 's|\\n|\n|g' $rootfsdir/etc/pacman.conf
-    until schroot pacman-static -Syu --noconfirm --overwrite \\* build-r64-arch-utils-git
+    schroot gpg --batch --yes --output /etc/apt/trusted.gpg.d/ericwoud.gpg --export $REPOKEY
+    export DEBIAN_FRONTEND=noninteractive
+    until schroot apt-get update
     do sleep 2; done
-    until schroot bpir-apt install --overwrite $PREBUILT_PACKAGES pacman-static
+    until schroot apt-get install --yes \
+                          $NEEDED_PACKAGES $NEEDED_PACKAGES_DEBIAN $EXTRA_PACKAGES $PREBUILT_PACKAGES
     do sleep 2; done
   else # ArchLinuxArm
     sshd="sshd"
@@ -327,7 +320,8 @@ function rootfs {
     fi
     schroot pacman-key --init
     schroot pacman-key --populate archlinuxarm
-    schroot pacman-key --recv-keys $REPOKEY
+    until schroot pacman-key --recv-keys $REPOKEY
+    do sleep 2; done
     schroot pacman-key --finger     $REPOKEY
     schroot pacman-key --lsign-key $REPOKEY
 #    schroot pacman-key --lsign-key 'Arch Linux ARM Build System <builder@archlinuxarm.org>'
