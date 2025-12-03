@@ -14,7 +14,6 @@ BACKUPREPOURL='https://github.com/ericwoud/buildRKarch/releases/download/repo-$a
 DEBOOTSTR_RELEASE="noble"
 DEBOOTSTR_SOURCE="http://ports.ubuntu.com/ubuntu-ports"
 DEBOOTSTR_COMPNS="main,restricted,universe,multiverse"
-DEBOOTSTR_PACKAGES="apt-utils ca-certificates gnupg"
 #DEBOOTSTR_RELEASE="bullseye"
 #DEBOOTSTR_SOURCE="http://ftp.debian.org/debian/"
 #DEBOOTSTR_COMPNS="main,contrib,non-free"
@@ -37,6 +36,7 @@ NEEDED_PACKAGES_DEBIAN="openssh-server device-tree-compiler mmc-utils     u-boot
 NEEDED_PACKAGES_ALARM=" openssh        dtc                  mmc-utils-git uboot-tools\
  base dbus-broker-units"
 STRAP_PACKAGES_ALARM="pacman archlinuxarm-keyring inetutils"
+STRAP_PACKAGES_DEBIAN="apt-utils ca-certificates gnupg"
 EXTRA_PACKAGES="nano screen i2c-tools ethtool iperf3 curl wget debootstrap usbutils"
 PREBUILT_PACKAGES="bpir-atf-git bpir-uboot-git ssh-fix-reboot hostapd-launch bpir-initrd\
  linux-firmware-other linux-firmware-mediatek"
@@ -256,7 +256,7 @@ function bootstrap {
   eval repo=${BACKUPREPOURL}
   if [ "$distro" == "ubuntu" ]; then
     until $sudo debootstrap --arch=arm64 --no-check-gpg --components=$DEBOOTSTR_COMPNS \
-                     --variant=minbase --include="${DEBOOTSTR_PACKAGES// /,}" \
+                     --variant=minbase --include="${STRAP_PACKAGES_DEBIAN// /,}" \
                      $DEBOOTSTR_RELEASE $rootfsdir $DEBOOTSTR_SOURCE
     do sleep 2; done
   elif [ "$distro" == "alarm" ]; then
