@@ -308,9 +308,9 @@ function rootfs {
     until schroot gpg --batch --yes --keyserver "${DEBIANKEYSERVER}" --recv-keys $REPOKEY
     do sleep 2; done
     schroot gpg --batch --yes --output /etc/apt/trusted.gpg.d/ericwoud.gpg --export $REPOKEY
-    until schroot DEBIAN_FRONTEND=noninteractive apt-get update
+    until schroot DEBIAN_FRONTEND=noninteractive apt-get update -q
     do sleep 2; done
-    until schroot DEBIAN_FRONTEND=noninteractive apt-get install --yes \
+    until schroot DEBIAN_FRONTEND=noninteractive apt-get install -q --yes \
                           $NEEDED_PACKAGES $NEEDED_PACKAGES_DEBIAN $EXTRA_PACKAGES $PREBUILT_PACKAGES
     do sleep 2; done
   else # ArchLinuxArm
