@@ -265,13 +265,14 @@ extlinux="/boot/extlinux/extlinux.conf"
 rm -rf "${tmp}"
 mkdir -p "${tmp}/dtbos"
 mkdir -p /boot/bootcfg
-dtb=$(     getconf r dtb     "$default_dtb")
-device=$(  getconf r device  "$(echo $partlabelroot | cut -d'-' -f2)")
-linux=$(   getconf w linux   "/boot/Image")
-cmdline=$( getconf w cmdline "console=ttyS0,115200 debug=7 rw rootwait audit=0")
-initrd=$(  getconf w initrd  "/boot/initramfs-bpir.img")
-atfdtb=$(  getconf w atfdtb  "/boot/dtbs/${dtb}-atf.dtb")
-ddrsize=$( getconf r ddrsize "$default_ddrsize")
+linuxpkg=$(getconf w linuxpkg "$(cat $(ls /lib/modules/*/pkgbase | tail -n1) | cut -d- -f2-)")
+dtb=$(     getconf r dtb      "$default_dtb")
+device=$(  getconf r device   "$(echo $partlabelroot | cut -d'-' -f2)")
+linux=$(   getconf w linux    "/boot/Image")
+cmdline=$( getconf w cmdline  "console=ttyS0,115200 debug=7 rw rootwait audit=0")
+initrd=$(  getconf w initrd   "/boot/initramfs-bpir.img")
+atfdtb=$(  getconf w atfdtb   "/boot/dtbs/${dtb}-atf.dtb")
+ddrsize=$( getconf r ddrsize  "$default_ddrsize")
 
 ########## cleanup *-atf.dtb
 
