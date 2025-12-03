@@ -5,8 +5,9 @@
 
 ALARM_MIRROR="http://mirror.archlinuxarm.org"
 
+WOUDSTRA='ftp.woudstra.mywire.org'
 REPOKEY="DD73724DCA27796790D33E98798137154FE1474C"
-REPOURL='ftp://ftp.woudstra.mywire.org/repo/$arch'
+REPOURL='ftp://'"${WOUDSTRA}"'/repo/$arch'
 BACKUPREPOURL='https://github.com/ericwoud/buildRKarch/releases/download/repo-$arch'
 
 DEBOOTSTR_RELEASE="noble"
