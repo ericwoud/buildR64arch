@@ -4,6 +4,7 @@
 # These can be overridden by entering them into config.sh
 
 ALARM_MIRROR="http://mirror.archlinuxarm.org"
+DEBIANKEYSERVER="hkps://keyserver.ubuntu.com:443"
 
 WOUDSTRA='ftp.woudstra.mywire.org'
 REPOKEY="DD73724DCA27796790D33E98798137154FE1474C"
@@ -304,7 +305,7 @@ function rootfs {
     echo "deb [arch=arm64] http://ftp.woudstra.mywire.org/apt-repo stable main" | \
         $sudo tee $rootfsdir/etc/apt/sources.list.d/ericwoud.list
     $sudo mkdir -p $rootfsdir/usr/share/keyrings/
-    until schroot gpg --batch --yes --keyserver "hkps://keyserver.ubuntu.com:443" --recv-keys $REPOKEY
+    until schroot gpg --batch --yes --keyserver "${DEBIANKEYSERVER}" --recv-keys $REPOKEY
     do sleep 2; done
     schroot gpg --batch --yes --output /etc/apt/trusted.gpg.d/ericwoud.gpg --export $REPOKEY
     until schroot DEBIAN_FRONTEND=noninteractive apt-get update
