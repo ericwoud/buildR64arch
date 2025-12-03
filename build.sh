@@ -7,7 +7,8 @@ ALARM_MIRROR="http://mirror.archlinuxarm.org"
 
 WOUDSTRA='ftp.woudstra.mywire.org'
 REPOKEY="DD73724DCA27796790D33E98798137154FE1474C"
-REPOURL='ftp://'"${WOUDSTRA}"'/repo/$arch'
+ALARMREPOURL='ftp://'"${WOUDSTRA}"'/repo/$arch'
+DEBIANREPOURL="http://${WOUDSTRA}/apt-repo"
 BACKUPREPOURL='https://github.com/ericwoud/buildRKarch/releases/download/repo-$arch'
 
 DEBOOTSTR_RELEASE="noble"
@@ -289,7 +290,7 @@ function bootstrap {
 function rootfs {
   trap ctrl_c INT
   resolv
-  serv="[ericwoud]\nServer = $REPOURL\nServer = $BACKUPREPOURL\n"
+  serv="[ericwoud]\nServer = $ALARMREPOURL\nServer = $BACKUPREPOURL\n"
   echo "${target}" | $sudo tee $rootfsdir/etc/hostname
   if [[ -z $(grep "${target}" $rootfsdir/etc/hosts 2>/dev/null) ]]; then
     echo -e "127.0.0.1\t${target}" | $sudo tee -a $rootfsdir/etc/hosts
