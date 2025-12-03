@@ -305,10 +305,9 @@ function rootfs {
     until schroot gpg --batch --yes --keyserver "hkps://keyserver.ubuntu.com:443" --recv-keys $REPOKEY
     do sleep 2; done
     schroot gpg --batch --yes --output /etc/apt/trusted.gpg.d/ericwoud.gpg --export $REPOKEY
-    export DEBIAN_FRONTEND=noninteractive
-    until schroot apt-get update
+    until schroot DEBIAN_FRONTEND=noninteractive apt-get update
     do sleep 2; done
-    until schroot apt-get install --yes \
+    until schroot DEBIAN_FRONTEND=noninteractive apt-get install --yes \
                           $NEEDED_PACKAGES $NEEDED_PACKAGES_DEBIAN $EXTRA_PACKAGES $PREBUILT_PACKAGES
     do sleep 2; done
   else # ArchLinuxArm
