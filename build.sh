@@ -374,7 +374,7 @@ function rootfs {
   else
     echo -n "${ddrsize}" | $sudo tee $rootfsdir/boot/bootcfg/ddrsize
   fi
-  bpir-initrd # temp fix
+  schroot bpir-initrd # temp fix
   schroot bpir-toolbox --atf $bpir_write
 }
 
