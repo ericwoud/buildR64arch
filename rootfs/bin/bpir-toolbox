@@ -280,10 +280,18 @@ default_dtb="${target/m/-mini}"
 default_dtb="${default_dtb/bpir/-bananapi-bpi-r}"
 default_dtb=$(shopt -s nullglob; cd /boot/dtbs; echo "mt"*"${default_dtb}.dtb" | head -n 1)
 default_dtb="${default_dtb/.dtb/}"
-
 default_linuxpkg=$(cat /lib/modules/*/pkgbase | tail -n1)
+[ -z "${default_linuxpkg}" ] && default_linuxpkg=$(ls /etc/initcpio/install/* | head -n1)
 
-[ ! -f "$(cat /boot/bootcfg/initrd 2>/dev/null)" ] && rm -f "/boot/bootcfg/initrd"
+linuxpkg=$(getconf w linuxpkg "$default_linuxpkg")
+if [ ! -f "/boot/Image" ] || [ -f "/boot/Image-$linuxpkg" ]; then
+  default_image="/boot/Image-$linuxpkg"
+  default_initrd="/boot/initramfs-$linuxpkg.img"
+else
+  default_image="/boot/Image"
+  default_initrd="/boot/initramfs-bpir.img"
+fi
+[ ! -f "$default_initrd" ] && bpir-initrd $linuxpkg
 
 extlinux="/boot/extlinux/extlinux.conf"
 checkextlinux "${extlinux}"
@@ -296,7 +304,6 @@ checkconf linux
 checkconf initrd
 checkconf atfdtb
 
-#linuxpkg=$(getconf w linuxpkg "$(cat $(ls /lib/modules/*/pkgbase | tail -n1))")
 dtb=$(     getconf r dtb      "$default_dtb")
 device=$(  getconf r device   "$(echo $partlabelroot | cut -d'-' -f2)")
 linux=$(   getconf w linux    "/boot/Image")
