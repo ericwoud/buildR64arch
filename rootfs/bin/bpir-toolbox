@@ -276,6 +276,10 @@ case ${target} in
     ;;
 esac
 
+rm -rf "${tmp}"
+mkdir -p "${tmp}/dtbos"
+mkdir -p /boot/bootcfg
+
 default_dtb="${target/m/-mini}"
 default_dtb="${default_dtb/bpir/-bananapi-bpi-r}"
 default_dtb=$(shopt -s nullglob; cd /boot/dtbs; echo "mt"*"${default_dtb}.dtb" | head -n 1)
@@ -295,10 +299,6 @@ fi
 
 extlinux="/boot/extlinux/extlinux.conf"
 checkextlinux "${extlinux}"
-
-rm -rf "${tmp}"
-mkdir -p "${tmp}/dtbos"
-mkdir -p /boot/bootcfg
 
 checkconf linux
 checkconf initrd
