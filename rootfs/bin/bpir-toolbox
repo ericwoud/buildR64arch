@@ -306,9 +306,9 @@ checkconf atfdtb
 
 dtb=$(     getconf r dtb      "$default_dtb")
 device=$(  getconf r device   "$(echo $partlabelroot | cut -d'-' -f2)")
-linux=$(   getconf w linux    "/boot/Image")
+linux=$(   getconf w linux    "$default_image")
 cmdline=$( getconf w cmdline  "console=ttyS0,115200 debug=7 rw rootwait audit=0")
-initrd=$(  getconf w initrd   "/boot/initramfs-bpir.img")
+initrd=$(  getconf w initrd   "$default_initrd")
 atfdtb=$(  getconf w atfdtb   "/boot/dtbs/${dtb}-atf.dtb")
 ddrsize=$( getconf r ddrsize  "$default_ddrsize")
 
