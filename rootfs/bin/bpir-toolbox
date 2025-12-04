@@ -3,6 +3,13 @@
 #############
 # Functions #
 #############
+function checkconf {
+  local conf=$(cat /boot/bootcfg/${1} 2>/dev/null)
+  [ -z "$conf" ] && return
+  [ -f "$conf" ] && return
+  echo "Error: $conf does not exist, setting /boot/bootcfg/${1} to default value."
+  rm -vf /boot/bootcfg/${1}
+}
 function getconf {
   local conf=$(cat /boot/bootcfg/${2} 2>/dev/null)
   if [ -z "$conf" ]; then
@@ -265,6 +272,11 @@ extlinux="/boot/extlinux/extlinux.conf"
 rm -rf "${tmp}"
 mkdir -p "${tmp}/dtbos"
 mkdir -p /boot/bootcfg
+
+checkconf linux
+checkconf initrd
+checkconf atfdtb
+
 #linuxpkg=$(getconf w linuxpkg "$(cat $(ls /lib/modules/*/pkgbase | tail -n1))")
 dtb=$(     getconf r dtb      "$default_dtb")
 device=$(  getconf r device   "$(echo $partlabelroot | cut -d'-' -f2)")
