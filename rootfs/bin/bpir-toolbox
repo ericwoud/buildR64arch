@@ -10,6 +10,7 @@ function checkconf {
   echo "Error: $conf does not exist, setting /boot/bootcfg/${1} to default value."
   rm -vf /boot/bootcfg/${1}
 }
+
 function getconf {
   local conf=$(cat /boot/bootcfg/${2} 2>/dev/null)
   if [ -z "$conf" ]; then
@@ -17,6 +18,21 @@ function getconf {
     [[ "${1}" == "w" ]] && echo -n "${conf}" >"/boot/bootcfg/${2}"
   fi
   echo "${conf}"
+}
+
+function checkextlinux {
+  [ ! -f "${1}" ] && return
+  local option file
+  for option in LINUX INITRD FDT FDTOVERLAYS; do
+    files=$(grep -iwF $option "${1}"| xargs -L1 echo)
+    [[ ${option} != $(echo ${files} | cut -d' ' -f1) ]] && continue
+    for files in $(echo ${files} | cut -d' ' -f2-); do
+      for file in ${files}; do
+        file="$(dirname ${1})/..${file/'/boot/'/'/'}"
+        [ ! -f "${file}" ] && echo "WARNING: extlinux.conf ${option} $(realpath ${file}) missing! :WARNING"
+      done
+    done
+  done
 }
 
 function parts {
@@ -268,6 +284,7 @@ default_dtb="${default_dtb/.dtb/}"
 [ ! -f "$(cat /boot/bootcfg/initrd 2>/dev/null)" ] && rm -f "/boot/bootcfg/initrd"
 
 extlinux="/boot/extlinux/extlinux.conf"
+checkextlinux "${extlinux}"
 
 rm -rf "${tmp}"
 mkdir -p "${tmp}/dtbos"
