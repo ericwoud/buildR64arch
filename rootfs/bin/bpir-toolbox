@@ -295,7 +295,14 @@ else
   default_image="/boot/Image"
   default_initrd="/boot/initramfs-bpir.img"
 fi
-[ ! -f "$default_initrd" ] && bpir-initrd $linuxpkg
+
+if [ ! -f "$default_initrd" ]; then
+  if command -v bpir-initrd >/dev/null 2>&1; then
+    bpir-initrd $linuxpkg
+  elif command -v mkinitcpio >/dev/null 2>&1; then
+    mkinitcpio -p $linuxpkg
+  fi
+fi
 
 extlinux="/boot/extlinux/extlinux.conf"
 checkextlinux "${extlinux}"
