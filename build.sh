@@ -37,7 +37,7 @@ NEEDED_PACKAGES_DEBIAN="openssh-server device-tree-compiler mmc-utils     u-boot
 NEEDED_PACKAGES_ALARM=" openssh        dtc                  mmc-utils-git uboot-tools\
  base dbus-broker-units"
 STRAP_PACKAGES_ALARM="pacman archlinuxarm-keyring inetutils"
-STRAP_PACKAGES_DEBIAN="apt-utils ca-certificates gnupg"
+STRAP_PACKAGES_DEBIAN="apt-utils ca-certificates gnupg inetutils"
 EXTRA_PACKAGES="nano screen i2c-tools ethtool iperf3 curl wget debootstrap usbutils"
 PREBUILT_PACKAGES="bpir-atf-git bpir-uboot-git ssh-fix-reboot hostapd-launch bpir-initrd\
  linux-firmware-other linux-firmware-mediatek"
