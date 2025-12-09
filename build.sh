@@ -247,6 +247,14 @@ function bootstrap {
                      --variant=minbase --include="${STRAP_PACKAGES_DEBIAN// /,}" \
                      $DEBOOTSTR_RELEASE $rootfsdir $DEBOOTSTR_SOURCE
     do sleep 2; done
+    echo -e 'APT::Install-Suggests "0";'"\n"'APT::Install-Recommends "0";' | \
+        $sudo tee $rootfsdir/etc/apt/apt.conf.d/99onlyneeded
+    echo "deb [arch=arm64] http://ftp.woudstra.mywire.org/apt-repo stable main" | \
+        $sudo tee $rootfsdir/etc/apt/sources.list.d/ericwoud.list
+    $sudo mkdir -p $rootfsdir/usr/share/keyrings/
+    until schroot gpg --batch --yes --keyserver "${DEBIANKEYSERVER}" --recv-keys $REPOKEY
+    do sleep 2; done
+    schroot gpg --batch --yes --output /etc/apt/trusted.gpg.d/ericwoud.gpg --export $REPOKEY
   elif [ "$distro" == "alarm" ]; then
     until pacmanpkg=$(curl -L $repo'/ericwoud.db' | tar -xzO --wildcards "pacman-static*/desc" \
           | grep "%FILENAME%" -A1 | tail -n 1)
@@ -272,41 +280,8 @@ function bootstrap {
     do sleep 2; done
     $sudo mv -vf $rootfsdir/etc/pacman.conf.pacnew         $rootfsdir/etc/pacman.conf
     $sudo mv -vf $rootfsdir/etc/pacman.d/mirrorlist.pacnew $rootfsdir/etc/pacman.d/mirrorlist
-  fi
-  sync
-}
-
-function rootfs {
-  trap ctrl_c INT
-  resolv
-  serv="[ericwoud]\nServer = $ALARMREPOURL\nServer = $BACKUPREPOURL\n"
-  echo "${target}" | $sudo tee $rootfsdir/etc/hostname
-  if [[ -z $(grep "${target}" $rootfsdir/etc/hosts 2>/dev/null) ]]; then
-    echo -e "127.0.0.1\t${target}" | $sudo tee -a $rootfsdir/etc/hosts
-  fi
-  if [ ! -f "$rootfsdir/etc/arch-release" ]; then ### Ubuntu / Debian
-    sshd="ssh"
-    wheel="sudo"
-    groups="audio,games,lp,video,$wheel"
-    echo -e 'APT::Install-Suggests "0";'"\n"'APT::Install-Recommends "0";' | \
-        $sudo tee $rootfsdir/etc/apt/apt.conf.d/99onlyneeded
-    echo "deb [arch=arm64] http://ftp.woudstra.mywire.org/apt-repo stable main" | \
-        $sudo tee $rootfsdir/etc/apt/sources.list.d/ericwoud.list
-    $sudo mkdir -p $rootfsdir/usr/share/keyrings/
-    until schroot gpg --batch --yes --keyserver "${DEBIANKEYSERVER}" --recv-keys $REPOKEY
-    do sleep 2; done
-    schroot gpg --batch --yes --output /etc/apt/trusted.gpg.d/ericwoud.gpg --export $REPOKEY
-    until schroot DEBIAN_FRONTEND=noninteractive apt-get update -q
-    do sleep 2; done
-    until schroot DEBIAN_FRONTEND=noninteractive apt-get install -q --yes \
-                          build-r64-arch-utils-git linux-${target}-git bpir-initrd
-
-    do sleep 2; done
-  else # ArchLinuxArm
-    sshd="sshd"
-    wheel="wheel"
-    groups="audio,games,log,lp,optical,power,scanner,storage,video,$wheel"
     if [ -z "$(cat $rootfsdir/etc/pacman.conf | grep -oP '^\[ericwoud\]')" ]; then
+      serv="[ericwoud]\nServer = $ALARMREPOURL\nServer = $BACKUPREPOURL\n"
       $sudo sed -i '/^\[core\].*/i'" ${serv}"'' $rootfsdir/etc/pacman.conf
     fi
     schroot pacman-key --init
@@ -316,6 +291,30 @@ function rootfs {
     schroot pacman-key --finger     $REPOKEY
     schroot pacman-key --lsign-key $REPOKEY
 #    schroot pacman-key --lsign-key 'Arch Linux ARM Build System <builder@archlinuxarm.org>'
+  fi
+  echo "${target}" | $sudo tee $rootfsdir/etc/hostname
+  if [[ -z $(grep "${target}" $rootfsdir/etc/hosts 2>/dev/null) ]]; then
+    echo -e "127.0.0.1\t${target}" | $sudo tee -a $rootfsdir/etc/hosts
+  fi
+  sync
+}
+
+function rootfs {
+  trap ctrl_c INT
+#  resolv
+  if [ ! -f "$rootfsdir/etc/arch-release" ]; then ### Ubuntu / Debian
+    sshd="ssh"
+    wheel="sudo"
+    groups="audio,games,lp,video,$wheel"
+    until schroot DEBIAN_FRONTEND=noninteractive apt-get update -q
+    do sleep 2; done
+    until schroot DEBIAN_FRONTEND=noninteractive apt-get install -q --yes \
+                          build-r64-arch-utils-git linux-${target}-git bpir-initrd
+    do sleep 2; done
+  else # ArchLinuxArm
+    sshd="sshd"
+    wheel="wheel"
+    groups="audio,games,log,lp,optical,power,scanner,storage,video,$wheel"
     until schroot pacman -Syyu --needed --noconfirm --overwrite \\* pacman-static \
                           build-r64-arch-utils-git linux-${target}-git bpir-initrd
     do sleep 2; done
