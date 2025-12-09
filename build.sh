@@ -273,6 +273,7 @@ function bootstrap {
     $sudo mv -vf $rootfsdir/etc/pacman.conf.pacnew         $rootfsdir/etc/pacman.conf
     $sudo mv -vf $rootfsdir/etc/pacman.d/mirrorlist.pacnew $rootfsdir/etc/pacman.d/mirrorlist
   fi
+  sync
 }
 
 function rootfs {
@@ -319,6 +320,7 @@ function rootfs {
                           build-r64-arch-utils-git linux-${target}-git bpir-initrd
     do sleep 2; done
   fi
+  sync
   schroot useradd --create-home --user-group \
                --groups ${groups} \
                -s /bin/bash $USERNAME
@@ -363,6 +365,7 @@ function rootfs {
     echo -n "${ddrsize}" | $sudo tee $rootfsdir/boot/bootcfg/ddrsize
   fi
   schroot bpir-toolbox --atf $bpir_write
+  sync
 }
 
 function uartbootbuild {
