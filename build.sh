@@ -29,22 +29,10 @@ ROOT_END_MB=100%               # Size of root partition
 IMAGE_SIZE_MB=7456             # Size of image
 IMAGE_FILE="./bpir.img"        # Name of image
 
-NEEDED_PACKAGES="hostapd wireless-regdb iproute2 nftables f2fs-tools dosfstools\
- btrfs-progs patch sudo evtest parted binutils cpio mtd-utils diffutils"
-NEEDED_PACKAGES_DEBIAN="openssh-server device-tree-compiler mmc-utils     u-boot-tools\
- libpam-systemd systemd-timesyncd systemd-resolved kmod zstd\
- iputils-ping iw file"
-NEEDED_PACKAGES_ALARM=" openssh        dtc                  mmc-utils-git uboot-tools\
- base dbus-broker-units"
 STRAP_PACKAGES_ALARM="pacman archlinuxarm-keyring inetutils"
 STRAP_PACKAGES_DEBIAN="apt-utils ca-certificates gnupg inetutils"
-EXTRA_PACKAGES="nano screen i2c-tools ethtool iperf3 curl wget debootstrap usbutils"
-PREBUILT_PACKAGES="bpir-atf-git bpir-uboot-git ssh-fix-reboot hostapd-launch bpir-initrd\
- linux-firmware-other linux-firmware-mediatek"
+
 SCRIPT_PACKAGES="curl ca-certificates parted gzip f2fs-tools btrfs-progs dosfstools debootstrap"
-#  udisks2 
-#SCRIPT_PACKAGES_ARCHLX="base-devel      uboot-tools  ncurses        openssl"
-#SCRIPT_PACKAGES_DEBIAN="build-essential u-boot-tools libncurses-dev libssl-dev flex bison"
 
 TIMEZONE="Europe/Paris"              # Timezone
 USERNAME="user"
@@ -69,7 +57,6 @@ function setupenv {
 #BACKUPFILE="/run/media/$USER/DATA/${target}-${atfdevice}-rootfs.tar"
 BACKUPFILE="./${target}-${atfdevice}-rootfs.tar"
 arch='aarch64'
-PREBUILT_PACKAGES+=" linux-${target}-git"
 case ${target} in
   bpir64)
     DDRSIZE=("default    1 GB")
@@ -311,7 +298,8 @@ function rootfs {
     until schroot DEBIAN_FRONTEND=noninteractive apt-get update -q
     do sleep 2; done
     until schroot DEBIAN_FRONTEND=noninteractive apt-get install -q --yes \
-                          $NEEDED_PACKAGES $NEEDED_PACKAGES_DEBIAN $EXTRA_PACKAGES $PREBUILT_PACKAGES
+                          build-r64-arch-utils-git linux-${target}-git bpir-initrd
+
     do sleep 2; done
   else # ArchLinuxArm
     sshd="sshd"
@@ -328,7 +316,7 @@ function rootfs {
     schroot pacman-key --lsign-key $REPOKEY
 #    schroot pacman-key --lsign-key 'Arch Linux ARM Build System <builder@archlinuxarm.org>'
     until schroot pacman -Syyu --needed --noconfirm --overwrite \\* pacman-static \
-                          $NEEDED_PACKAGES $NEEDED_PACKAGES_ALARM $EXTRA_PACKAGES $PREBUILT_PACKAGES
+                          build-r64-arch-utils-git linux-${target}-git bpir-initrd
     do sleep 2; done
   fi
   schroot useradd --create-home --user-group \
@@ -465,6 +453,7 @@ function schrootstrap() {
 
 function schroot() {
   if [[ -z "${*}" ]]; then
+#$sudo chroot $rootfsdir /bin/bash
     $sudo unshare --fork --kill-child --pid --uts --root=$rootfsdir su -c "hostname ${target};bash"
   else
     $sudo unshare --fork --kill-child --pid --uts --root=$rootfsdir su -c "hostname ${target};${*}"
