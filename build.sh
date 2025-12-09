@@ -291,6 +291,9 @@ function bootstrap {
     schroot pacman-key --finger     $REPOKEY
     schroot pacman-key --lsign-key $REPOKEY
 #    schroot pacman-key --lsign-key 'Arch Linux ARM Build System <builder@archlinuxarm.org>'
+  else
+    echo "Unknown distro!"
+    exit 1
   fi
   echo "${target}" | $sudo tee $rootfsdir/etc/hostname
   if [[ -z $(grep "${target}" $rootfsdir/etc/hosts 2>/dev/null) ]]; then
@@ -628,13 +631,15 @@ if [ "$r" = true ]; then
       ddrsize=${DDRSIZE[0]}
     fi
     ddrsize=${ddrsize%% *}
-    echo -e "\nCreate root filesystem\n"
-    PS3="Choose distro to create root for: "; COLUMNS=1
-    select distro in "${DISTROBPIR[@]}" "Quit" ; do
-      if (( REPLY > 0 && REPLY <= ${#DISTROBPIR[@]} )) ; then break; else exit; fi
-    done
-    distro=${distro%% *}
-    echo "Distro="${distro}
+    if [ "$F" = true ]; then
+      echo -e "\nCreate root filesystem\n"
+      PS3="Choose distro to create root for: "; COLUMNS=1
+      select distro in "${DISTROBPIR[@]}" "Quit" ; do
+        if (( REPLY > 0 && REPLY <= ${#DISTROBPIR[@]} )) ; then break; else exit; fi
+      done
+      distro=${distro%% *}
+      echo "Distro="${distro}
+    fi
     PS3="Choose setup to create root for: "; COLUMNS=1
     select setup in "${SETUPBPIR[@]}" "Quit" ; do
       if (( REPLY > 0 && REPLY <= ${#SETUPBPIR[@]} )) ; then break; else exit; fi
