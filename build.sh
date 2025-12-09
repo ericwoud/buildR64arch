@@ -30,7 +30,7 @@ IMAGE_SIZE_MB=7456             # Size of image
 IMAGE_FILE="./bpir.img"        # Name of image
 
 STRAP_PACKAGES_ALARM="pacman archlinuxarm-keyring inetutils"
-STRAP_PACKAGES_DEBIAN="apt-utils ca-certificates gnupg inetutils"
+STRAP_PACKAGES_DEBIAN="apt-utils ca-certificates gnupg hostname"
 
 SCRIPT_PACKAGES="curl ca-certificates parted gzip f2fs-tools btrfs-progs dosfstools debootstrap"
 
