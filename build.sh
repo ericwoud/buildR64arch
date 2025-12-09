@@ -309,11 +309,11 @@ function rootfs {
     sshd="ssh"
     wheel="sudo"
     groups="audio,games,lp,video,$wheel"
-    until schroot DEBIAN_FRONTEND=noninteractive apt-get update -q
-    do sleep 2; done
-    until schroot DEBIAN_FRONTEND=noninteractive apt-get install -q --yes \
-                          build-r64-arch-utils-git linux-${target}-git bpir-initrd
-    do sleep 2; done
+#    until schroot DEBIAN_FRONTEND=noninteractive apt-get update -q
+#    do sleep 2; done
+#    until schroot DEBIAN_FRONTEND=noninteractive apt-get install -q --yes \
+#                          build-r64-arch-utils-git linux-${target}-git bpir-initrd
+#    do sleep 2; done
   else # ArchLinuxArm
     sshd="sshd"
     wheel="wheel"
@@ -326,24 +326,22 @@ function rootfs {
   schroot useradd --create-home --user-group \
                --groups ${groups} \
                -s /bin/bash $USERNAME
-  echo "%${wheel} ALL=(ALL) ALL" | $sudo tee $rootfsdir/etc/sudoers.d/wheel
+  echo "%${wheel} ALL=(ALL) ALL" | schroot tee /etc/sudoers.d/wheel
   schroot ln -sf /usr/share/zoneinfo/${TIMEZONE} /etc/localtime
-  $sudo sed -i 's/.*PermitRootLogin.*/PermitRootLogin yes/' $rootfsdir/etc/ssh/sshd_config
-  $sudo sed -i 's/.*UsePAM.*/UsePAM no/' $rootfsdir/etc/ssh/sshd_config
-  $sudo sed -i 's/.*#IgnorePkg.*/IgnorePkg = bpir*-atf-git bpir*-uboot-git/' $rootfsdir/etc/pacman.conf
-  $sudo cp -rfvL "$rootfsdir/usr/share/buildR64arch/etc" $rootfsdir
-  wdir="$rootfsdir/etc/systemd/network"; $sudo rm -rf $wdir/*
-  $sudo cp -rfvL "$rootfsdir/usr/share/buildR64arch/network/${target^^}-${setup}/"* $wdir
-  wdir="$rootfsdir/etc/hostapd";         $sudo rm -rf $wdir/*
-  $sudo cp -rfvL "$rootfsdir/usr/share/buildR64arch/hostapd/${target^^}/"* $wdir
-  $sudo sed -i "s/\bdummy\b/PARTLABEL=${target}-${atfdevice}-root/g" $rootfsdir/etc/fstab
+  schroot "sed -i 's/.*PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config"
+  schroot "sed -i 's/.*UsePAM.*/UsePAM no/' /etc/ssh/sshd_config"
+  schroot cp -rfvL "/usr/share/buildR64arch/etc" /
+  wdir="/etc/systemd/network"; schroot rm -rf $wdir/*
+  schroot cp -rfvL "/usr/share/buildR64arch/network/${target^^}-${setup}/"* $wdir
+  wdir="/etc/hostapd";         schroot rm -rf $wdir/*
+  schroot cp -rfvL "/usr/share/buildR64arch/hostapd/${target^^}/"* $wdir
+  schroot "sed -i 's/\bdummy\b/PARTLABEL='${target}'-'${atfdevice}'-root/g' /etc/fstab"
   if [ ! -z "$brlanip" ]; then
-    $sudo sed -i 's/Address=.*/Address='$brlanip'\/24/' \
-                    $rootfsdir/etc/systemd/network/10-brlan.network
+    schroot "sed -i 's/Address=.*/Address='$brlanip'\/24/' /etc/systemd/network/10-brlan.network"
   fi
-  $sudo mkdir -p $rootfsdir/etc/modules-load.d
+  schroot mkdir -p /etc/modules-load.d
   echo -e "# Load ${WIFIMODULE}.ko at boot\n${WIFIMODULE}" | \
-           $sudo tee $rootfsdir/etc/modules-load.d/${WIFIMODULE}.conf
+           schroot tee /etc/modules-load.d/${WIFIMODULE}.conf
   echo $USERNAME:$USERPWD | schroot chpasswd
   echo      root:$ROOTPWD | schroot chpasswd
   schroot sudo systemctl --force --no-pager reenable ${sshd}.service
@@ -355,16 +353,16 @@ function rootfs {
     schroot sudo systemctl --force --no-pager disable nftables.service
   fi
   schroot sudo systemctl --force --no-pager reenable systemd-networkd.service
-  find -L "$rootfsdir/etc/hostapd" -name "*.conf"| while read conf ; do
+  schroot find -L "/etc/hostapd" -name "*.conf"| while read conf ; do
     conf=$(basename $conf); conf=${conf/".conf"/""}
     schroot sudo systemctl --force --no-pager reenable hostapd@${conf}.service \
                  2>&1 | grep -v "is added as a dependency to a non-existent unit"
   done
   setupMACconfig
   if [[ "${ddrsize}" == "default" ]]; then
-    $sudo rm -f $rootfsdir/boot/bootcfg/ddrsize 2>/dev/null
+    schroot rm -f /boot/bootcfg/ddrsize 2>/dev/null
   else
-    echo -n "${ddrsize}" | $sudo tee $rootfsdir/boot/bootcfg/ddrsize
+    echo -n "${ddrsize}" | schroot tee /boot/bootcfg/ddrsize
   fi
   schroot bpir-toolbox --atf $bpir_write
   sync
