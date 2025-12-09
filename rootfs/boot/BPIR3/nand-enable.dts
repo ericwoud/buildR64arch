@@ -41,6 +41,17 @@
 //      read-only;
       };
 
+      partition@100000 {
+        label = "reserved";
+        reg = <0x100000 0x280000>;
+      };
+
+      partition@380000 {
+        label = "fip";
+        reg = <0x380000 0x200000>;
+//      read-only;
+      };
+
       partition@580000 {
         label = "ubi";
         reg = <0x580000 0x7a80000>;
