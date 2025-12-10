@@ -33,6 +33,8 @@ STRAP_PACKAGES_ALARM="pacman archlinuxarm-keyring inetutils"
 STRAP_PACKAGES_DEBIAN="apt-utils ca-certificates gnupg hostname"
 
 SCRIPT_PACKAGES="curl ca-certificates parted gzip f2fs-tools btrfs-progs dosfstools debootstrap"
+SCRIPT_PACKAGES_ALARM="qemu-user-static qemu-user-static-binfmt"
+SCRIPT_PACKAGES_DEBIAN="qemu-user qemu-user-binfmt"
 
 TIMEZONE="Europe/Paris"              # Timezone
 USERNAME="user"
@@ -47,11 +49,6 @@ TARGETS=("bpir64 Bananapi-R64"
 DISTROBPIR=("alarm    ArchLinuxARM"
             "ubuntu   Ubuntu (experimental with bugs)")
 ##### !!!!! remove bugs
-
-QEMU="https://github.com/multiarch/qemu-user-static/releases/download/v7.2.0-1/qemu-aarch64-static.tar.gz"
-QEMUFILE="qemu-aarch64-static"
-S1=':qemu-aarch64:M::\x7fELF\x02\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\xb7'
-S2=':\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff:/run/buildarch/qemu-aarch64-static:CF'
 
 function setupenv {
 #BACKUPFILE="/run/media/$USER/DATA/${target}-${atfdevice}-rootfs.tar"
@@ -116,7 +113,6 @@ function finish {
   fi
   unset loopdev
   [ -v sudoPID ] && kill -TERM $sudoPID
-  disableqemu
 }
 
 function waitdev {
@@ -424,27 +420,6 @@ function restorerootfs {
   fi
 }
 
-function setupqemu {
-  if [ $hostarch == "x86_64" ]; then # Script running on x86_64 so use qemu
-    if [ ! -f "/run/buildarch/${QEMUFILE}" ]; then
-      $sudo mkdir -p "/run/buildarch"
-      until curl -L $QEMU | $sudo tar -xz  -C "/run/buildarch"
-      do sleep 2; done
-    fi
-    $sudo mkdir -p "/run/binfmt.d"
-    echo -n $S1$S2| $sudo tee /run/binfmt.d/05-buildarch-qemu-static.conf >/dev/null
-    echo
-    $sudo systemctl restart systemd-binfmt.service
-  fi
-}
-
-function disableqemu {
-  if [ -f "/run/binfmt.d/05-buildarch-qemu-static.conf" ]; then
-    $sudo rm -f "/run/binfmt.d/05-buildarch-qemu-static.conf" >/dev/null
-    $sudo systemctl restart systemd-binfmt.service
-  fi
-}
-
 function add_children() {
   [ -z "$1" ] && return || echo $1
   for ppp in $(pgrep -P $1 2>/dev/null) ; do add_children $ppp; done
@@ -528,12 +503,12 @@ echo "Host Arch:" $hostarch
 
 if [ "$initrd" != true ]; then
   if [ ! -f "/etc/arch-release" ]; then ### Ubuntu / Debian
-    for package in $SCRIPT_PACKAGES; do
+    for package in $SCRIPT_PACKAGES $SCRIPT_PACKAGES_DEBIAN; do
       if ! dpkg -l $package >/dev/null; then missing+=" $package"; fi
     done
     instcmd="sudo apt-get install $missing"
   else
-    for package in $SCRIPT_PACKAGES; do
+    for package in $SCRIPT_PACKAGES $SCRIPT_PACKAGES_ALARM; do
       if ! pacman -Qi $package >/dev/null; then missing+=" $package"; fi
     done
     instcmd="sudo pacman -Syu $missing"
@@ -721,8 +696,6 @@ if [ "$R" = true ] ; then
   (shopt -s dotglob; $sudo rm -rf $rootfsdir/*)
   exit
 fi
-
-setupqemu
 
 [ ! -d "$rootfsdir/dev" ] && $sudo mkdir $rootfsdir/dev
 $sudo mount --rbind --make-rslave /dev  $rootfsdir/dev # install gnupg needs it
