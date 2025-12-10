@@ -42,9 +42,14 @@ while [ "${1:-}" != '' ]; do
   *)
     cat <<-EOF
 	Usage: $(basename "$0") [OPTION]...
-	  -b --bpirwrite               arguments for calling bpir-toolbox
-	  -r --rootfs                  setup rootfs
-	  -m --menu                    menu
+	  -b --bpirwrite           arguments for calling bpir-toolbox
+	  -i --brlanip             ip for brlan
+	  -d --ddrsize             ddr size
+	  -s --setup               setup for network
+	  -t --target              target
+	  -a --atfdevice           device
+	  -m --menu                menu
+	  -c --config              setup the rootfs
 	EOF
     exit 1
     ;;

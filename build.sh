@@ -483,8 +483,7 @@ if [ "$r" = true ]; then
   elif [ "$P" = true ]; then bpirwrite="--boot2fip"
   fi
   [ "$I" == true ] && brlanip="default" || brlanip=""
-
-  if [ "$F" = true ]  ; then
+  if [ "$F" = true ]; then
     echo -e "\nCreate root filesystem\n"
     PS3="Choose distro to create root for: "; COLUMNS=1
     select distro in "${DISTROBPIR[@]}" "Quit" ; do
