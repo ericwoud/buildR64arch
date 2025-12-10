@@ -36,56 +36,14 @@ SCRIPT_PACKAGES="curl ca-certificates parted gzip f2fs-tools btrfs-progs dosfsto
 SCRIPT_PACKAGES_ALARM="qemu-user-static qemu-user-static-binfmt"
 SCRIPT_PACKAGES_DEBIAN="qemu-user qemu-user-binfmt"
 
-TIMEZONE="Europe/Paris"              # Timezone
-USERNAME="user"
-USERPWD="admin"
-ROOTPWD="admin"                      # Root password
-
 TARGETS=("bpir64 Bananapi-R64"
          "bpir3  Bananapi-R3"
          "bpir3m Bananapi-R3-Mini"
          "bpir4  Bananapi-R4")
 
-DISTROBPIR=("alarm    ArchLinuxARM"
-            "ubuntu   Ubuntu (experimental with bugs)")
-##### !!!!! remove bugs
-
 function setupenv {
 #BACKUPFILE="/run/media/$USER/DATA/${target}-${atfdevice}-rootfs.tar"
 BACKUPFILE="./${target}-${atfdevice}-rootfs.tar"
-arch='aarch64'
-case ${target} in
-  bpir64)
-    DDRSIZE=("default    1 GB")
-    SETUPBPIR=("RT       Router setup"
-               "AP       Access Point setup")
-    WIFIMODULE="mt7615e"
-    ;;
-  bpir3)
-    DDRSIZE=("default    2 GB")
-    SETUPBPIR=("RT       Router setup, SFP module eth1 as wan"
-               "RTnoSFP  Router setup, not using SFP module"
-               "AP       Access Point setup")
-    WIFIMODULE="mt7915e"
-    ;;
-  bpir3m)
-    DDRSIZE=("default    2 GB")
-    SETUPBPIR=("RT       Router setup"
-               "AP       Access Point setup")
-    WIFIMODULE="mt7915e"
-    ;;
-  bpir4)
-    DDRSIZE=("default    4 GB"
-             "8          8 GB")
-    SETUPBPIR=("RTnoSFP  Router setup, not using SFP module, wan=lan0"
-               "AP       Access Point setup")
-    WIFIMODULE="mt7915e"
-    ;;
-  *)
-    echo "Unknown target '${target}'"
-    exit
-    ;;
-esac
 }
 
 # End of default configuration values
@@ -301,66 +259,7 @@ function bootstrap {
 function rootfs {
   trap ctrl_c INT
 #  resolv
-  if [ ! -f "$rootfsdir/etc/arch-release" ]; then ### Ubuntu / Debian
-    sshd="ssh"
-    wheel="sudo"
-    groups="audio,games,lp,video,$wheel"
-#    until schroot DEBIAN_FRONTEND=noninteractive apt-get update -q
-#    do sleep 2; done
-#    until schroot DEBIAN_FRONTEND=noninteractive apt-get install -q --yes \
-#                          build-r64-arch-utils-git linux-${target}-git bpir-initrd
-#    do sleep 2; done
-  else # ArchLinuxArm
-    sshd="sshd"
-    wheel="wheel"
-    groups="audio,games,log,lp,optical,power,scanner,storage,video,$wheel"
-    until schroot pacman -Syyu --needed --noconfirm --overwrite \\* pacman-static \
-                          build-r64-arch-utils-git linux-${target}-git bpir-initrd
-    do sleep 2; done
-  fi
-  sync
-  schroot useradd --create-home --user-group \
-               --groups ${groups} \
-               -s /bin/bash $USERNAME
-  echo "%${wheel} ALL=(ALL) ALL" | schroot tee /etc/sudoers.d/wheel
-  schroot ln -sf /usr/share/zoneinfo/${TIMEZONE} /etc/localtime
-  schroot "sed -i 's/.*PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config"
-  schroot "sed -i 's/.*UsePAM.*/UsePAM no/' /etc/ssh/sshd_config"
-  schroot cp -rfvL "/usr/share/buildR64arch/etc" /
-  wdir="/etc/systemd/network"; schroot rm -rf $wdir/*
-  schroot cp -rfvL "/usr/share/buildR64arch/network/${target^^}-${setup}/"* $wdir
-  wdir="/etc/hostapd";         schroot rm -rf $wdir/*
-  schroot cp -rfvL "/usr/share/buildR64arch/hostapd/${target^^}/"* $wdir
-  schroot "sed -i 's/\bdummy\b/PARTLABEL='${target}'-'${atfdevice}'-root/g' /etc/fstab"
-  if [ ! -z "$brlanip" ]; then
-    schroot "sed -i 's/Address=.*/Address='$brlanip'\/24/' /etc/systemd/network/10-brlan.network"
-  fi
-  schroot mkdir -p /etc/modules-load.d
-  echo -e "# Load ${WIFIMODULE}.ko at boot\n${WIFIMODULE}" | \
-           schroot tee /etc/modules-load.d/${WIFIMODULE}.conf
-  echo $USERNAME:$USERPWD | schroot chpasswd
-  echo      root:$ROOTPWD | schroot chpasswd
-  schroot sudo systemctl --force --no-pager reenable ${sshd}.service
-  schroot sudo systemctl --force --no-pager reenable systemd-timesyncd.service
-  schroot sudo systemctl --force --no-pager reenable systemd-resolved.service
-  if [[ ${setup} == "RT"* ]]; then
-    schroot sudo systemctl --force --no-pager reenable nftables.service
-  else
-    schroot sudo systemctl --force --no-pager disable nftables.service
-  fi
-  schroot sudo systemctl --force --no-pager reenable systemd-networkd.service
-  schroot find -L "/etc/hostapd" -name "*.conf"| while read conf ; do
-    conf=$(basename $conf); conf=${conf/".conf"/""}
-    schroot sudo systemctl --force --no-pager reenable hostapd@${conf}.service \
-                 2>&1 | grep -v "is added as a dependency to a non-existent unit"
-  done
-  setupMACconfig
-  if [[ "${ddrsize}" == "default" ]]; then
-    schroot rm -f /boot/bootcfg/ddrsize 2>/dev/null
-  else
-    echo -n "${ddrsize}" | schroot tee /boot/bootcfg/ddrsize
-  fi
-  schroot bpir-toolbox --atf $bpir_write
+  schroot bpir-rootfs
   sync
 }
 
@@ -372,23 +271,6 @@ function uartbootbuild {
   schroot bpir-toolbox --nand-image
   mkdir -p ./nandimage
   cp -vf "$rootfsdir/tmp/nandimage/"*".bin" ./nandimage/
-}
-
-function setupMACconfig {
-  file="$rootfsdir/etc/systemd/network/mac.txt"
-  while [ ! -z "$(cat $file | grep 'aa:bb:cc:dd:ee:ff')" ]; do
-    mac_read="$(cat $file | grep -m1 'aa:bb:cc:dd:ee:ff' | cut -d ' ' -f1)"
-    mac=${mac_read::17}
-    nr=${mac_read:18}
-    [ -z "$nr" ] && nr=1
-    first="aa:bb:cc"
-    while [ ! -z "$(cat $file | grep $mac)" ]; do # make sure all macs are different
-      mac=$first:$(printf %02x $(($RANDOM%256))):$(printf %02x $(($RANDOM%256)))
-    done
-    mac=$mac:$(printf %02x $(($RANDOM%256)) )
-    mac=${mac::-2}$(printf %02x $(((16#${mac: -2}&-$nr)+0)))
-    $sudo sed -i '0,/aa:bb:cc:dd:ee:ff/{s/aa:bb:cc:dd:ee:ff/'$mac'/}' $file
-  done
 }
 
 function chrootfs {
@@ -594,45 +476,21 @@ echo -e "Device=${device}\nTarget=${target}\nATF-device="${atfdevice}
 setupenv # Now that target and atfdevice are known.
 
 if [ "$r" = true ]; then
-  if [ "$I" != true ]; then
-    if [ ${#DDRSIZE[@]} -gt 1 ]; then
-      PS3="Choose the size of ddr ram: "; COLUMNS=1
-      select ddrsize in "${DDRSIZE[@]}" "Quit" ; do
-        if (( REPLY > 0 && REPLY <= ${#DDRSIZE[@]} )) ; then break; else exit; fi
-      done
-    else
-      ddrsize=${DDRSIZE[0]}
-    fi
-    ddrsize=${ddrsize%% *}
-    if [ "$F" = true ]; then
-      echo -e "\nCreate root filesystem\n"
-      PS3="Choose distro to create root for: "; COLUMNS=1
-      select distro in "${DISTROBPIR[@]}" "Quit" ; do
-        if (( REPLY > 0 && REPLY <= ${#DISTROBPIR[@]} )) ; then break; else exit; fi
-      done
-      distro=${distro%% *}
-      echo "Distro="${distro}
-    fi
-    PS3="Choose setup to create root for: "; COLUMNS=1
-    select setup in "${SETUPBPIR[@]}" "Quit" ; do
-      if (( REPLY > 0 && REPLY <= ${#SETUPBPIR[@]} )) ; then break; else exit; fi
-    done
-    setup=${setup%% *}
-    echo "Setup="${setup}
-    read -p "Enter ip address for local network (emtpy for default): " brlanip
-    echo "IP="$brlanip
+  if [ "$p" = true ]  ; then bpirwrite="--fip2boot"
+  elif [ "$P" = true ]; then bpirwrite="--boot2fip"
   fi
-  if [ "$p" = true ]  ; then bpir_write="--fip2boot"
-  elif [ "$P" = true ]; then bpir_write="--boot2fip"
+  [ "$I" == true ] && brlanip="default" || brlanip=""
+  rm -f "/tmp/bpir-rootfs.txt"
+  if command -v bpir-rootfs >/dev/null 2>&1 ; then
+    bpir-rootfs              -m --target "${target}" --atfdevice ${atfdevice} --brlanip "${brlanip}" --bpirwrite "${bpirwrite}"
+  elif [ -f "./rootfs/bin/bpir-rootfs" ]; then
+    ./rootfs/bin/bpir-rootfs -m --target "${target}" --atfdevice ${atfdevice} --brlanip "${brlanip}" --bpirwrite "${bpirwrite}"
   else
-    case ${atfdevice} in
-      sdmmc|emmc) bpir_write="--fip2boot" ;;
-      nand)       bpir_write="--boot2fip" ;;
-      nvme)       bpir_write="--extlinux" ;;
-      sata)       bpir_write="--extlinux" ;;
-      *) echo "Unknown atfdevice '${atfdevice}'" ;;
-    esac
+    echo "bpir-rootfs no found!"
+    exit 1
   fi
+  rootfsargs=$(cat "/tmp/bpir-rootfs.txt")
+echo rootfsargs: $rootfsargs
 fi
 
 # Check if 'config.sh' exists.  If so, source that to override default values.
