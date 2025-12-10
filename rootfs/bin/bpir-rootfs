@@ -102,7 +102,6 @@ case ${target} in
     ;;
 esac
 
-
 if [ -z "$bpirwrite" ]; then
   case ${atfdevice} in
     sdmmc|emmc) bpirwrite="--fip2boot" ;;
@@ -152,17 +151,16 @@ fi
 
 [ -z "$config" ] && exit 0
 
-
 function rootfs {
   if [ ! -f "/etc/arch-release" ]; then ### Ubuntu / Debian
     sshd="ssh"
     wheel="sudo"
     groups="audio,games,lp,video,$wheel"
-#    until DEBIAN_FRONTEND=noninteractive apt-get update -q
-#    do sleep 2; done
-#    until DEBIAN_FRONTEND=noninteractive apt-get install -q --yes \
-#                          build-r64-arch-utils-git linux-${target}-git bpir-initrd
-#    do sleep 2; done
+    until DEBIAN_FRONTEND=noninteractive apt-get update -q
+    do sleep 2; done
+    until DEBIAN_FRONTEND=noninteractive apt-get install -q --yes \
+                          build-r64-arch-utils-git linux-${target}-git bpir-initrd
+    do sleep 2; done
   else # ArchLinuxArm
     sshd="sshd"
     wheel="wheel"
@@ -233,7 +231,6 @@ function setupMACconfig {
     sed -i '0,/aa:bb:cc:dd:ee:ff/{s/aa:bb:cc:dd:ee:ff/'$mac'/}' $file
   done
 }
-
 
 rootfs
 

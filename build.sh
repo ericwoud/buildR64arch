@@ -481,16 +481,18 @@ if [ "$r" = true ]; then
   fi
   [ "$I" == true ] && brlanip="default" || brlanip=""
   rm -f "/tmp/bpir-rootfs.txt"
+  rootfsargs="-m --target ${target} --atfdevice ${atfdevice} --brlanip ${brlanip} --bpirwrite ${bpirwrite}"
   if command -v bpir-rootfs >/dev/null 2>&1 ; then
-    bpir-rootfs              -m --target "${target}" --atfdevice ${atfdevice} --brlanip "${brlanip}" --bpirwrite "${bpirwrite}"
+    bpir-rootfs $rootfsargs
   elif [ -f "./rootfs/bin/bpir-rootfs" ]; then
-    ./rootfs/bin/bpir-rootfs -m --target "${target}" --atfdevice ${atfdevice} --brlanip "${brlanip}" --bpirwrite "${bpirwrite}"
+    ./rootfs/bin/bpir-rootfs $rootfsargs
   else
     echo "bpir-rootfs no found!"
     exit 1
   fi
-  rootfsargs=$(cat "/tmp/bpir-rootfs.txt")
-echo rootfsargs: $rootfsargs
+  rootfsargs=$(cat "/tmp/bpir-rootfs.txt" 2>/dev/null)
+  [ -z "$rootfsargs" ] && exit 1
+  echo "rootfsargs: $rootfsargs"
 fi
 
 # Check if 'config.sh' exists.  If so, source that to override default values.
