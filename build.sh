@@ -482,15 +482,19 @@ if [ "$r" = true ]; then
   if [ "$p" = true ]  ; then bpirwrite="--fip2boot"
   elif [ "$P" = true ]; then bpirwrite="--boot2fip"
   fi
-  [ "$I" == true ] && brlanip="default" || brlanip=""
-  if [ "$F" = true ]; then
-    echo -e "\nCreate root filesystem\n"
-    PS3="Choose distro to create root for: "; COLUMNS=1
-    select distro in "${DISTROBPIR[@]}" "Quit" ; do
-      if (( REPLY > 0 && REPLY <= ${#DISTROBPIR[@]} )) ; then break; else exit 1; fi
-    done
-    distro=${distro%% *}
-    echo "Distro="${distro}
+  if [ "$I" == true ]; then
+    brlanip="default"
+  else
+    brlanip=""
+    if [ "$F" = true ]; then
+      echo -e "\nCreate root filesystem\n"
+      PS3="Choose distro to create root for: "; COLUMNS=1
+      select distro in "${DISTROBPIR[@]}" "Quit" ; do
+        if (( REPLY > 0 && REPLY <= ${#DISTROBPIR[@]} )) ; then break; else exit 1; fi
+      done
+      distro=${distro%% *}
+      echo "Distro="${distro}
+    fi
   fi
   rm -f "/tmp/bpir-rootfs.txt"
   rootfsargs="-m --target ${target} --atfdevice ${atfdevice} --brlanip ${brlanip} --bpirwrite ${bpirwrite}"
