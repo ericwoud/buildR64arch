@@ -5,7 +5,7 @@ USERNAME="user"
 USERPWD="admin"
 ROOTPWD="admin"                      # Root password
 
-echo ERICCCCCCCCCCCCC
+echo $(basename "$0") "$@"
 
 while [ "${1:-}" != '' ]; do
   case "$1" in
@@ -57,7 +57,6 @@ while [ "${1:-}" != '' ]; do
 done
 
 if [ -z "${target}" ] || [ -z "${atfdevice}" ]; then
-echo ROOOOOOOOOOOOOOOT
   rootdev=$(lsblk -pilno name,type,mountpoint | grep -G 'part /$' | head -n1 | cut -d " " -f1)
   [ -z "$rootdev" ] && exit 1
   partlabelroot=$(blkid $rootdev -s PARTLABEL -o value)

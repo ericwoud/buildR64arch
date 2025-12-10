@@ -259,7 +259,7 @@ function bootstrap {
 function rootfs {
   trap ctrl_c INT
 #  resolv
-  schroot bpir-rootfs
+  schroot bpir-rootfs --config $rootfsargs
   sync
 }
 
