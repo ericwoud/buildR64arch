@@ -41,6 +41,9 @@ TARGETS=("bpir64 Bananapi-R64"
          "bpir3m Bananapi-R3-Mini"
          "bpir4  Bananapi-R4")
 
+DISTROBPIR=("alarm    ArchLinuxARM"
+            "ubuntu   Ubuntu (experimental with bugs)")
+
 function setupenv {
 #BACKUPFILE="/run/media/$USER/DATA/${target}-${atfdevice}-rootfs.tar"
 BACKUPFILE="./${target}-${atfdevice}-rootfs.tar"
@@ -480,6 +483,16 @@ if [ "$r" = true ]; then
   elif [ "$P" = true ]; then bpirwrite="--boot2fip"
   fi
   [ "$I" == true ] && brlanip="default" || brlanip=""
+
+  if [ "$F" = true ]  ; then
+    echo -e "\nCreate root filesystem\n"
+    PS3="Choose distro to create root for: "; COLUMNS=1
+    select distro in "${DISTROBPIR[@]}" "Quit" ; do
+      if (( REPLY > 0 && REPLY <= ${#DISTROBPIR[@]} )) ; then break; else exit 1; fi
+    done
+    distro=${distro%% *}
+    echo "Distro="${distro}
+  fi
   rm -f "/tmp/bpir-rootfs.txt"
   rootfsargs="-m --target ${target} --atfdevice ${atfdevice} --brlanip ${brlanip} --bpirwrite ${bpirwrite}"
   if command -v bpir-rootfs >/dev/null 2>&1 ; then

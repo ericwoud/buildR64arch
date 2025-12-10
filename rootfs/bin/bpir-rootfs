@@ -25,10 +25,6 @@ while [ "${1:-}" != '' ]; do
     shift
     setup="${1}"
     ;;
-  '-l' | '--distro')
-    shift
-    distro="${1}"
-    ;;
   '-t' | '--target')
     shift
     target="${1}"
@@ -64,9 +60,6 @@ if [ -z "${target}" ] || [ -z "${atfdevice}" ]; then
   target=$(echo $partlabelroot    | cut -d'-' -f1)
   atfdevice=$(echo $partlabelroot | cut -d'-' -f2)
 fi
-
-DISTROBPIR=("alarm    ArchLinuxARM"
-            "ubuntu   Ubuntu (experimental with bugs)")
 
 arch='aarch64'
 case ${target} in
@@ -124,15 +117,6 @@ if [ -n "$menu" ]; then
       fi
       ddrsize=${ddrsize%% *}
     fi
-    if [ -z "$distro" ]; then
-      echo -e "\nCreate root filesystem\n"
-      PS3="Choose distro to create root for: "; COLUMNS=1
-      select distro in "${DISTROBPIR[@]}" "Quit" ; do
-        if (( REPLY > 0 && REPLY <= ${#DISTROBPIR[@]} )) ; then break; else exit 1; fi
-      done
-      distro=${distro%% *}
-      echo "Distro="${distro}
-    fi
     if [ -z "$setup" ]; then
       PS3="Choose setup to create root for: "; COLUMNS=1
       select setup in "${SETUPBPIR[@]}" "Quit" ; do
@@ -146,7 +130,7 @@ if [ -n "$menu" ]; then
       [ -z "$brlanip" ] && brlanip="default"
       echo "IP="$brlanip
     fi
-    echo -n "--setup $setup --distro $distro --ddrsize $ddrsize --brlanip $brlanip" --bpirwrite $bpirwrite >/tmp/bpir-rootfs.txt
+    echo -n "--setup $setup --ddrsize $ddrsize --brlanip $brlanip" --bpirwrite $bpirwrite >/tmp/bpir-rootfs.txt
 fi
 
 [ -z "$config" ] && exit 0
