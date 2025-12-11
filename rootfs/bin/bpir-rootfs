@@ -135,7 +135,7 @@ if [ -z "$configonly" ]; then
       [ -z "$brlanip" ] && brlanip="default"
       echo "IP="$brlanip
     fi
-    [ -n "$menuonly" ] && echo -n "--setup $setup --ddrsize $ddrsize --brlanip $brlanip" --bpirwrite $bpirwrite >/tmp/bpir-rootfs.txt
+    [ -n "$menuonly" ] && echo -n "--setup ${setup} --ddrsize ${ddrsize} --brlanip ${brlanip} --bpirwrite '${bpirwrite}'" >/tmp/bpir-rootfs.txt
 fi
 
 [ -n "$menuonly" ] && exit 0
