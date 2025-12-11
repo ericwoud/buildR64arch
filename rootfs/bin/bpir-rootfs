@@ -137,6 +137,9 @@ if [ -z "$configonly" ]; then
     fi
     if [ -n "$menuonly" ]; then
       echo -n "--setup '${setup}' --ddrsize '${ddrsize}' --brlanip '${brlanip}' --bpirwrite '${bpirwrite}'" >/tmp/bpir-rootfs.txt
+    else
+      read -p "Type <yes> to alter your rootfs!" prompt
+      [[ $prompt != "yes" ]] && exit 1
     fi
 fi
 
