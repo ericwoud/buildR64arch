@@ -33,11 +33,11 @@ while [ "${1:-}" != '' ]; do
     shift
     atfdevice="${1}"
     ;;
-  '-m' | '--menu')
-    menu=1
+  '-m' | '--menuonly')
+    menuonly=1
     ;;
-  '-c' | '--config')
-    config=1
+  '-c' | '--configonly')
+    configonly=1
     ;;
   *)
     cat <<-EOF
@@ -48,8 +48,8 @@ while [ "${1:-}" != '' ]; do
 	  -s --setup               setup for network
 	  -t --target              target
 	  -a --atfdevice           device
-	  -m --menu                menu
-	  -c --config              setup the rootfs
+	  -m --menuonly            menu only
+	  -c --configonly          setup the rootfs only
 	EOF
     exit 1
     ;;
@@ -110,7 +110,7 @@ if [ -z "$bpirwrite" ]; then
   esac
 fi
 
-if [ -n "$menu" ]; then
+if [ -z "$configonly" ]; then
     if [ -z "$ddrsize" ]; then
       if [ ${#DDRSIZE[@]} -gt 1 ]; then
         PS3="Choose the size of ddr ram: "; COLUMNS=1
@@ -135,10 +135,10 @@ if [ -n "$menu" ]; then
       [ -z "$brlanip" ] && brlanip="default"
       echo "IP="$brlanip
     fi
-    echo -n "--setup $setup --ddrsize $ddrsize --brlanip $brlanip" --bpirwrite $bpirwrite >/tmp/bpir-rootfs.txt
+    [ -n "$menuonly" ] && echo -n "--setup $setup --ddrsize $ddrsize --brlanip $brlanip" --bpirwrite $bpirwrite >/tmp/bpir-rootfs.txt
 fi
 
-[ -z "$config" ] && exit 0
+[ -n "$menuonly" ] && exit 0
 
 function rootfs {
   if [ ! -f "/etc/arch-release" ]; then ### Ubuntu / Debian
