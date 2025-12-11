@@ -497,7 +497,7 @@ if [ "$r" = true ]; then
     fi
   fi
   rm -f "/tmp/bpir-rootfs.txt"
-  rootfsargs="-m --target ${target} --atfdevice ${atfdevice} --brlanip ${brlanip} --bpirwrite '${bpirwrite}'"
+  rootfsargs="-m --target '${target}' --atfdevice '${atfdevice}' --brlanip '${brlanip}' --bpirwrite '${bpirwrite}'"
   if command -v bpir-rootfs >/dev/null 2>&1 ; then
     bpir-rootfs $rootfsargs
   elif [ -f "./rootfs/bin/bpir-rootfs" ]; then
