@@ -5,7 +5,7 @@ USERNAME="user"
 USERPWD="admin"
 ROOTPWD="admin"                      # Root password
 
-echo $(basename "$0") "$@"
+#echo $(basename "$0") "$@"
 
 while [ "${1:-}" != '' ]; do
   case "$1" in
@@ -66,7 +66,6 @@ if [ -z "${target}" ] || [ -z "${atfdevice}" ]; then
   atfdevice=$(echo $partlabelroot | cut -d'-' -f2)
 fi
 
-arch='aarch64'
 case ${target} in
   bpir64)
     DDRSIZE=("default    1 GB")
@@ -159,7 +158,7 @@ function rootfs {
     sshd="sshd"
     wheel="wheel"
     groups="audio,games,log,lp,optical,power,scanner,storage,video,$wheel"
-    until pacman -Syyu --needed --noconfirm --overwrite \\* pacman-static \
+    until pacman -Syyu --needed --noconfirm \
                           build-r64-arch-utils-git linux-${target}-git bpir-initrd
     do sleep 2; done
   fi

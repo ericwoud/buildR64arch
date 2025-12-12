@@ -16,7 +16,8 @@ while [ "${1:-}" != '' ]; do
   '--uboot-install')                 uboot_install=1    ;;
   '--uboot-remove')                  uboot_remove=1     ;;
   '--uartboot')                      uartboot=1         ;;
-  *) cat <<-EOF
+  *) [ -n "$1" ] && echo "Unknown option: $1"
+     cat <<-EOF
 	Usage: $(basename "$0") [OPTION]...
 	 (-w --withstring          This is with string)
 	  --fip2boot               Convert fip partition to boot partition bootchain (sd/emmc)

@@ -52,6 +52,7 @@ DISTROBPIR=("alarm    ArchLinuxARM"
             "ubuntu   Ubuntu (experimental with bugs)")
 
 function setupenv {
+arch='aarch64'
 #BACKUPFILE="/run/media/$USER/DATA/${target}-${atfdevice}-rootfs.tar"
 BACKUPFILE="./${target}-${atfdevice}-rootfs.tar"
 }
@@ -201,6 +202,13 @@ function resolv {
   fi
 }
 
+function addmyrepo {
+  if [ -z "$(cat $rootfsdir/etc/pacman.conf | grep -oP '^\[ericwoud\]')" ]; then
+    local serv="[ericwoud]\nServer = $ALARMREPOURL\nServer = $BACKUPREPOURL\n"
+    sed -i '/^\[core\].*/i'" ${serv}"'' $rootfsdir/etc/pacman.conf
+  fi
+}
+
 function bootstrap {
   trap ctrl_c INT
   [ -d "$rootfsdir/etc" ] && return
@@ -231,6 +239,7 @@ function bootstrap {
       tee $rootfsdir/etc/pacman.d/mirrorlist
     cat <<-EOF | tee $rootfsdir/etc/pacman.conf
 	[options]
+	Architecture = ${arch}
 	SigLevel = Never
 	[core]
 	Include = /etc/pacman.d/mirrorlist
@@ -239,14 +248,12 @@ function bootstrap {
 	[community]
 	Include = /etc/pacman.d/mirrorlist
 	EOF
-    until schrootstrap pacman-static -Syu --noconfirm --needed --overwrite \* $STRAP_PACKAGES_ALARM
+    addmyrepo
+    until schrootstrap pacman-static -Syu --noconfirm --needed --overwrite \* $STRAP_PACKAGES_ALARM pacman-static
     do sleep 2; done
     mv -vf $rootfsdir/etc/pacman.conf.pacnew         $rootfsdir/etc/pacman.conf
     mv -vf $rootfsdir/etc/pacman.d/mirrorlist.pacnew $rootfsdir/etc/pacman.d/mirrorlist
-    if [ -z "$(cat $rootfsdir/etc/pacman.conf | grep -oP '^\[ericwoud\]')" ]; then
-      serv="[ericwoud]\nServer = $ALARMREPOURL\nServer = $BACKUPREPOURL\n"
-      sed -i '/^\[core\].*/i'" ${serv}"'' $rootfsdir/etc/pacman.conf
-    fi
+    addmyrepo
     schroot pacman-key --init
     schroot pacman-key --populate archlinuxarm
     until schroot pacman-key --recv-keys $REPOKEY
@@ -267,8 +274,12 @@ function bootstrap {
 
 function rootfs {
   trap ctrl_c INT
-#  resolv
-  schroot bpir-rootfs -c $rootfsargs
+  if ! schroot command -v bpir-rootfs >/dev/null 2>&1; then
+    mkdir -p "$rootfsdir/usr/local/sbin"
+    cp -vf ./rootfs/bin/bpir-rootfs $rootfsdir/usr/local/sbin
+  fi
+  schroot xargs -a <(echo -n "--configonly ${rootfsargs}") bpir-rootfs
+  rm -vf $rootfsdir/usr/local/sbin/bpir-rootfs 2>/dev/null
   sync
 }
 
@@ -500,7 +511,7 @@ if [ "$r" = true ]; then
     fi
   fi
   rm -f "/tmp/bpir-rootfs.txt"
-  rootfsargs="-m --target '${target}' --atfdevice '${atfdevice}' --brlanip '${brlanip}' --bpirwrite '${bpirwrite}'"
+  rootfsargs="--menuonly --target '${target}' --atfdevice '${atfdevice}' --brlanip '${brlanip}' --bpirwrite '${bpirwrite}'"
   if command -v bpir-rootfs >/dev/null 2>&1 ; then
     xargs -a <(echo -n "${rootfsargs}") bpir-rootfs
   elif [ -f "./rootfs/bin/bpir-rootfs" ]; then
