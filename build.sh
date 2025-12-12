@@ -403,6 +403,7 @@ echo "Host Arch:" $hostarch
 if [ "$initrd" != true ]; then
   if [ ! -f "/etc/arch-release" ]; then ### Ubuntu / Debian
     for package in $SCRIPT_PACKAGES $SCRIPT_PACKAGES_DEBIAN; do
+      [[ $hostarch == "aarch64" ]] && [[ $package =~ "qemu-user" ]] && continue
       if ! dpkg -l $package >/dev/null; then missing+=" $package"; fi
     done
     instcmd="sudo apt-get install $missing"
