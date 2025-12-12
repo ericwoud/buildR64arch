@@ -502,9 +502,9 @@ if [ "$r" = true ]; then
   rm -f "/tmp/bpir-rootfs.txt"
   rootfsargs="-m --target '${target}' --atfdevice '${atfdevice}' --brlanip '${brlanip}' --bpirwrite '${bpirwrite}'"
   if command -v bpir-rootfs >/dev/null 2>&1 ; then
-    bpir-rootfs $rootfsargs
+    xargs -a <(echo -n "${rootfsargs}") bpir-rootfs
   elif [ -f "./rootfs/bin/bpir-rootfs" ]; then
-    ./rootfs/bin/bpir-rootfs $rootfsargs
+    xargs -a <(echo -n "${rootfsargs}") ./rootfs/bin/bpir-rootfs
   else
     echo "bpir-rootfs no found!"
     exit 1
