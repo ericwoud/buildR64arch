@@ -430,6 +430,7 @@ else
  pkroot="undefined"
 fi
 
+ddrsize="default"
 [ "$I" = true ] && source config.sh
 
 if [ "$F" = true ]; then
@@ -499,7 +500,6 @@ if [ "$r" = true ]; then
   [ "$P" = true ] && bpirwrite="--boot2fip"
   if [ "$I" == true ]; then
     brlanip="default" # Don't ask, don't change
-    ddrsize="default"
   else
     brlanip="" # Ask
     ddrsize=""
