@@ -493,13 +493,12 @@ echo -e "Device=${device}\nTarget=${target}\nATF-device="${atfdevice}
 setupenv # Now that target and atfdevice are known.
 
 if [ "$r" = true ]; then
-  if [ "$p" = true ]  ; then bpirwrite="--fip2boot"
-  elif [ "$P" = true ]; then bpirwrite="--boot2fip"
-  fi
+  [ "$p" = true ] && bpirwrite="--fip2boot"
+  [ "$P" = true ] && bpirwrite="--boot2fip"
   if [ "$I" == true ]; then
-    brlanip="default"
+    brlanip="default" # Don't ask, don't change
   else
-    brlanip=""
+    brlanip="" # Ask
     if [ "$F" = true ]; then
       echo -e "\nCreate root filesystem\n"
       PS3="Choose distro to create root for: "; COLUMNS=1
@@ -558,8 +557,6 @@ if [ "$rootdev" == "$(realpath $mountdev)" ]; then
   echo "Target device == Root device, exiting!"
   exit
 fi
-
-echo "DDR-size="$ddrsize
 
 rootfsdir="/tmp/bpirootfs.$$"
 echo "Rootfsdir="$rootfsdir

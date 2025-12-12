@@ -23,17 +23,17 @@ while [ "${1:-}" != '' ]; do
 	  --fip2boot               Convert fip partition to boot partition bootchain (sd/emmc)
 	  --boot2fip               Convert boot partition to fip partition bootchain (sd/emmc)
 	  --download2root          Download files needed for nand-image (when started from initrd)
-          --nand-force-erase       Force erase nand, including bad blocks and wear history
-          --nand-format            Format the nand, also runs update
-          --nand-image             Create nand image, also runs update
-          --nand-update            Updates all files on nand, only writes when needed
-          --write2atf              Write arm-trusted-firmware
-          --write2fip              Create all files needed for fip and write it
-          --write2extlinux         Create a new /boot/extlinux/extlinux.conf
-          --uboot-install          Copies U-Boot to /boot/u-boot.bin (needs boot partition),
-                                     also creates /boot/extlinux/extlinux.conf if not present
-          --uboot-remove           Removes /boot/u-boot.bin
-          --uartboot               Create a uartboot image
+	  --nand-force-erase       Force erase nand, including bad blocks and wear history
+	  --nand-format            Format the nand, also runs update
+	  --nand-image             Create nand image, also runs update
+	  --nand-update            Updates all files on nand, only writes when needed
+	  --write2atf              Write arm-trusted-firmware
+	  --write2fip              Create all files needed for fip and write it
+	  --write2extlinux         Create a new /boot/extlinux/extlinux.conf
+	  --uboot-install          Copies U-Boot to /boot/u-boot.bin (needs boot partition),
+	                             also creates /boot/extlinux/extlinux.conf if not present
+	  --uboot-remove           Removes /boot/u-boot.bin
+	  --uartboot               Create a uartboot image
 	EOF
     exit 1
     ;;
