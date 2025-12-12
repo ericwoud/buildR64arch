@@ -15,7 +15,7 @@ DEBIANKEYSERVER="hkps://keyserver.ubuntu.com:443"
 
 WOUDSTRA='ftp.woudstra.mywire.org'
 REPOKEY="DD73724DCA27796790D33E98798137154FE1474C"
-ALARMREPOURL='ftp://'"${WOUDSTRA}"'/repo/$arch'
+ALARMREPOURL='ftp://'${WOUDSTRA}'/repo/$arch'
 DEBIANREPOURL="http://${WOUDSTRA}/apt-repo"
 BACKUPREPOURL='https://github.com/ericwoud/buildRKarch/releases/download/repo-$arch'
 
@@ -212,7 +212,7 @@ function bootstrap {
     do sleep 2; done
     echo -e 'APT::Install-Suggests "0";'"\n"'APT::Install-Recommends "0";' | \
         tee $rootfsdir/etc/apt/apt.conf.d/99onlyneeded
-    echo "deb [arch=arm64] http://ftp.woudstra.mywire.org/apt-repo stable main" | \
+    echo "deb [arch=arm64] http://${WOUDSTRA}/apt-repo stable main" | \
         tee $rootfsdir/etc/apt/sources.list.d/ericwoud.list
     mkdir -p $rootfsdir/usr/share/keyrings/
     until schroot gpg --batch --yes --keyserver "${DEBIANKEYSERVER}" --recv-keys $REPOKEY
