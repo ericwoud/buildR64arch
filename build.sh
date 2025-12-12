@@ -305,6 +305,7 @@ function compressimage {
   rm -f $IMAGE_FILE".xz" $IMAGE_FILE".gz"
   rm -vrf $rootfsdir/tmp/*
   rm -vrf $rootfsdir/var/cache/pacman/pkg/*
+  rm -vrf $rootfsdir/var/cache/apt/archives/*.deb
   finish
   if [ "$x" = true ]; then
     xz   --keep --force --verbose $IMAGE_FILE
