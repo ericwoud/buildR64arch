@@ -365,7 +365,6 @@ export LC_ALL=C
 export LANG=C
 export LANGUAGE=C
 
-ddrsize="default"
 [ -f "config.sh" ] && source config.sh
 
 cd "$(dirname -- "$(realpath -- "${BASH_SOURCE[0]}")")"
@@ -403,12 +402,13 @@ echo "Host Arch:" $hostarch
 if [ "$initrd" != true ]; then
   if [ ! -f "/etc/arch-release" ]; then ### Ubuntu / Debian
     for package in $SCRIPT_PACKAGES $SCRIPT_PACKAGES_DEBIAN; do
-      [[ $hostarch == "aarch64" ]] && [[ $package =~ "qemu-user" ]] && continue
+      [[ "$hostarch" == "aarch64" ]] && [[ "$package" =~ "qemu-user" ]] && continue
       if ! dpkg -l $package >/dev/null; then missing+=" $package"; fi
     done
     instcmd="sudo apt-get install $missing"
   else
     for package in $SCRIPT_PACKAGES $SCRIPT_PACKAGES_ALARM; do
+      [[ "$hostarch" == "aarch64" ]] && [[ "$package" =~ "qemu-user" ]] && continue
       if ! pacman -Qi $package >/dev/null; then missing+=" $package"; fi
     done
     instcmd="sudo pacman -Syu $missing"
@@ -498,8 +498,10 @@ if [ "$r" = true ]; then
   [ "$P" = true ] && bpirwrite="--boot2fip"
   if [ "$I" == true ]; then
     brlanip="default" # Don't ask, don't change
+    ddrsize="default"
   else
     brlanip="" # Ask
+    ddrsize=""
     if [ "$F" = true ]; then
       echo -e "\nCreate root filesystem\n"
       PS3="Choose distro to create root for: "; COLUMNS=1
@@ -511,7 +513,7 @@ if [ "$r" = true ]; then
     fi
   fi
   rm -f "/tmp/bpir-rootfs.txt"
-  rootfsargs="--menuonly --target '${target}' --atfdevice '${atfdevice}' --brlanip '${brlanip}' --bpirwrite '${bpirwrite}'"
+  rootfsargs="--menuonly --target '${target}' --atfdevice '${atfdevice}' --ddrsize '${ddrsize}' --setup '${setup}' --brlanip '${brlanip}' --bpirwrite '${bpirwrite}'"
   if command -v bpir-rootfs >/dev/null 2>&1 ; then
     xargs -a <(echo -n "${rootfsargs}") bpir-rootfs
   elif [ -f "./rootfs/bin/bpir-rootfs" ]; then
