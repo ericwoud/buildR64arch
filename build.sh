@@ -1,5 +1,12 @@
 #!/bin/bash
 
+[ -f "/etc/bpir-is-initrd" ] && initrd=true
+if [ $USER != "root" ] && [ "$initrd" != true ]; then
+  sudo $0 ${@:1}
+  exit
+fi
+[ -z "$SUDO_USER" ] && SUDO_USER="$USER"
+
 # Set default configuration values
 # These can be overridden by entering them into config.sh
 
@@ -54,26 +61,25 @@ BACKUPFILE="./${target}-${atfdevice}-rootfs.tar"
 function finish {
   trap 'echo got SIGINT' INT
   trap 'echo got SIGEXIT' EXIT
-  [ -v noautomountrule ] && $sudo rm -vf $noautomountrule
+  [ -v noautomountrule ] && rm -vf $noautomountrule
   if [ -v rootfsdir ] && [ ! -z "$rootfsdir" ]; then
-    $sudo sync
+    sync
     echo Running exit function to clean up...
     while mountpoint -q $rootfsdir; do
       echo "Unmounting...DO NOT REMOVE!"
-      $sudo sync
-      $sudo umount -R $rootfsdir
+      sync
+      umount -R $rootfsdir
       sleep 0.1
     done
-    $sudo rm -rf $rootfsdir
-    $sudo sync
+    rm -rf $rootfsdir
+    sync
     echo -e "Done. You can remove the card now.\n"
   fi
   unset rootfsdir
   if [ -v loopdev ] && [ ! -z "$loopdev" ]; then
-    $sudo losetup -d $loopdev
+    losetup -d $loopdev
   fi
   unset loopdev
-  [ -v sudoPID ] && kill -TERM $sudoPID
 }
 
 function waitdev {
@@ -84,60 +90,60 @@ function waitdev {
 }
 
 function parts {
-  $sudo lsblk $1 -lnpo name
+  lsblk $1 -lnpo name
 }
 
 function formatimage_nvme {
   echo TODO
-  for part in $(parts "${device}"); do $sudo umount "${part}" 2>/dev/null; done
+  for part in $(parts "${device}"); do umount "${part}" 2>/dev/null; done
   if [ "$l" != true ]; then
-    $sudo parted -s "${device}" unit MiB print
+    parted -s "${device}" unit MiB print
     echo -e "\nDo you want to wipe all partitions from "$device"???"
     read -p "Type <wipeall> to wipe all: " prompt
   else
     prompt="wipeall"
   fi
   if [[ $prompt == "wipeall" ]]; then
-    $sudo wipefs --all --force "${device}"
-    $sudo sync
-    $sudo partprobe "${device}"; $sudo udevadm settle 2>/dev/null
-    $sudo parted -s -- "${device}" mklabel gpt
+    wipefs --all --force "${device}"
+    sync
+    partprobe "${device}"; udevadm settle 2>/dev/null
+    parted -s -- "${device}" mklabel gpt
     [[ $? != 0 ]] && exit
-    $sudo partprobe "${device}"; $sudo udevadm settle 2>/dev/null
+    partprobe "${device}"; udevadm settle 2>/dev/null
   fi
-  mountdev=$($sudo blkid $(parts ${device}) -t PARTLABEL=${target}-${atfdevice}-root -o device)
+  mountdev=$(blkid $(parts ${device}) -t PARTLABEL=${target}-${atfdevice}-root -o device)
   if [ -z "$mountdev" ]; then
-    $sudo parted -s -- "${device}" unit GiB print
+    parted -s -- "${device}" unit GiB print
     echo "To enter percentage: append the number with a '%' without space (e.g. 100%)."
     read -p "Enter GiB or percentage of start of root partition: " rootstart_gb
     read -p "Enter GiB or percentage of end of root partition: " rootend_gb
-    $sudo parted -s -- "${device}" unit GiB \
+    parted -s -- "${device}" unit GiB \
       mkpart ${target}-${atfdevice}-root btrfs $rootstart_gb $rootend_gb
     [[ $? != 0 ]] && exit 1
-    $sudo partprobe "${device}"; $sudo udevadm settle 2>/dev/null
+    partprobe "${device}"; udevadm settle 2>/dev/null
     while
-      mountdev=$($sudo blkid $(parts ${device}) -t PARTLABEL=${target}-${atfdevice}-root -o device)
+      mountdev=$(blkid $(parts ${device}) -t PARTLABEL=${target}-${atfdevice}-root -o device)
       [ -z "$mountdev" ]
     do sleep 0.1; done
     waitdev "${mountdev}"
     partnum=$(cat /sys/class/block/$(basename ${mountdev})/partition)
     [ -z "$partnum" ] && exit 1
-    $sudo parted -s -- "${device}" set "$partnum" boot on
-    $sudo partprobe "${device}"; $sudo udevadm settle 2>/dev/null
+    parted -s -- "${device}" set "$partnum" boot on
+    partprobe "${device}"; udevadm settle 2>/dev/null
     while
-      [ -z "$($sudo blkid $(parts ${device}) -t PARTLABEL=${target}-${atfdevice}-root -o device)" ]
+      [ -z "$(blkid $(parts ${device}) -t PARTLABEL=${target}-${atfdevice}-root -o device)" ]
     do sleep 0.1; done
   elif [ "$l" != true ]; then
-    $sudo parted -s "${device}" unit MiB print
+    parted -s "${device}" unit MiB print
     echo -e "\nAre you sure you want to format "${mountdev}"???"
     read -p "Type <format> to format: " prompt
     [[ $prompt != "format" ]] && exit
   fi
   waitdev "${mountdev}"
-  $sudo blkdiscard -fv "${mountdev}"
+  blkdiscard -fv "${mountdev}"
   waitdev "${mountdev}"
-  $sudo mkfs.btrfs -f -L "${target^^}-ROOT" ${mountdev}
-  $sudo sync
+  mkfs.btrfs -f -L "${target^^}-ROOT" ${mountdev}
+  sync
 }
 
 function formatimage_mmc {
@@ -154,19 +160,19 @@ function formatimage_mmc {
   else
     root_end_kb=$(( ($ROOT_END_MB/$esize_mb*$esize_mb)*1024 ))
   fi
-  for part in $(parts "${device}"); do $sudo umount "${part}" 2>/dev/null; done
+  for part in $(parts "${device}"); do umount "${part}" 2>/dev/null; done
   if [ "$l" != true ]; then
-    $sudo parted -s "${device}" unit MiB print
+    parted -s "${device}" unit MiB print
     echo -e "\nAre you sure you want to format "$device"???"
     read -p "Type <format> to format: " prompt
     [[ $prompt != "format" ]] && exit
   fi
-  $sudo wipefs --all --force "${device}"
-  $sudo sync
-  $sudo partprobe "${device}"; $sudo udevadm settle 2>/dev/null
-  $sudo parted -s -- "${device}" mklabel gpt
+  wipefs --all --force "${device}"
+  sync
+  partprobe "${device}"; udevadm settle 2>/dev/null
+  parted -s -- "${device}" mklabel gpt
   [[ $? != 0 ]] && exit
-  $sudo parted -s -- "${device}" unit kiB \
+  parted -s -- "${device}" unit kiB \
     mkpart primary 34s $ATF_END_KB \
     mkpart primary $ATF_END_KB $rootstart_kb \
     mkpart primary $rootstart_kb $root_end_kb \
@@ -175,23 +181,23 @@ function formatimage_mmc {
     name 2 fip \
     name 3 ${target}-${atfdevice}-root \
     print
-  $sudo partprobe "${device}"; $sudo udevadm settle 2>/dev/null
+  partprobe "${device}"; udevadm settle 2>/dev/null
   while
-    mountdev=$($sudo blkid $(parts ${device}) -t PARTLABEL=${target}-${atfdevice}-root -o device)
+    mountdev=$(blkid $(parts ${device}) -t PARTLABEL=${target}-${atfdevice}-root -o device)
     [ -z "$mountdev" ]
   do sleep 0.1; done
   waitdev "${mountdev}"
-  $sudo blkdiscard -fv "${mountdev}"
+  blkdiscard -fv "${mountdev}"
   waitdev "${mountdev}"
   nrseg=$(( $esize_mb / 2 )); [[ $nrseg -lt 1 ]] && nrseg=1
-  $sudo mkfs.f2fs -s $nrseg -t 0 -f -l "${target^^}-ROOT" ${mountdev}
-  $sudo sync
+  mkfs.f2fs -s $nrseg -t 0 -f -l "${target^^}-ROOT" ${mountdev}
+  sync
 }
 
 function resolv {
-  $sudo cp /etc/resolv.conf $rootfsdir/etc/
+  cp /etc/resolv.conf $rootfsdir/etc/
   if [ -z "$(cat $rootfsdir/etc/resolv.conf | grep -oP '^nameserver')" ]; then
-    echo "nameserver 8.8.8.8" | $sudo tee -a $rootfsdir/etc/resolv.conf
+    echo "nameserver 8.8.8.8" | tee -a $rootfsdir/etc/resolv.conf
   fi
 }
 
@@ -200,15 +206,15 @@ function bootstrap {
   [ -d "$rootfsdir/etc" ] && return
   eval repo=${BACKUPREPOURL}
   if [ "$distro" == "ubuntu" ]; then
-    until $sudo debootstrap --arch=arm64 --no-check-gpg --components=$DEBOOTSTR_COMPNS \
+    until debootstrap --arch=arm64 --no-check-gpg --components=$DEBOOTSTR_COMPNS \
                      --variant=minbase --include="${STRAP_PACKAGES_DEBIAN// /,}" \
                      $DEBOOTSTR_RELEASE $rootfsdir $DEBOOTSTR_SOURCE
     do sleep 2; done
     echo -e 'APT::Install-Suggests "0";'"\n"'APT::Install-Recommends "0";' | \
-        $sudo tee $rootfsdir/etc/apt/apt.conf.d/99onlyneeded
+        tee $rootfsdir/etc/apt/apt.conf.d/99onlyneeded
     echo "deb [arch=arm64] http://ftp.woudstra.mywire.org/apt-repo stable main" | \
-        $sudo tee $rootfsdir/etc/apt/sources.list.d/ericwoud.list
-    $sudo mkdir -p $rootfsdir/usr/share/keyrings/
+        tee $rootfsdir/etc/apt/sources.list.d/ericwoud.list
+    mkdir -p $rootfsdir/usr/share/keyrings/
     until schroot gpg --batch --yes --keyserver "${DEBIANKEYSERVER}" --recv-keys $REPOKEY
     do sleep 2; done
     schroot gpg --batch --yes --output /etc/apt/trusted.gpg.d/ericwoud.gpg --export $REPOKEY
@@ -216,14 +222,14 @@ function bootstrap {
     until pacmanpkg=$(curl -L $repo'/ericwoud.db' | tar -xzO --wildcards "pacman-static*/desc" \
           | grep "%FILENAME%" -A1 | tail -n 1)
     do sleep 2; done
-    until curl -L $repo'/'$pacmanpkg | xz -dc - | $sudo tar x -C $rootfsdir
+    until curl -L $repo'/'$pacmanpkg | xz -dc - | tar x -C $rootfsdir
     do sleep 2; done
     [ ! -d "$rootfsdir/usr" ] && return
-    $sudo mkdir -p $rootfsdir/{etc/pacman.d,var/lib/pacman}
+    mkdir -p $rootfsdir/{etc/pacman.d,var/lib/pacman}
     resolv
     echo 'Server = '"$ALARM_MIRROR/$arch"'/$repo' | \
-      $sudo tee $rootfsdir/etc/pacman.d/mirrorlist
-    cat <<-EOF | $sudo tee $rootfsdir/etc/pacman.conf
+      tee $rootfsdir/etc/pacman.d/mirrorlist
+    cat <<-EOF | tee $rootfsdir/etc/pacman.conf
 	[options]
 	SigLevel = Never
 	[core]
@@ -235,11 +241,11 @@ function bootstrap {
 	EOF
     until schrootstrap pacman-static -Syu --noconfirm --needed --overwrite \* $STRAP_PACKAGES_ALARM
     do sleep 2; done
-    $sudo mv -vf $rootfsdir/etc/pacman.conf.pacnew         $rootfsdir/etc/pacman.conf
-    $sudo mv -vf $rootfsdir/etc/pacman.d/mirrorlist.pacnew $rootfsdir/etc/pacman.d/mirrorlist
+    mv -vf $rootfsdir/etc/pacman.conf.pacnew         $rootfsdir/etc/pacman.conf
+    mv -vf $rootfsdir/etc/pacman.d/mirrorlist.pacnew $rootfsdir/etc/pacman.d/mirrorlist
     if [ -z "$(cat $rootfsdir/etc/pacman.conf | grep -oP '^\[ericwoud\]')" ]; then
       serv="[ericwoud]\nServer = $ALARMREPOURL\nServer = $BACKUPREPOURL\n"
-      $sudo sed -i '/^\[core\].*/i'" ${serv}"'' $rootfsdir/etc/pacman.conf
+      sed -i '/^\[core\].*/i'" ${serv}"'' $rootfsdir/etc/pacman.conf
     fi
     schroot pacman-key --init
     schroot pacman-key --populate archlinuxarm
@@ -252,9 +258,9 @@ function bootstrap {
     echo "Unknown distro!"
     exit 1
   fi
-  echo "${target}" | $sudo tee $rootfsdir/etc/hostname
+  echo "${target}" | tee $rootfsdir/etc/hostname
   if [[ -z $(grep "${target}" $rootfsdir/etc/hosts 2>/dev/null) ]]; then
-    echo -e "127.0.0.1\t${target}" | $sudo tee -a $rootfsdir/etc/hosts
+    echo -e "127.0.0.1\t${target}" | tee -a $rootfsdir/etc/hosts
   fi
   sync
 }
@@ -271,9 +277,11 @@ function uartbootbuild {
   schroot bpir-toolbox --uartboot
   mkdir -p ./uartboot
   cp -vf "$rootfsdir/tmp/uartboot/"*".bin"  ./uartboot/
+  chown -R $SUDO_USER:nobody                ./uartboot/
   schroot bpir-toolbox --nand-image
   mkdir -p ./nandimage
   cp -vf "$rootfsdir/tmp/nandimage/"*".bin" ./nandimage/
+  chown -R $SUDO_USER:nobody                ./nandimage/
 }
 
 function chrootfs {
@@ -284,21 +292,28 @@ function chrootfs {
 
 function compressimage {
   rm -f $IMAGE_FILE".xz" $IMAGE_FILE".gz"
-  $sudo rm -vrf $rootfsdir/tmp/*
-  $sudo rm -vrf $rootfsdir/var/cache/pacman/pkg/*
+  rm -vrf $rootfsdir/tmp/*
+  rm -vrf $rootfsdir/var/cache/pacman/pkg/*
   finish
-  [ "$x" = true ] && xz   --keep --force --verbose $IMAGE_FILE
-  [ "$z" = true ] && dd if=$IMAGE_FILE status=progress | gzip >$IMAGE_FILE".gz"
+  if [ "$x" = true ]; then
+    xz   --keep --force --verbose $IMAGE_FILE
+    chown $SUDO_USER:nobody "${IMAGE_FILE}.xz"
+  fi
+  if [ "$z" = true ]; then
+    dd if=$IMAGE_FILE status=progress | gzip >$IMAGE_FILE".gz"
+    chown $SUDO_USER:nobody "${IMAGE_FILE}.gz"
+  fi
 }
 
 function backuprootfs {
-  $sudo tar -vcf "${BACKUPFILE}" -C $rootfsdir .
+  tar -vcf "${BACKUPFILE}" -C $rootfsdir .
+  chown $SUDO_USER:nobody "${BACKUPFILE}"
 }
 
 function restorerootfs {
   if [ -z "$(ls $rootfsdir)" ] || [ "$(ls $rootfsdir)" = "boot" ]; then
-    $sudo tar -vxf "${BACKUPFILE}" -C $rootfsdir
-    echo "Run ./build.sh and execute 'pacman -Sy bpir-atf-git' to write the" \
+    tar -vxf "${BACKUPFILE}" -C $rootfsdir
+    echo "Run ./build.sh and execute 'bpir-toolbox --write2atf' to write the" \
          "new atf-boot! Then type 'exit'."
   else
     echo "Root partition not empty!"
@@ -311,15 +326,15 @@ function add_children() {
 }
 
 function schrootstrap() {
-    $sudo unshare --fork --kill-child --pid --uts --root=$rootfsdir "${@}"
+    unshare --fork --kill-child --pid --uts --root=$rootfsdir "${@}"
 }
 
 function schroot() {
   if [[ -z "${*}" ]]; then
-#$sudo chroot $rootfsdir /bin/bash
-    $sudo unshare --fork --kill-child --pid --uts --root=$rootfsdir su -c "hostname ${target};bash"
+#chroot $rootfsdir /bin/bash
+    unshare --fork --kill-child --pid --uts --root=$rootfsdir su -c "hostname ${target};bash"
   else
-    $sudo unshare --fork --kill-child --pid --uts --root=$rootfsdir su -c "hostname ${target};${*}"
+    unshare --fork --kill-child --pid --uts --root=$rootfsdir su -c "hostname ${target};${*}"
   fi
 }
 
@@ -327,7 +342,7 @@ function ctrl_c() {
   echo "** Trapped CTRL-C, PID=$mainPID **"
   if [ ! -z "$mainPID" ]; then
     for pp in $(add_children $mainPID | sort -nr); do
-      $sudo kill -s SIGKILL $pp &>/dev/null
+      kill -s SIGKILL $pp &>/dev/null
     done
   fi
   trap - EXIT
@@ -342,14 +357,8 @@ export LANGUAGE=C
 ddrsize="default"
 [ -f "config.sh" ] && source config.sh
 
-[ -f "/etc/bpir-is-initrd" ] && initrd=true
-
 cd "$(dirname -- "$(realpath -- "${BASH_SOURCE[0]}")")"
-if [ "$USER" = "root" ] || [ "$initrd" = true ]; then
-  sudo=""
-else
-  sudo="sudo"
-fi
+
 while getopts ":rlcbxzpuRFBIP" opt $args; do
   if [[ "${opt}" == "?" ]]; then echo "Unknown option -$OPTARG"; exit; fi
   declare "${opt}=true"
@@ -371,12 +380,6 @@ fi
 trap finish EXIT
 trap ctrl_c INT
 shopt -s extglob
-
-if [ -n "$sudo" ]; then
-  sudo -v
-  ( while true; do sudo -v; sleep 40; done ) &
-  sudoPID=$!
-fi
 
 echo "Current dir:" $(realpath .)
 
@@ -436,7 +439,7 @@ if [ "$F" = true ]; then
   fi
   if [ "$l" = true ]; then
     [ ! -f $IMAGE_FILE ] && touch $IMAGE_FILE
-    loopdev=$($sudo losetup --show --find $IMAGE_FILE 2>/dev/null)
+    loopdev=$(losetup --show --find $IMAGE_FILE 2>/dev/null)
     echo "Loop device = $loopdev"
     device=$loopdev
   else
@@ -450,12 +453,12 @@ if [ "$F" = true ]; then
   fi
 else
   if [ "$l" = true ]; then
-    loopdev=$($sudo losetup --show --find $IMAGE_FILE)
+    loopdev=$(losetup --show --find $IMAGE_FILE)
     echo "Loop device = $loopdev"
-    $sudo partprobe $loopdev; udevadm settle
+    partprobe $loopdev; udevadm settle
     device=$loopdev
   else
-    readarray -t options < <($sudo blkid -s PARTLABEL | \
+    readarray -t options < <(blkid -s PARTLABEL | \
         grep -E 'PARTLABEL="bpir' | grep -E -- '-root"' | grep -v ${pkroot} | grep -v 'boot0$\|boot1$\|boot2$')
     if [ ${#options[@]} -gt 1 ]; then
       PS3="Choose device to work on: "; COLUMNS=1
@@ -465,9 +468,9 @@ else
     else
       choice=${options[0]}
     fi
-    device=$($sudo lsblk -npo pkname $(echo $choice | cut -d' ' -f1 | tr -d :))
+    device=$(lsblk -npo pkname $(echo $choice | cut -d' ' -f1 | tr -d :))
   fi
-  pr=$($sudo blkid -s PARTLABEL $(parts ${device})| grep -E 'PARTLABEL="bpir' | grep -E -- '-root"' | cut -d'"' -f2)
+  pr=$(blkid -s PARTLABEL $(parts ${device})| grep -E 'PARTLABEL="bpir' | grep -E -- '-root"' | cut -d'"' -f2)
   target=$(echo $pr | cut -d'-' -f1)
   atfdevice=$(echo $pr | cut -d'-' -f2)
 fi
@@ -517,13 +520,13 @@ fi
 if [ "$l" = true ] && [ $(stat --printf="%s" $IMAGE_FILE) -eq 0 ]; then
   echo -e "\nCreating image file..."
   dd if=/dev/zero of=$IMAGE_FILE bs=1M count=$IMAGE_SIZE_MB status=progress conv=notrunc,fsync
-  $sudo losetup --set-capacity $device
+  losetup --set-capacity $device
 fi
 
 if [ "$initrd" != true ]; then
-  $sudo mkdir -p "/run/udev/rules.d"
+  mkdir -p "/run/udev/rules.d"
   noautomountrule="/run/udev/rules.d/10-no-automount-bpir.rules"
-  echo 'KERNELS=="'${device/"/dev/"/""}'", ENV{UDISKS_IGNORE}="1"' | $sudo tee $noautomountrule
+  echo 'KERNELS=="'${device/"/dev/"/""}'", ENV{UDISKS_IGNORE}="1"' | tee $noautomountrule
 fi
 
 if [ "$F" = true ]; then
@@ -534,8 +537,8 @@ if [ "$F" = true ]; then
   fi
 fi
 
-mountdev=$($sudo blkid -s PARTLABEL $(parts ${device}) | grep -E 'PARTLABEL="bpir' | grep -E -- '-root"' | cut -d' ' -f1 | tr -d :)
-bootdev=$( $sudo blkid -s PARTLABEL $(parts ${device}) | grep -E 'PARTLABEL="'     | grep -E -- 'boot"'  | cut -d' ' -f1 | tr -d :)
+mountdev=$(blkid -s PARTLABEL $(parts ${device}) | grep -E 'PARTLABEL="bpir' | grep -E -- '-root"' | cut -d' ' -f1 | tr -d :)
+bootdev=$( blkid -s PARTLABEL $(parts ${device}) | grep -E 'PARTLABEL="'     | grep -E -- 'boot"'  | cut -d' ' -f1 | tr -d :)
 echo "Mountdev = $mountdev"
 echo "Bootdev  = $bootdev"
 [ -z "$mountdev" ] && exit
@@ -550,16 +553,16 @@ echo "DDR-size="$ddrsize
 rootfsdir="/tmp/bpirootfs.$$"
 echo "Rootfsdir="$rootfsdir
 
-$sudo umount $mountdev
-$sudo mkdir -p $rootfsdir
+umount $mountdev
+mkdir -p $rootfsdir
 [ "$b" = true ] && ro=",ro" || ro=""
-$sudo mount --source $mountdev --target $rootfsdir \
+mount --source $mountdev --target $rootfsdir \
             -o exec,dev,noatime,nodiratime$ro
 [[ $? != 0 ]] && exit
 if [ ! -z "$bootdev" ]; then
-  $sudo umount $bootdev
-  $sudo mkdir -p $rootfsdir/boot
-  $sudo mount -t vfat "$bootdev" $rootfsdir/boot
+  umount $bootdev
+  mkdir -p $rootfsdir/boot
+  mount -t vfat "$bootdev" $rootfsdir/boot
   [[ $? != 0 ]] && exit
 fi
 
@@ -569,24 +572,24 @@ if [ "$B" = true ] ; then restorerootfs; exit; fi
 if [ "$R" = true ] ; then
   read -p "Type <remove> to delete everything from the card: " prompt
   [[ $prompt != "remove" ]] && exit
-  (shopt -s dotglob; $sudo rm -rf $rootfsdir/*)
+  (shopt -s dotglob; rm -rf $rootfsdir/*)
   exit
 fi
 
-[ ! -d "$rootfsdir/dev" ] && $sudo mkdir $rootfsdir/dev
-$sudo mount --rbind --make-rslave /dev  $rootfsdir/dev # install gnupg needs it
+[ ! -d "$rootfsdir/dev" ] && mkdir $rootfsdir/dev
+mount --rbind --make-rslave /dev  $rootfsdir/dev # install gnupg needs it
 [[ $? != 0 ]] && exit
-[ ! -d "$rootfsdir/dev/pts" ] && $sudo mkdir $rootfsdir/dev/pts
-$sudo mount --rbind --make-rslave /dev/pts  $rootfsdir/dev/pts
+[ ! -d "$rootfsdir/dev/pts" ] && mkdir $rootfsdir/dev/pts
+mount --rbind --make-rslave /dev/pts  $rootfsdir/dev/pts
 [[ $? != 0 ]] && exit
 if [ "$r" = true ]; then bootstrap &
   mainPID=$! ; wait $mainPID ; unset mainPID
 fi
-$sudo mount -t proc               /proc $rootfsdir/proc
+mount -t proc               /proc $rootfsdir/proc
 [[ $? != 0 ]] && exit
-$sudo mount --rbind --make-rslave /sys  $rootfsdir/sys
+mount --rbind --make-rslave /sys  $rootfsdir/sys
 [[ $? != 0 ]] && exit
-$sudo mount --rbind --make-rslave /run  $rootfsdir/run
+mount --rbind --make-rslave /run  $rootfsdir/run
 [[ $? != 0 ]] && exit
 if [ "$r" = true ]; then rootfs &
   mainPID=$! ; wait $mainPID ; unset mainPID
