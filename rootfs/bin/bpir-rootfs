@@ -15,6 +15,7 @@ while [ "${1:-}" != '' ]; do
   '-a' | '--atfdevice') shift; atfdevice="${1}" ;;
   '-m' | '--menuonly')         menuonly=1       ;;
   '-c' | '--configonly')       configonly=1     ;;
+  '-d' | '--cachedir')         cachedir=1      ;;
   *) cat <<-EOF
 	Usage: $(basename "$0") [OPTION]...
 	  -b --bpirwrite           arguments for calling bpir-toolbox
@@ -124,16 +125,18 @@ function rootfs {
     sshd="ssh"
     wheel="sudo"
     groups="audio,games,lp,video,$wheel"
-    until DEBIAN_FRONTEND=noninteractive apt-get update -q
+    [ -n "$cachedir" ] && cdir="-o Dir::Cache::Archives=/cachedir" || cdir=""
+    until DEBIAN_FRONTEND=noninteractive apt-get update -q ${cdir}
     do sleep 2; done
-    until DEBIAN_FRONTEND=noninteractive apt-get install -q --yes \
+    until DEBIAN_FRONTEND=noninteractive apt-get install -q ${cdir} --yes \
                           build-r64-arch-utils-git linux-${target}-git bpir-initrd
     do sleep 2; done
   else # ArchLinuxArm
     sshd="sshd"
     wheel="wheel"
     groups="audio,games,log,lp,optical,power,scanner,storage,video,$wheel"
-    until pacman -Syyu --needed --noconfirm \
+    [ -n "$cachedir" ] && cdir="--cachedir=/cachedir" || cdir=""
+    until pacman -Syyu --needed --noconfirm "${cdir}"\
                           build-r64-arch-utils-git linux-${target}-git bpir-initrd
     do sleep 2; done
   fi

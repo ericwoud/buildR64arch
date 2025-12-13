@@ -66,11 +66,14 @@ function finish {
   if [ -v rootfsdir ] && [ ! -z "$rootfsdir" ]; then
     sync
     echo Running exit function to clean up...
+    while mountpoint -q $rootfsdir/cachedir; do
+      echo "Unmounting...DO NOT REMOVE!"
+      sync; umount -R $rootfsdir/cachedir; sleep 0.1
+    done
+    rm -rf $rootfsdir/cachedir
     while mountpoint -q $rootfsdir; do
       echo "Unmounting...DO NOT REMOVE!"
-      sync
-      umount -R $rootfsdir
-      sleep 0.1
+      sync; umount -R $rootfsdir; sleep 0.1
     done
     rm -rf $rootfsdir
     sync
@@ -214,7 +217,8 @@ function bootstrap {
   [ -d "$rootfsdir/etc" ] && return
   eval repo=${BACKUPREPOURL}
   if [ "$distro" == "ubuntu" ]; then
-    until debootstrap --arch=arm64 --no-check-gpg --components=$DEBOOTSTR_COMPNS \
+    [ "$d" = true ] && cdir="--cache-dir=$(realpath ./cachedir)" || cdir=""
+    until debootstrap "${cdir}" --arch=arm64 --no-check-gpg --components=$DEBOOTSTR_COMPNS \
                      --variant=minbase --include="${STRAP_PACKAGES_DEBIAN// /,}" \
                      $DEBOOTSTR_RELEASE $rootfsdir $DEBOOTSTR_SOURCE
     do sleep 2; done
@@ -249,7 +253,8 @@ function bootstrap {
 	Include = /etc/pacman.d/mirrorlist
 	EOF
     addmyrepo
-    until schrootstrap pacman-static -Syu --noconfirm --needed --overwrite \* $STRAP_PACKAGES_ALARM pacman-static
+    [ "$d" = true ] && cdir="--cachedir=/cachedir" || cdir=""
+    until schrootstrap pacman-static -Syu "${cdir}" --noconfirm --needed --overwrite \* $STRAP_PACKAGES_ALARM pacman-static
     do sleep 2; done
     mv -vf $rootfsdir/etc/pacman.conf.pacnew         $rootfsdir/etc/pacman.conf
     mv -vf $rootfsdir/etc/pacman.d/mirrorlist.pacnew $rootfsdir/etc/pacman.d/mirrorlist
@@ -278,7 +283,8 @@ function rootfs {
     mkdir -p "$rootfsdir/usr/local/sbin"
     cp -vf ./rootfs/bin/bpir-rootfs $rootfsdir/usr/local/sbin
   fi
-  schroot xargs -a <(echo -n "--configonly ${rootfsargs}") bpir-rootfs
+  [ "$d" = true ] && cdir="--cachedir" || cdir=""
+  schroot xargs -a <(echo -n "--configonly ${cdir} ${rootfsargs}") bpir-rootfs
   rm -vf $rootfsdir/usr/local/sbin/bpir-rootfs 2>/dev/null
   sync
 }
@@ -370,7 +376,7 @@ export LANGUAGE=C
 
 cd "$(dirname -- "$(realpath -- "${BASH_SOURCE[0]}")")"
 
-while getopts ":rlcbxzpuRFBIP" opt $args; do
+while getopts ":rlcbxzpudRFBIP" opt $args; do
   if [[ "${opt}" == "?" ]]; then echo "Unknown option -$OPTARG"; exit; fi
   declare "${opt}=true"
   ((argcnt++))
@@ -381,7 +387,7 @@ if [ "$l" = true ]; then
     echo "Loopdev not supported in initrd!"
     exit 1
   fi
-  if [ $argcnt -eq 1 ]; then
+  if [ $argcnt -eq 1 ] || ([ "$d" = true ] && [ $argcnt -eq 2 ]); then
     c=true
   else
     [ ! -f $IMAGE_FILE ] && F=true
@@ -594,6 +600,11 @@ mount --rbind --make-rslave /dev  $rootfsdir/dev # install gnupg needs it
 [ ! -d "$rootfsdir/dev/pts" ] && mkdir $rootfsdir/dev/pts
 mount --rbind --make-rslave /dev/pts  $rootfsdir/dev/pts
 [[ $? != 0 ]] && exit
+if [ "$d" = true ]; then
+  mkdir -p ./cachedir $rootfsdir/cachedir
+  mount --rbind --make-rslave ./cachedir  $rootfsdir/cachedir
+  [[ $? != 0 ]] && exit
+fi
 if [ "$r" = true ]; then bootstrap &
   mainPID=$! ; wait $mainPID ; unset mainPID
 fi
