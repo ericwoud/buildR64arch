@@ -217,7 +217,7 @@ function bootstrap {
   [ -d "$rootfsdir/etc" ] && return
   eval repo=${BACKUPREPOURL}
   if [ "$distro" == "ubuntu" ]; then
-    [ "$d" = true ] && cdir="--cache-dir=$(realpath ./cachedir)" || cdir=""
+    [ "$d" = true ] && cdir="--cache-dir=$(realpath ./cachedir)" || cdir="--no-check-gpg"
     until debootstrap "${cdir}" --arch=arm64 --no-check-gpg --components=$DEBOOTSTR_COMPNS \
                      --variant=minbase --include="${STRAP_PACKAGES_DEBIAN// /,}" \
                      $DEBOOTSTR_RELEASE $rootfsdir $DEBOOTSTR_SOURCE
