@@ -376,11 +376,26 @@ export LANGUAGE=C
 
 cd "$(dirname -- "$(realpath -- "${BASH_SOURCE[0]}")")"
 
-while getopts ":rlcbxzpudRFBIP" opt $args; do
-  if [[ "${opt}" == "?" ]]; then echo "Unknown option -$OPTARG"; exit; fi
-  declare "${opt}=true"
+while getopts ":rlcbxzpudRFBIP-:" opt $args; do
+  if [[ "${opt}" == "?" ]]; then
+    echo "Unknown option -$OPTARG"
+    exit
+  elif [[ "${opt}" == "-" ]]; then
+    case "$OPTARG" in
+      chroot) opt=c ;;
+      loopdev) opt=l ;;
+      imagefile) IMAGE_FILE="${!OPTIND}"; ((OPTIND++));;
+      imagefile=*) IMAGE_FILE=${OPTARG#*=};;
+      *)
+        echo "Unknown option --$OPTARG"
+        exit
+        ;;
+    esac
+  fi
+  [[ "${opt}" != "-" ]] && declare "${opt}=true"
   ((argcnt++))
 done
+
 [ -z "$argcnt" ] && c=true
 if [ "$l" = true ]; then
   if [ "$initrd" = true ]; then
@@ -394,6 +409,7 @@ if [ "$l" = true ]; then
   fi
 fi
 [ "$F" = true ] && r=true
+
 trap finish EXIT
 trap ctrl_c INT
 shopt -s extglob
