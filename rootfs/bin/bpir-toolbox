@@ -19,7 +19,6 @@ while [ "${1:-}" != '' ]; do
   *) [ -n "$1" ] && echo "Unknown option: $1"
      cat <<-EOF
 	Usage: $(basename "$0") [OPTION]...
-	 (-w --withstring          This is with string)
 	  --fip2boot               Convert fip partition to boot partition bootchain (sd/emmc)
 	  --boot2fip               Convert boot partition to fip partition bootchain (sd/emmc)
 	  --download2root          Download files needed for nand-image (when started from initrd)

@@ -368,6 +368,29 @@ function ctrl_c() {
   exit 1
 }
 
+function usage {
+ cat <<-EOF
+	Usage: $(basename "$0") [OPTION]...
+	  -F --format              format sd/emmc or image-file
+	  -l --loopdev             use image-file instead of sd-card
+	  -r --rootfs              setup rootfs on image
+	  -c --chroot              enter chroot on image
+	  -b --backup              backup rootfs
+	  -B --restore             restore rootfs
+	  -x --createxz            create bpir.img.xz
+	  -z --creategz            create bpir.img.gz
+	  -p --boot2fip            setup fip-partition bootchain (sd/emmc)
+	  -P --fip2boot            setup boot-partition (fat32) bootchain (sd/emmc)
+	  -p --creategz            create bpir.img.gz
+	  -u --uartboot            create uartboot image
+	  -d --cachedir            store packages in cachedir
+	  -R --clearrootfs         empty rootfs
+	  --imagefile [FILENAME]   specify image file name
+	  --imagesize [FILESIZE]   specify image file size
+	EOF
+    exit 1
+}
+
 export LC_ALL=C
 export LANG=C
 export LANGUAGE=C
@@ -379,16 +402,27 @@ cd "$(dirname -- "$(realpath -- "${BASH_SOURCE[0]}")")"
 while getopts ":rlcbxzpudRFBIP-:" opt $args; do
   if [[ "${opt}" == "?" ]]; then
     echo "Unknown option -$OPTARG"
-    exit
+    usage
   elif [[ "${opt}" == "-" ]]; then
     case "$OPTARG" in
       chroot) opt=c ;;
       loopdev) opt=l ;;
+      rootfs) opt=r ;;
+      backup) opt=b ;;
+      restore) opt=B ;;
+      createxz) opt=x ;;
+      creategz) opt=z ;;
+      uartboot) opt=u ;;
+      cachedir) opt=d ;;
+      clearrootfs) opt=R ;;
+      format) opt=F ;;
       imagefile) IMAGE_FILE="${!OPTIND}"; ((OPTIND++));;
       imagefile=*) IMAGE_FILE=${OPTARG#*=};;
+      imagesize) IMAGE_SIZE="${!OPTIND}"; ((OPTIND++));;
+      imagesize=*) IMAGE_SIZE=${OPTARG#*=};;
       *)
         echo "Unknown option --$OPTARG"
-        exit
+        usage
         ;;
     esac
   fi
@@ -396,17 +430,15 @@ while getopts ":rlcbxzpudRFBIP-:" opt $args; do
   ((argcnt++))
 done
 
-[ -z "$argcnt" ] && c=true
+[ "$l" = true ] && ((argcnt--))
+[ "$d" = true ] && ((argcnt--))
+[ $argcnt -eq 0 ] && c=true
 if [ "$l" = true ]; then
   if [ "$initrd" = true ]; then
     echo "Loopdev not supported in initrd!"
     exit 1
   fi
-  if [ $argcnt -eq 1 ] || ([ "$d" = true ] && [ $argcnt -eq 2 ]); then
-    c=true
-  else
-    [ ! -f $IMAGE_FILE ] && F=true
-  fi
+  [ $argcnt -eq 0 ] && [ ! -f $IMAGE_FILE ] && F=true
 fi
 [ "$F" = true ] && r=true
 

@@ -7,15 +7,21 @@ ROOTPWD="admin"
 
 while [ "${1:-}" != '' ]; do
   case "$1" in
-  '-b' | '--bpirwrite') shift; bpirwrite="${1}" ;;
-  '-i' | '--brlanip')   shift; brlanip="${1}"   ;;
-  '-d' | '--ddrsize')   shift; ddrsize="${1}"   ;;
-  '-s' | '--setup')     shift; setup="${1}"     ;;
-  '-t' | '--target')    shift; target="${1}"    ;;
-  '-a' | '--atfdevice') shift; atfdevice="${1}" ;;
-  '-m' | '--menuonly')         menuonly=1       ;;
-  '-c' | '--configonly')       configonly=1     ;;
-  '-d' | '--cachedir')         cachedir=1      ;;
+  '-b' | '--bpirwrite') shift; bpirwrite="${1}"   ;;
+         '--bpirwrite'=*)      bpirwrite="${1#*=}";;
+  '-i' | '--brlanip')   shift; brlanip="${1}"     ;;
+         '--brlanip'=*)        brlanip="${1#*=}"  ;;
+  '-d' | '--ddrsize')   shift; ddrsize="${1}"     ;;
+         '--ddrsize'=*)        ddrsize="${1#*=}"  ;;
+  '-s' | '--setup')     shift; setup="${1}"       ;;
+         '--setup'=*)          setup="${1#*=}"    ;;
+  '-t' | '--target')    shift; target="${1}"      ;;
+         '--target'=*)         target="${1#*=}"   ;;
+  '-a' | '--atfdevice') shift; atfdevice="${1}"   ;;
+         '--atfdevice'=*)      atfdevice="${1#*=}";;
+  '-m' | '--menuonly')         menuonly=1         ;;
+  '-c' | '--configonly')       configonly=1       ;;
+  '-d' | '--cachedir')         cachedir=1         ;;
   *) cat <<-EOF
 	Usage: $(basename "$0") [OPTION]...
 	  -b --bpirwrite           arguments for calling bpir-toolbox
