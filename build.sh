@@ -537,17 +537,10 @@ else
     partprobe $loopdev; udevadm settle
     device=$loopdev
   else
-    readarray -t options < <(blkid -s PARTLABEL | \
+    readarray -t devices < <(blkid -s PARTLABEL | \
         grep -E 'PARTLABEL="bpir' | grep -E -- '-root"' | grep -v ${pkroot} | grep -v 'boot0$\|boot1$\|boot2$')
-    if [ ${#options[@]} -gt 1 ]; then
-      PS3="Choose device to work on: "; COLUMNS=1
-      select choice in "${options[@]}" "Quit" ; do
-        if (( REPLY > 0 && REPLY <= ${#options[@]} )) ; then break; else exit; fi
-      done
-    else
-      choice=${options[0]}
-    fi
-    device=$(lsblk -npo pkname $(echo $choice | cut -d' ' -f1 | tr -d :))
+    ask device devices "Choose device to work on:"
+    device=$(lsblk -npo pkname ${device/:>/})
   fi
   pr=$(blkid -s PARTLABEL $(parts ${device})| grep -E 'PARTLABEL="bpir' | grep -E -- '-root"' | cut -d'"' -f2)
   target=$(echo $pr | cut -d'-' -f1)
