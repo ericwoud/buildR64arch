@@ -396,6 +396,27 @@ function usage {
     exit 1
 }
 
+function ask() {
+  local a items count
+  if [ -z "${!1}" ]; then
+    eval 'items=("${'"${2}"'[@]}")'
+    eval 'count=${#'"${2}"'[@]}'
+    if [ ${count} -gt 1 ]; then
+      PS3="${3} "; COLUMNS=1
+      select a in "${items[@]}" "Quit"; do
+        if (( REPLY > 0 && REPLY <= ${count} )) ; then
+          break
+        else
+          exit 1
+        fi
+      done 
+      export declare $1=${a%% *}
+    else
+      export declare $1=${items[0]}
+    fi
+  fi
+}
+
 export LC_ALL=C
 export LANG=C
 export LANGUAGE=C
@@ -493,11 +514,7 @@ fi
 
 if [ "$F" = true ]; then
   if [ -z "$target" ]; then
-    PS3="Choose target to format image for: "; COLUMNS=1
-    select target in "${TARGETS[@]}" "Quit" ; do
-      if (( REPLY > 0 && REPLY <= ${#TARGETS[@]} )) ; then break; else exit; fi
-    done
-    target=${target%% *}
+    ask target TARGETS "Choose target to format image for:"
   fi
   if [ -z "$atfdevice" ]; then
 	setupenv # Now that target is known.
