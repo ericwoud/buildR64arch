@@ -48,7 +48,7 @@ TARGETS=("bpir64 Bananapi-R64"
          "bpir3m Bananapi-R3-Mini"
          "bpir4  Bananapi-R4")
 
-DISTROBPIR=("alarm    ArchLinuxARM"
+DISTROS=("alarm    ArchLinuxARM"
             "ubuntu   Ubuntu (experimental with bugs)")
 
 function setupenv {
@@ -373,6 +373,27 @@ function ctrl_c() {
   exit 1
 }
 
+function ask() {
+  local a items count
+  if [ -z "${!1}" ]; then
+    eval 'items=("${'"${2}"'[@]}")'
+    eval 'count=${#'"${2}"'[@]}'
+    if [ ${count} -gt 1 ]; then
+      PS3="${3} "; COLUMNS=1
+      select a in "${items[@]}" "Quit"; do
+        if (( REPLY > 0 && REPLY <= ${count} )) ; then
+          break
+        else
+          exit 1
+        fi
+      done
+      export declare $1=${a%% *}
+    else
+      export declare $1=${items[0]}
+    fi
+  fi
+}
+
 function usage {
  cat <<-EOF
 	Usage: $(basename "$0") [OPTION]...
@@ -394,27 +415,6 @@ function usage {
 	  --imagesize [FILESIZE]   specify image file size
 	EOF
     exit 1
-}
-
-function ask() {
-  local a items count
-  if [ -z "${!1}" ]; then
-    eval 'items=("${'"${2}"'[@]}")'
-    eval 'count=${#'"${2}"'[@]}'
-    if [ ${count} -gt 1 ]; then
-      PS3="${3} "; COLUMNS=1
-      select a in "${items[@]}" "Quit"; do
-        if (( REPLY > 0 && REPLY <= ${count} )) ; then
-          break
-        else
-          exit 1
-        fi
-      done 
-      export declare $1=${a%% *}
-    else
-      export declare $1=${items[0]}
-    fi
-  fi
 }
 
 export LC_ALL=C
@@ -442,10 +442,24 @@ while getopts ":rlcbxzpudRFBIP-:" opt $args; do
       cachedir) opt=d ;;
       clearrootfs) opt=R ;;
       format) opt=F ;;
-      imagefile) IMAGE_FILE="${!OPTIND}"; ((OPTIND++));;
-      imagefile=*) IMAGE_FILE=${OPTARG#*=};;
-      imagesize) IMAGE_SIZE="${!OPTIND}"; ((OPTIND++));;
-      imagesize=*) IMAGE_SIZE=${OPTARG#*=};;
+      distro)             distro="${!OPTIND}"; ((OPTIND++));;
+      distro=*)           distro="${OPTARG#*=}";;
+      bpirtoolbox)        bpirtoolbox="${!OPTIND}"; ((OPTIND++));;
+      bpirtoolbox=*)      bpirtoolbox="${OPTARG#*=}";;
+      brlanip)            brlanip="${!OPTIND}"; ((OPTIND++));;
+      brlanip=*)          brlanip="${OPTARG#*=}";;
+      ddrsize)            ddrsize="${!OPTIND}"; ((OPTIND++));;
+      ddrsize=*)          ddrsize="${OPTARG#*=}";;
+      setup)              setup="${!OPTIND}"; ((OPTIND++));;
+      setup=*)            setup="${OPTARG#*=}";;
+      target)             target="${!OPTIND}"; ((OPTIND++));;
+      target=*)           target="${OPTARG#*=}";;
+      atfdevice)          atfdevice="${!OPTIND}"; ((OPTIND++));;
+      atfdevice=*)        atfdevice="${OPTARG#*=}";;
+      imagefile)          IMAGE_FILE="${!OPTIND}"; ((OPTIND++));;
+      imagefile=*)        IMAGE_FILE="${OPTARG#*=}";;
+      imagesize)          IMAGE_SIZE="${!OPTIND}"; ((OPTIND++));;
+      imagesize=*)        IMAGE_SIZE="${OPTARG#*=}";;
       *)
         echo "Unknown option --$OPTARG"
         usage
@@ -517,7 +531,7 @@ if [ "$F" = true ]; then
     ask target TARGETS "Choose target to format image for:"
   fi
   if [ -z "$atfdevice" ]; then
-	setupenv # Now that target is known.
+    setupenv # Now that target is known.
     ask atfdevice atfdevices "Choose atfdevice to format image for:"
   fi
   if [ "$l" = true ]; then
@@ -558,13 +572,7 @@ if [ "$r" = true ]; then
   [ "$P" = true ] && bpirtoolbox="--boot2fip"
   if [ "$F" = true ]; then
     echo -e "\nCreate root filesystem\n"
-	if [ -z "$distro" ]; then
-      PS3="Choose distro to create root for: "; COLUMNS=1
-      select distro in "${DISTROBPIR[@]}" "Quit" ; do
-        if (( REPLY > 0 && REPLY <= ${#DISTROBPIR[@]} )) ; then break; else exit 1; fi
-      done
-      distro=${distro%% *}
-	fi
+    ask distro DISTROS "Choose distro to create root for:"
     echo "Distro="${distro}
   fi
   rm -f "/tmp/bpir-rootfs.txt"
