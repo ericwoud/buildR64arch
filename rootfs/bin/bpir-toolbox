@@ -27,7 +27,7 @@ while [ "${1:-}" != '' ]; do
 	  --nand-image             Create nand image, also runs update
 	  --nand-update            Updates all files on nand, only writes when needed
 	  --write2atf              Write arm-trusted-firmware
-	  --write2fip              Create all files needed for fip and write it
+	  --write2fip              Create all files needed for fip (dtb+fip) and write it
 	  --write2extlinux         Create a new /boot/extlinux/extlinux.conf
 	  --uboot-install          Copies U-Boot to /boot/u-boot.bin (needs boot partition),
 	                             also creates /boot/extlinux/extlinux.conf if not present
