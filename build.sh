@@ -55,6 +55,11 @@ function setupenv {
 arch='aarch64'
 #BACKUPFILE="/run/media/$USER/DATA/${target}-${atfdevice}-rootfs.tar"
 BACKUPFILE="./${target}-${atfdevice}-rootfs.tar"
+atfdevices=()
+[[ $target != "bpir3m" ]] && atfdevices+=("sdmmc SD Card")
+atfdevices+=("emmc  EMMC onboard")
+[[ $target == "bpir64" ]] && atfdevices+=("sata  SATA onboard") \
+                          || atfdevices+=("nvme  NVME onboard")
 }
 
 # End of default configuration values
@@ -494,12 +499,8 @@ if [ "$F" = true ]; then
       if (( REPLY > 0 && REPLY <= ${#TARGETS[@]} )) ; then break; else exit; fi
     done
     target=${target%% *}
+	setupenv # Now that target is known.
     PS3="Choose atfdevice to format image for: "; COLUMNS=1
-    atfdevices=()
-    [[ $target != "bpir3m" ]] && atfdevices+=("sdmmc SD Card")
-    atfdevices+=("emmc  EMMC onboard")
-    [[ $target == "bpir64" ]] && atfdevices+=("sata  SATA onboard") \
-                              || atfdevices+=("nvme  NVME onboard")
     select atfdevice in "${atfdevices[@]}" "Quit" ; do
       if (( REPLY > 0 && REPLY <= ${#atfdevices[@]} )) ; then break; else exit; fi
     done
