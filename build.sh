@@ -489,7 +489,6 @@ else
  pkroot="undefined"
 fi
 
-ddrsize="default"
 [ -f "config.sh" ] && source config.sh
 
 if [ "$F" = true ]; then
