@@ -411,14 +411,14 @@ function usage {
 	  -u --uartboot            create uartboot image
 	  -d --cachedir            store packages in cachedir
 	  -R --clearrootfs         empty rootfs
-	  --imagefile [FILENAME]   specify image file name
-	  --imagesize [FILESIZE]   specify image file size
-	  --bpirtoolbox            arguments for calling bpir-toolbox
-	  --brlanip                ip for brlan
-	  --ddrsize                ddr size
-	  --setup                  setup for network
-	  --target                 target
-	  --atfdevice              device
+	  --imagefile[ FILENAME]               specify image file name
+	  --imagesize [FILESIZE]               specify image file size
+	  --bpirtoolbox [ARGS]                 specify arguments for bpir-toolbox
+	  --brlanip [IP]                       specify ip for brlan
+	  --ddrsize [default|8]                specify ddr size
+	  --setup [AP|RT|...]                  specify setup for network
+	  --target [bpir64|bpir3|bpir3m|bpir4] specify target
+	  --atfdevice [sdmmc|emmc|nvme|sata]   specify device
 	EOF
     exit 1
 }
