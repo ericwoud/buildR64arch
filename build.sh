@@ -490,15 +490,17 @@ else
 fi
 
 ddrsize="default"
-[ "$I" = true ] && source config.sh
+[ -f "config.sh" ] && source config.sh
 
 if [ "$F" = true ]; then
-  if [ "$I" != true ]; then # Non-interactive -lFI or -lrI
+  if [ -z "$setup" ]; then
     PS3="Choose target to format image for: "; COLUMNS=1
     select target in "${TARGETS[@]}" "Quit" ; do
       if (( REPLY > 0 && REPLY <= ${#TARGETS[@]} )) ; then break; else exit; fi
     done
     target=${target%% *}
+  fi
+  if [ -z "$atfdevice" ]; then
 	setupenv # Now that target is known.
     PS3="Choose atfdevice to format image for: "; COLUMNS=1
     select atfdevice in "${atfdevices[@]}" "Quit" ; do
@@ -553,20 +555,16 @@ setupenv # Now that target and atfdevice are known.
 if [ "$r" = true ]; then
   [ "$p" = true ] && bpirwrite="--fip2boot"
   [ "$P" = true ] && bpirwrite="--boot2fip"
-  if [ "$I" == true ]; then
-    brlanip="default" # Don't ask, don't change
-  else
-    brlanip="" # Ask
-    ddrsize=""
-    if [ "$F" = true ]; then
-      echo -e "\nCreate root filesystem\n"
+  if [ "$F" = true ]; then
+    echo -e "\nCreate root filesystem\n"
+	if [ -z "$distro" ]; then
       PS3="Choose distro to create root for: "; COLUMNS=1
       select distro in "${DISTROBPIR[@]}" "Quit" ; do
         if (( REPLY > 0 && REPLY <= ${#DISTROBPIR[@]} )) ; then break; else exit 1; fi
       done
       distro=${distro%% *}
-      echo "Distro="${distro}
-    fi
+	fi
+    echo "Distro="${distro}
   fi
   rm -f "/tmp/bpir-rootfs.txt"
   rootfsargs="--menuonly --target '${target}' --atfdevice '${atfdevice}' --ddrsize '${ddrsize}' --setup '${setup}' --brlanip '${brlanip}' --bpirwrite '${bpirwrite}'"
