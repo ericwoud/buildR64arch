@@ -492,7 +492,7 @@ fi
 [ -f "config.sh" ] && source config.sh
 
 if [ "$F" = true ]; then
-  if [ -z "$setup" ]; then
+  if [ -z "$target" ]; then
     PS3="Choose target to format image for: "; COLUMNS=1
     select target in "${TARGETS[@]}" "Quit" ; do
       if (( REPLY > 0 && REPLY <= ${#TARGETS[@]} )) ; then break; else exit; fi
