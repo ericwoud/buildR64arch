@@ -413,6 +413,12 @@ function usage {
 	  -R --clearrootfs         empty rootfs
 	  --imagefile [FILENAME]   specify image file name
 	  --imagesize [FILESIZE]   specify image file size
+	  --bpirtoolbox            arguments for calling bpir-toolbox
+	  --brlanip                ip for brlan
+	  --ddrsize                ddr size
+	  --setup                  setup for network
+	  --target                 target
+	  --atfdevice              device
 	EOF
     exit 1
 }
