@@ -518,11 +518,7 @@ if [ "$F" = true ]; then
   fi
   if [ -z "$atfdevice" ]; then
 	setupenv # Now that target is known.
-    PS3="Choose atfdevice to format image for: "; COLUMNS=1
-    select atfdevice in "${atfdevices[@]}" "Quit" ; do
-      if (( REPLY > 0 && REPLY <= ${#atfdevices[@]} )) ; then break; else exit; fi
-    done
-    atfdevice=${atfdevice%% *}
+    ask atfdevice atfdevices "Choose atfdevice to format image for:"
   fi
   if [ "$l" = true ]; then
     [ ! -f $IMAGE_FILE ] && touch $IMAGE_FILE
@@ -530,13 +526,9 @@ if [ "$F" = true ]; then
     echo "Loop device = $loopdev"
     device=$loopdev
   else
-    readarray -t options < <(lsblk -dprno name,size \
+    readarray -t devices < <(lsblk -dprno name,size \
        | grep -v "^/dev/"${pkroot} | grep -v 'boot0 \|boot1 \|boot2 ')
-    PS3="Choose device to format: "; COLUMNS=1
-    select device in "${options[@]}" "Quit" ; do
-      if (( REPLY > 0 && REPLY <= ${#options[@]} )) ; then break; else exit; fi
-    done
-    device=${device%% *}
+    ask device devices "Choose device to format:"
   fi
 else
   if [ "$l" = true ]; then
