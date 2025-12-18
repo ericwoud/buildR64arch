@@ -554,8 +554,8 @@ echo -e "Device=${device}\nTarget=${target}\nATF-device="${atfdevice}
 setupenv # Now that target and atfdevice are known.
 
 if [ "$r" = true ]; then
-  [ "$p" = true ] && bpirwrite="--fip2boot"
-  [ "$P" = true ] && bpirwrite="--boot2fip"
+  [ "$p" = true ] && bpirtoolbox="--fip2boot"
+  [ "$P" = true ] && bpirtoolbox="--boot2fip"
   if [ "$F" = true ]; then
     echo -e "\nCreate root filesystem\n"
 	if [ -z "$distro" ]; then
@@ -568,7 +568,7 @@ if [ "$r" = true ]; then
     echo "Distro="${distro}
   fi
   rm -f "/tmp/bpir-rootfs.txt"
-  rootfsargs="--menuonly --target '${target}' --atfdevice '${atfdevice}' --ddrsize '${ddrsize}' --setup '${setup}' --brlanip '${brlanip}' --bpirwrite '${bpirwrite}'"
+  rootfsargs="--menuonly --target '${target}' --atfdevice '${atfdevice}' --ddrsize '${ddrsize}' --setup '${setup}' --brlanip '${brlanip}' --bpirtoolbox '${bpirtoolbox}'"
   if command -v bpir-rootfs >/dev/null 2>&1 ; then
     xargs -a <(echo -n "${rootfsargs}") bpir-rootfs
   elif [ -f "./rootfs/bin/bpir-rootfs" ]; then

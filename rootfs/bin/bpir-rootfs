@@ -7,24 +7,24 @@ ROOTPWD="admin"
 
 while [ "${1:-}" != '' ]; do
   case "$1" in
-  '-b' | '--bpirwrite') shift; bpirwrite="${1}"   ;;
-         '--bpirwrite'=*)      bpirwrite="${1#*=}";;
-  '-i' | '--brlanip')   shift; brlanip="${1}"     ;;
-         '--brlanip'=*)        brlanip="${1#*=}"  ;;
-  '-d' | '--ddrsize')   shift; ddrsize="${1}"     ;;
-         '--ddrsize'=*)        ddrsize="${1#*=}"  ;;
-  '-s' | '--setup')     shift; setup="${1}"       ;;
-         '--setup'=*)          setup="${1#*=}"    ;;
-  '-t' | '--target')    shift; target="${1}"      ;;
-         '--target'=*)         target="${1#*=}"   ;;
-  '-a' | '--atfdevice') shift; atfdevice="${1}"   ;;
-         '--atfdevice'=*)      atfdevice="${1#*=}";;
-  '-m' | '--menuonly')         menuonly=1         ;;
-  '-c' | '--configonly')       configonly=1       ;;
-  '-d' | '--cachedir')         cachedir=1         ;;
+  '-b' | '--bpirtoolbox') shift; bpirtoolbox="${1}"   ;;
+         '--bpirtoolbox'=*)      bpirtoolbox="${1#*=}";;
+  '-i' | '--brlanip')   shift;   brlanip="${1}"     ;;
+         '--brlanip'=*)          brlanip="${1#*=}"  ;;
+  '-d' | '--ddrsize')   shift;   ddrsize="${1}"     ;;
+         '--ddrsize'=*)          ddrsize="${1#*=}"  ;;
+  '-s' | '--setup')     shift;   setup="${1}"       ;;
+         '--setup'=*)            setup="${1#*=}"    ;;
+  '-t' | '--target')    shift;   target="${1}"      ;;
+         '--target'=*)           target="${1#*=}"   ;;
+  '-a' | '--atfdevice') shift;   atfdevice="${1}"   ;;
+         '--atfdevice'=*)        atfdevice="${1#*=}";;
+  '-m' | '--menuonly')           menuonly=1         ;;
+  '-c' | '--configonly')         configonly=1       ;;
+  '-d' | '--cachedir')           cachedir=1         ;;
   *) cat <<-EOF
 	Usage: $(basename "$0") [OPTION]...
-	  -b --bpirwrite           arguments for calling bpir-toolbox
+	  -b --bpirtoolbox         arguments for calling bpir-toolbox
 	  -i --brlanip             ip for brlan
 	  -d --ddrsize             ddr size
 	  -s --setup               setup for network
@@ -81,12 +81,12 @@ case ${target} in
     ;;
 esac
 
-if [ -z "$bpirwrite" ]; then
+if [ -z "$bpirtoolbox" ]; then
   case ${atfdevice} in
-    sdmmc|emmc) bpirwrite="--fip2boot" ;;
-    nand)       bpirwrite="--boot2fip" ;;
-    nvme)       bpirwrite="--extlinux" ;;
-    sata)       bpirwrite="--extlinux" ;;
+    sdmmc|emmc) bpirtoolbox="--fip2boot" ;;
+    nand)       bpirtoolbox="--boot2fip" ;;
+    nvme)       bpirtoolbox="--extlinux" ;;
+    sata)       bpirtoolbox="--extlinux" ;;
     *) echo "Unknown atfdevice '${atfdevice}'" ;;
   esac
 fi
@@ -117,7 +117,7 @@ if [ -z "$configonly" ]; then
       echo "IP="$brlanip
     fi
     if [ -n "$menuonly" ]; then
-      echo -n "--setup '${setup}' --ddrsize '${ddrsize}' --brlanip '${brlanip}' --bpirwrite '${bpirwrite}'" >/tmp/bpir-rootfs.txt
+      echo -n "--setup '${setup}' --ddrsize '${ddrsize}' --brlanip '${brlanip}' --bpirtoolbox '${bpirtoolbox}'" >/tmp/bpir-rootfs.txt
     else
       read -p "Type <yes> to alter your rootfs!" prompt
       [[ $prompt != "yes" ]] && exit 1
@@ -188,7 +188,7 @@ function rootfs {
   else
     echo -n "${ddrsize}" | tee /boot/bootcfg/ddrsize
   fi
-  bpir-toolbox --atf $bpirwrite
+  bpir-toolbox --atf $bpirtoolbox
   sync
 }
 
