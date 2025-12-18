@@ -540,7 +540,7 @@ else
     readarray -t devices < <(blkid -s PARTLABEL | \
         grep -E 'PARTLABEL="bpir' | grep -E -- '-root"' | grep -v ${pkroot} | grep -v 'boot0$\|boot1$\|boot2$')
     ask device devices "Choose device to work on:"
-    device=$(lsblk -npo pkname ${device/:>/})
+    device=$(lsblk -npo pkname ${device/:/})
   fi
   pr=$(blkid -s PARTLABEL $(parts ${device})| grep -E 'PARTLABEL="bpir' | grep -E -- '-root"' | cut -d'"' -f2)
   target=$(echo $pr | cut -d'-' -f1)
