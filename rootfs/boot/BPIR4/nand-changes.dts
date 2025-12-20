@@ -21,5 +21,5 @@
     spi-cs-setup-delay-ns = <15>;
     spi-cs-hold-delay-ns = <15>;
     /* remove from main .dtb as overlay file cannot delete a property */
-    //fdtput -d /soc/spi@11007000/spi_nand@0/partitions/partition@0 read-only
+    //fdtput -d /soc/spi@11007000/flash@0/partitions/partition@0 read-only
 };
