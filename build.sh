@@ -258,7 +258,7 @@ function bootstrap {
 	Include = /etc/pacman.d/mirrorlist
 	EOF
     addmyrepo
-    [ "$d" = true ] && cdir="--cachedir=/cachedir" || cdir=""
+    [ "$d" = true ] && cdir="--cachedir=/cachedir" || cdir="--noconfirm"
     until schrootstrap pacman-static -Syu "${cdir}" --noconfirm --needed --overwrite \* $STRAP_PACKAGES_ALARM pacman-static
     do sleep 2; done
     mv -vf $rootfsdir/etc/pacman.conf.pacnew         $rootfsdir/etc/pacman.conf
