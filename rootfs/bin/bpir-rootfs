@@ -1,5 +1,6 @@
 #!/bin/bash
 
+PACKAGES="hostapd-launch ssh-fix-reboot bpir-initrd"
 TIMEZONE="Europe/Paris"
 USERNAME="user"
 USERPWD="admin"
@@ -127,6 +128,7 @@ fi
 [ -n "$menuonly" ] && exit 0
 
 function rootfs {
+  PACKAGES+=" packages-${target}"
   if [ ! -f "/etc/arch-release" ]; then ### Ubuntu / Debian
     sshd="ssh"
     wheel="sudo"
@@ -134,16 +136,14 @@ function rootfs {
     [ -n "$cachedir" ] && cdir="-o Dir::Cache::Archives=/cachedir" || cdir="--yes"
     until DEBIAN_FRONTEND=noninteractive apt-get update -q ${cdir} --yes
     do sleep 2; done
-    until DEBIAN_FRONTEND=noninteractive apt-get install -q ${cdir} --yes \
-                          packages-${target} bpir-initrd
+    until DEBIAN_FRONTEND=noninteractive apt-get install -q ${cdir} --yes $PACKAGES
     do sleep 2; done
   else # ArchLinuxArm
     sshd="sshd"
     wheel="wheel"
     groups="audio,games,log,lp,optical,power,scanner,storage,video,$wheel"
     [ -n "$cachedir" ] && cdir="--cachedir=/cachedir" || cdir="--noconfirm"
-    until pacman -Syyu --needed --noconfirm "${cdir}"\
-                          packages-${target} bpir-initrd
+    until pacman -Syyu --needed --noconfirm "${cdir}" $PACKAGES
     do sleep 2; done
   fi
   sync
