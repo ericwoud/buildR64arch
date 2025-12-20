@@ -131,8 +131,8 @@ function rootfs {
     sshd="ssh"
     wheel="sudo"
     groups="audio,games,lp,video,$wheel"
-    [ -n "$cachedir" ] && cdir="-o Dir::Cache::Archives=/cachedir" || cdir=""
-    until DEBIAN_FRONTEND=noninteractive apt-get update -q ${cdir}
+    [ -n "$cachedir" ] && cdir="-o Dir::Cache::Archives=/cachedir" || cdir="--yes"
+    until DEBIAN_FRONTEND=noninteractive apt-get update -q ${cdir} --yes
     do sleep 2; done
     until DEBIAN_FRONTEND=noninteractive apt-get install -q ${cdir} --yes \
                           packages-${target} bpir-initrd
@@ -141,7 +141,7 @@ function rootfs {
     sshd="sshd"
     wheel="wheel"
     groups="audio,games,log,lp,optical,power,scanner,storage,video,$wheel"
-    [ -n "$cachedir" ] && cdir="--cachedir=/cachedir" || cdir=""
+    [ -n "$cachedir" ] && cdir="--cachedir=/cachedir" || cdir="--noconfirm"
     until pacman -Syyu --needed --noconfirm "${cdir}"\
                           packages-${target} bpir-initrd
     do sleep 2; done
