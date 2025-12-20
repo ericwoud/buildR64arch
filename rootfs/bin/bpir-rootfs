@@ -135,7 +135,7 @@ function rootfs {
     until DEBIAN_FRONTEND=noninteractive apt-get update -q ${cdir}
     do sleep 2; done
     until DEBIAN_FRONTEND=noninteractive apt-get install -q ${cdir} --yes \
-                          build-r64-arch-utils-git linux-${target}-git bpir-initrd
+                          packages-${target} bpir-initrd
     do sleep 2; done
   else # ArchLinuxArm
     sshd="sshd"
@@ -143,7 +143,7 @@ function rootfs {
     groups="audio,games,log,lp,optical,power,scanner,storage,video,$wheel"
     [ -n "$cachedir" ] && cdir="--cachedir=/cachedir" || cdir=""
     until pacman -Syyu --needed --noconfirm "${cdir}"\
-                          build-r64-arch-utils-git linux-${target}-git bpir-initrd
+                          packages-${target} bpir-initrd
     do sleep 2; done
   fi
   sync
