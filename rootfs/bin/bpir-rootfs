@@ -23,6 +23,7 @@ while [ "${1:-}" != '' ]; do
   '-m' | '--menuonly')           menuonly=1            ;;
   '-c' | '--configonly')         configonly=1          ;;
   '-d' | '--cachedir')           cachedir=1            ;;
+  '-S' | '--disable-sandbox')    disablesandbox=1      ;;
   *) cat <<-EOF
 	Usage: $(basename "$0") [OPTION]...
 	  -b --bpirtoolbox [ARGS]                 specify arguments for bpir-toolbox
@@ -31,6 +32,7 @@ while [ "${1:-}" != '' ]; do
 	  -s --setup [AP|RT|...]                  specify setup for network
 	  -t --target [bpir64|bpir3|bpir3m|bpir4] specify target
 	  -a --atfdevice [sdmmc|emmc|nvme|sata]   specify device
+	  -S --disable-sandbox     disable pacman sandbox download
 	  -m --menuonly            menu only
 	  -c --configonly          setup the rootfs only
 	EOF
@@ -142,8 +144,9 @@ function rootfs {
     sshd="sshd"
     wheel="wheel"
     groups="audio,games,log,lp,optical,power,scanner,storage,video,$wheel"
-    [ -n "$cachedir" ] && cdir="--cachedir=/cachedir" || cdir="--noconfirm"
-    until pacman -Syyu --needed --noconfirm "${cdir}" $PACKAGES
+    [ -n "$cachedir" ]       && cdir="--cachedir=/cachedir" || cdir="--noconfirm"
+    [ -n "$disablesandbox" ] && sb="--disable-sandbox"      || sb="--noconfirm"
+    until pacman -Syyu --needed --noconfirm "${cdir}" "${sb}" $PACKAGES
     do sleep 2; done
   fi
   sync

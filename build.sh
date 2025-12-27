@@ -220,7 +220,6 @@ function addmyrepo {
 function bootstrap {
   trap ctrl_c INT
   [ -d "$rootfsdir/etc" ] && return
-  eval repo=${BACKUPREPOURL}
   if [ "$distro" == "ubuntu" ]; then
     [ "$d" = true ] && cdir="--cache-dir=$(realpath ./cachedir)" || cdir="--no-check-gpg"
     until debootstrap "${cdir}" --arch=arm64 --no-check-gpg --components=$DEBOOTSTR_COMPNS \
@@ -236,6 +235,7 @@ function bootstrap {
     do sleep 2; done
     schroot gpg --batch --yes --output /etc/apt/trusted.gpg.d/ericwoud.gpg --export $REPOKEY
   elif [ "$distro" == "alarm" ]; then
+    eval repo=${ALARMREPOURL}
     until pacmanpkg=$(curl -L $repo'/ericwoud.db' | tar -xzO --wildcards "pacman-static*/desc" \
           | grep "%FILENAME%" -A1 | tail -n 1)
     do sleep 2; done
@@ -259,7 +259,8 @@ function bootstrap {
 	EOF
     addmyrepo
     [ "$d" = true ] && cdir="--cachedir=/cachedir" || cdir="--noconfirm"
-    until schrootstrap pacman-static -Syu "${cdir}" --noconfirm --needed --overwrite \* $STRAP_PACKAGES_ALARM pacman-static
+    [ "$S" = true ] && sb="--disable-sandbox"      || sb="--noconfirm"
+    until schrootstrap pacman-static -Syu "${cdir}" "${sb}" --noconfirm --needed --overwrite \* $STRAP_PACKAGES_ALARM pacman-static
     do sleep 2; done
     mv -vf $rootfsdir/etc/pacman.conf.pacnew         $rootfsdir/etc/pacman.conf
     mv -vf $rootfsdir/etc/pacman.d/mirrorlist.pacnew $rootfsdir/etc/pacman.d/mirrorlist
@@ -288,8 +289,9 @@ function rootfs {
     mkdir -p "$rootfsdir/usr/local/sbin"
     cp -vf ./rootfs/bin/bpir-rootfs $rootfsdir/usr/local/sbin
   fi
-  [ "$d" = true ] && cdir="--cachedir" || cdir=""
-  schroot xargs -a <(echo -n "--configonly ${cdir} ${rootfsargs}") bpir-rootfs
+  [ "$d" = true ] && cdir="--cachedir"      || cdir=""
+  [ "$S" = true ] && sb="--disable-sandbox" || sb=""
+  schroot xargs -a <(echo -n "--configonly ${cdir} ${sb} ${rootfsargs}") bpir-rootfs
   rm -vf $rootfsdir/usr/local/sbin/bpir-rootfs 2>/dev/null
   sync
 }
@@ -431,7 +433,7 @@ export LANGUAGE=C
 
 cd "$(dirname -- "$(realpath -- "${BASH_SOURCE[0]}")")"
 
-while getopts ":rlcbxzpudRFBIP-:" opt $args; do
+while getopts ":rlcbxzpudRFBIPS-:" opt $args; do
   if [[ "${opt}" == "?" ]]; then
     echo "Unknown option -$OPTARG"
     usage
@@ -448,6 +450,7 @@ while getopts ":rlcbxzpudRFBIP-:" opt $args; do
       cachedir) opt=d ;;
       clearrootfs) opt=R ;;
       format) opt=F ;;
+      disable-sandbox) opt=S ;;
       distro)             distro="${!OPTIND}"; ((OPTIND++));;
       distro=*)           distro="${OPTARG#*=}";;
       bpirtoolbox)        bpirtoolbox="${!OPTIND}"; ((OPTIND++));;
