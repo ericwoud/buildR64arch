@@ -91,7 +91,7 @@ function getdev {
   [ -z "${atfdevice}" ] && return
   local pkdev=$(lsblk -rno pkname "${atfdevice}")
   [ -z "${pkdev}" ] && return
-  dev=$(blkid -t "PARTLABEL=$1" -o device $(parts "${pkdev}"))
+  dev=$(blkid -t "PARTLABEL=$1" -o device $(parts "/dev/${pkdev}"))
   [ -n "${dev}" ] && echo "${dev}"
 }
 
