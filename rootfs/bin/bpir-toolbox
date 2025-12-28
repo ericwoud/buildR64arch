@@ -287,7 +287,7 @@ if [ -z "$rootdev" ]; then
       [[ $? == 1 ]] && download linux-bpir-git
       download bpir-atf-git
       download bpir-uboot-git
-      bpir-initrd
+      bpir-initrd -P
     fi
   else
     echo "Need to mount '/' first (and '/boot' if applicable)"
@@ -344,7 +344,7 @@ fi
 
 if [ ! -f "$default_initrd" ]; then
   if command -v bpir-initrd >/dev/null 2>&1; then
-    bpir-initrd $linuxpkg
+    bpir-initrd -p $linuxpkg
   elif command -v mkinitcpio >/dev/null 2>&1; then
     mkinitcpio -p $linuxpkg
   fi
