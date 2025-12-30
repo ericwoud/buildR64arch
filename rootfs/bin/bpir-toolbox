@@ -301,18 +301,22 @@ fi
 
 case ${target} in
   bpir64)
+    default_dtb="mt7622-bananapi-bpi-r64"
     default_ddrsize=1
     nandtype="snand"
     ;;
   bpir3)
+    default_dtb="mt7986a-bananapi-bpi-r3"
     default_ddrsize=2
     nandtype="spim-nand"
     ;;
   bpir3m)
+    default_dtb="mt7986a-bananapi-bpi-r3-mini"
     default_ddrsize=2
     nandtype="spim-nand"
     ;;
   bpir4)
+    default_dtb="mt7988a-bananapi-bpi-r4"
     default_ddrsize=4
     nandtype="spim-nand"
     ;;
@@ -326,10 +330,6 @@ rm -rf "${tmp}"
 mkdir -p "${tmp}/dtbos"
 mkdir -p /boot/bootcfg
 
-default_dtb="${target/m/-mini}"
-default_dtb="${default_dtb/bpir/-bananapi-bpi-r}"
-default_dtb=$(shopt -s nullglob; cd /boot/dtbs; echo "mt"*"${default_dtb}.dtb" | head -n 1)
-default_dtb="${default_dtb/.dtb/}"
 default_linuxpkg=$(cat /lib/modules/*/pkgbase | tail -n1)
 [ -z "${default_linuxpkg}" ] && default_linuxpkg=$(ls /etc/initcpio/install/* | head -n1 | xargs basename)
 
