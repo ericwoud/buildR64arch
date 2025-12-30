@@ -645,7 +645,8 @@ mount --source $mountdev --target $rootfsdir \
 if [ ! -z "$bootdev" ]; then
   umount $bootdev
   mkdir -p $rootfsdir/boot
-  mount -t vfat "$bootdev" $rootfsdir/boot
+  mountoptions="rw,nosuid,nodev,noexec,relatime,nosymfollow,fmask=0077,dmask=0077,codepage=437,iocharset=ascii,shortname=mixed,utf8,errors=remount-ro"
+  mount -t vfat "$bootdev" $rootfsdir/boot -o "${mountoptions}"
   [[ $? != 0 ]] && exit
 fi
 
