@@ -411,7 +411,8 @@ if [ -n "$fip2boot" ] || [ -n "$boot2fip" ]; then
     mkfs.vfat -v -F 32 -S 512 -s 16 -n "${target^^}-BOOT" ${fipbootdevice}
     rm -rf /boot; mkdir /boot; chmod 0700 /boot
     sync
-    while mount ${fipbootdevice} /boot 2>/dev/null; ! mountpoint -q /boot
+    mountoptions="rw,nosuid,nodev,noexec,relatime,nosymfollow,fmask=0077,dmask=0077,codepage=437,iocharset=ascii,shortname=mixed,utf8,errors=remount-ro"
+    while mount ${fipbootdevice} /boot -o "${mountoptions}" 2>/dev/null; ! mountpoint -q /boot
     do echo "Waiting for /boot being mounted..."; sleep 0.1; done
     typefipboot="boot"
   else
