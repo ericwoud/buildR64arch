@@ -338,17 +338,17 @@ mkdir -p "${tmp}/dtbos"
 mkdir -p /boot/bootcfg
 
 if [ -n "${for_linux}" ]; then
-  linuxpkg="${for_linux}"
-  getconf w linuxpkg "$linuxpkg" # Write to bootcfg if not defined
+  default_linuxpkg="${for_linux}"
 else
   default_linuxpkg=$(cat /lib/modules/*/pkgbase | tail -n1)
-  [ -z "${default_linuxpkg}" ] && default_linuxpkg=$(ls /etc/initcpio/install/* | head -n1 | xargs basename)
-  linuxpkg=$(getconf w linuxpkg "$default_linuxpkg")
+  [ -z "${default_linuxpkg}" ] && default_linuxpkg=$(ls /etc/initcpio/install/* | head -n1 | xargs basename) ### fout !!!
 fi
+linuxpkg=$(getconf w linuxpkg "$default_linuxpkg")
+[ -z "${for_linux}" ] && for_linux="${linuxpkg}"
 
-if [ ! -f "/boot/Image" ] || [ -f "/boot/Image-${linuxpkg}" ]; then
-  default_image="/boot/Image-${linuxpkg}"
-  default_initrd="/boot/initramfs-${linuxpkg}.img"
+if [ ! -f "/boot/Image" ] || [ -f "/boot/Image-${for_linux}" ]; then
+  default_image="/boot/Image-${for_linux}"
+  default_initrd="/boot/initramfs-${for_linux}.img"
 else
   default_image="/boot/Image"
   default_initrd="/boot/initramfs-bpir.img"
@@ -356,9 +356,9 @@ fi
 
 if [ ! -f "$default_initrd" ]; then
   if command -v bpir-initrd >/dev/null 2>&1; then
-    bpir-initrd -p ${linuxpkg}
+    bpir-initrd -p ${for_linux}
   elif command -v mkinitcpio >/dev/null 2>&1; then
-    mkinitcpio -p ${linuxpkg}
+    mkinitcpio -p ${for_linux}
   fi
 fi
 
@@ -369,7 +369,7 @@ checkconf initrd
 checkconf atfdtb
 
 dtb=$(getconf r dtb "$default_dtb")
-dtbfile="/boot/dtbs/${linuxpkg}/${dtb}.dtb"
+dtbfile="/boot/dtbs/${for_linux}/${dtb}.dtb"
 [ ! -f "${dtbfile}" ] && dtbfile="/boot/dtbs/mediatek/${dtb}.dtb"
 [ ! -f "${dtbfile}" ] && dtbfile="/boot/dtbs/${dtb}.dtb"
 [ ! -f "${dtbfile}" ] && exit 1
@@ -668,7 +668,7 @@ fi
 ###################
 # Write fip image #
 ###################
-if [ -n "$write2fip" ]; then
+if [ -n "$write2fip" ] && [[ "${for_linux}" == "${linuxpkg}" ]]; then
   if [[ "${typefipboot}" == "fip" ]]; then
     fipfiles=""
     [ -f "$bl31file" ]   && fipfiles+=" --soc-fw $bl31file"
