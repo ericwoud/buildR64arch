@@ -2,7 +2,6 @@
 
 while [ "${1:-}" != '' ]; do
   case "$1" in
-# '-w' | '--withstring')      shift; withstring="${1}"  ;;
   '--fip2boot')                      fip2boot=1         ;;
   '--boot2fip')                      boot2fip=1         ;;
   '--download2root')                 download2root=1    ;;
@@ -17,6 +16,8 @@ while [ "${1:-}" != '' ]; do
   '--uboot-install')                 uboot_install=1    ;;
   '--uboot-remove')                  uboot_remove=1     ;;
   '--uartboot')                      uartboot=1         ;;
+  '--for-linux')              shift; for_linux="${1}"   ;;
+  '--remove-dtb')                    remove_dtb=1       ;;
   *) [ -n "$1" ] && echo "Unknown option: $1"
      cat <<-EOF
 	Usage: $(basename "$0") [OPTION]...
@@ -35,6 +36,8 @@ while [ "${1:-}" != '' ]; do
 	                             also creates /boot/extlinux/extlinux.conf if not present
 	  --uboot-remove           Removes /boot/u-boot.bin
 	  --uartboot               Create a uartboot image
+	  --for_linux=              Specify linuxpkg to create files for
+	  --remove-dtb             Remove dtb file
 	EOF
     exit 1
     ;;
@@ -333,10 +336,15 @@ rm -rf "${tmp}"
 mkdir -p "${tmp}/dtbos"
 mkdir -p /boot/bootcfg
 
-default_linuxpkg=$(cat /lib/modules/*/pkgbase | tail -n1)
-[ -z "${default_linuxpkg}" ] && default_linuxpkg=$(ls /etc/initcpio/install/* | head -n1 | xargs basename)
+if [ -n "${for_linux}" ]; then
+  linuxpkg="${for_linux}"
+  getconf w linuxpkg "$linuxpkg" # Write to bootcfg if not defined
+else
+  default_linuxpkg=$(cat /lib/modules/*/pkgbase | tail -n1)
+  [ -z "${default_linuxpkg}" ] && default_linuxpkg=$(ls /etc/initcpio/install/* | head -n1 | xargs basename)
+  linuxpkg=$(getconf w linuxpkg "$default_linuxpkg")
+fi
 
-linuxpkg=$(getconf w linuxpkg "$default_linuxpkg")
 if [ ! -f "/boot/Image" ] || [ -f "/boot/Image-${linuxpkg}" ]; then
   default_image="/boot/Image-${linuxpkg}"
   default_initrd="/boot/initramfs-${linuxpkg}.img"
@@ -647,6 +655,13 @@ if [ -n "$write2dtb" ]; then
             "root=PARTLABEL=${partlabelroot}" \
             "${dtbfile}" \
             /boot/dtbos/*.dts
+fi
+
+#####################
+# Remove single dtb #
+#####################
+if [ -n "$remove_dtb" ]; then
+  rm -vf "${dtbfile}"
 fi
 
 ###################
