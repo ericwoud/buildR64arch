@@ -334,9 +334,9 @@ default_linuxpkg=$(cat /lib/modules/*/pkgbase | tail -n1)
 [ -z "${default_linuxpkg}" ] && default_linuxpkg=$(ls /etc/initcpio/install/* | head -n1 | xargs basename)
 
 linuxpkg=$(getconf w linuxpkg "$default_linuxpkg")
-if [ ! -f "/boot/Image" ] || [ -f "/boot/Image-$linuxpkg" ]; then
-  default_image="/boot/Image-$linuxpkg"
-  default_initrd="/boot/initramfs-$linuxpkg.img"
+if [ ! -f "/boot/Image" ] || [ -f "/boot/Image-${linuxpkg}" ]; then
+  default_image="/boot/Image-${linuxpkg}"
+  default_initrd="/boot/initramfs-${linuxpkg}.img"
 else
   default_image="/boot/Image"
   default_initrd="/boot/initramfs-bpir.img"
@@ -344,9 +344,9 @@ fi
 
 if [ ! -f "$default_initrd" ]; then
   if command -v bpir-initrd >/dev/null 2>&1; then
-    bpir-initrd -p $linuxpkg
+    bpir-initrd -p ${linuxpkg}
   elif command -v mkinitcpio >/dev/null 2>&1; then
-    mkinitcpio -p $linuxpkg
+    mkinitcpio -p ${linuxpkg}
   fi
 fi
 
@@ -356,12 +356,17 @@ checkconf linux
 checkconf initrd
 checkconf atfdtb
 
-dtb=$(     getconf r dtb      "$default_dtb")
+dtb=$(getconf r dtb "$default_dtb")
+dtbfile="/boot/dtbs/${linuxpkg}/${dtb}.dtb"
+[ ! -f "${dtbfile}" ] && dtbfile="/boot/dtbs/mediatek/${dtb}.dtb"
+[ ! -f "${dtbfile}" ] && dtbfile="/boot/dtbs/${dtb}.dtb"
+[ ! -f "${dtbfile}" ] && exit 1
+
 device=$(  getconf r device   "$(echo $partlabelroot | cut -d'-' -f2)")
 linux=$(   getconf w linux    "$default_image")
 cmdline=$( getconf w cmdline  "console=ttyS0,115200 debug=7 rw rootwait audit=0")
 initrd=$(  getconf w initrd   "$default_initrd")
-atfdtb=$(  getconf w atfdtb   "/boot/dtbs/${dtb}-atf.dtb")
+atfdtb=$(  getconf w atfdtb   "${dtbfile%.dtb}-atf.dtb")
 ddrsize=$( getconf r ddrsize  "$default_ddrsize")
 
 extra=""
@@ -515,7 +520,7 @@ if [ -n "$nand_update" ]; then
   fiptool info $tmp/fip.bin
   write_dtb "$tmp/atf.dtb" \
             "root=" \
-            "/boot/dtbs/${dtb}.dtb" \
+            "${dtbfile}" \
 	    /usr/share/buildR64arch/boot/${target^^}/*.dts \
 	    /usr/share/buildR64arch/boot/${target^^}-NAND/*.dts
   write_extlinux "$tmp/extlinux.conf" \
@@ -589,7 +594,7 @@ if [ -n "$uartboot" ]; then
   rm -rf /tmp/uartboot/*
   write_dtb "$tmp/atf.dtb" \
             "root=" \
-            "/boot/dtbs/${dtb}.dtb" \
+            "${dtbfile}" \
 	    /usr/share/buildR64arch/boot/${target^^}/*.dts \
 	    /usr/share/buildR64arch/boot/${target^^}-EMMC/*.dts
   cp -vf "${atfdir}/${target}-atf-ram-atf${extra}.bin" \
@@ -637,7 +642,7 @@ if [ -n "$write2fip" ]; then
   rm -v /boot/dtbos/*.dtbo /boot/dtbs/*-fixed.dtb 2>/dev/null # not used anymore
   write_dtb "$atfdtb" \
             "root=PARTLABEL=${partlabelroot}" \
-            "/boot/dtbs/${dtb}.dtb" \
+            "${dtbfile}" \
             /boot/dtbos/*.dts
   if [[ "${typefipboot}" == "fip" ]]; then
     fipfiles=""
