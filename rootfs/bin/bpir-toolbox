@@ -2,22 +2,23 @@
 
 while [ "${1:-}" != '' ]; do
   case "$1" in
-  '--fip2boot')                      fip2boot=1         ;;
-  '--boot2fip')                      boot2fip=1         ;;
-  '--download2root')                 download2root=1    ;;
-  '--nand-force-erase')              nand_force_erase=1 ;;
-  '--nand-format')                   nand_format=1      ;;
-  '--nand-image')                    nand_image=1       ;;
-  '--nand-update')                   nand_update=1      ;;
-  '--write2dtb' | '--dtb')           write2dtb=1        ;;
-  '--write2atf' | '--atf')           write2atf=1        ;;
-  '--write2fip' | '--fip')           write2fip=1        ;;
-  '--write2extlinux' | '--extlinux') write2extlinux=1   ;;
-  '--uboot-install')                 uboot_install=1    ;;
-  '--uboot-remove')                  uboot_remove=1     ;;
-  '--uartboot')                      uartboot=1         ;;
-  '--for-linux')              shift; for_linux="${1}"   ;;
-  '--remove-dtb')                    remove_dtb=1       ;;
+  '--fip2boot')                      fip2boot=1           ;;
+  '--boot2fip')                      boot2fip=1           ;;
+  '--download2root')                 download2root=1      ;;
+  '--nand-force-erase')              nand_force_erase=1   ;;
+  '--nand-format')                   nand_format=1        ;;
+  '--nand-image')                    nand_image=1         ;;
+  '--nand-update')                   nand_update=1        ;;
+  '--write2dtb' | '--dtb')           write2dtb=1          ;;
+  '--write2atf' | '--atf')           write2atf=1          ;;
+  '--write2fip' | '--fip')           write2fip=1          ;;
+  '--write2extlinux' | '--extlinux') write2extlinux=1     ;;
+  '--uboot-install')                 uboot_install=1      ;;
+  '--uboot-remove')                  uboot_remove=1       ;;
+  '--uartboot')                      uartboot=1           ;;
+  '--remove-dtb')                    remove_dtb=1         ;;
+  '--for-linux')              shift; for_linux="${1}"     ;;
+  '--for-linux'=*)                   for_linux="${1#*=}"  ;;
   *) [ -n "$1" ] && echo "Unknown option: $1"
      cat <<-EOF
 	Usage: $(basename "$0") [OPTION]...
@@ -36,7 +37,7 @@ while [ "${1:-}" != '' ]; do
 	                             also creates /boot/extlinux/extlinux.conf if not present
 	  --uboot-remove           Removes /boot/u-boot.bin
 	  --uartboot               Create a uartboot image
-	  --for_linux=              Specify linuxpkg to create files for
+	  --for-linux ...          Specify linuxpkg to create files for
 	  --remove-dtb             Remove dtb file
 	EOF
     exit 1
