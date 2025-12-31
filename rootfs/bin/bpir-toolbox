@@ -10,8 +10,9 @@ while [ "${1:-}" != '' ]; do
   '--nand-format')                   nand_format=1      ;;
   '--nand-image')                    nand_image=1       ;;
   '--nand-update')                   nand_update=1      ;;
+  '--write2dtb' | '--dtb')           write2dtb=1        ;;
   '--write2atf' | '--atf')           write2atf=1        ;;
-  '--write2fip')                     write2fip=1        ;;
+  '--write2fip' | '--fip')           write2fip=1        ;;
   '--write2extlinux' | '--extlinux') write2extlinux=1   ;;
   '--uboot-install')                 uboot_install=1    ;;
   '--uboot-remove')                  uboot_remove=1     ;;
@@ -26,6 +27,7 @@ while [ "${1:-}" != '' ]; do
 	  --nand-format            Format the nand, also runs update
 	  --nand-image             Create nand image, also runs update
 	  --nand-update            Updates all files on nand, only writes when needed
+	  --write2dtb              Combine dtbos with dtb and create one dtb file
 	  --write2atf              Write arm-trusted-firmware
 	  --write2fip              Create all files needed for fip (dtb+fip) and write it
 	  --write2extlinux         Create a new /boot/extlinux/extlinux.conf
@@ -42,6 +44,7 @@ done
 
 extlinux="/boot/extlinux/extlinux.conf"
 
+[ -n "$write2fip" ] && write2dtb=1
 [ -n "$nand_image" ]  && nand_update=1
 [ -n "$nand_format" ] && nand_update=1
 [ -n "$uboot_install" ] && [ ! -f "$extlinux" ] && write2extlinux=1
@@ -635,15 +638,21 @@ if [ -n "$uboot_remove" ]; then
   rmdir -v $(dirname $extlinux)
 fi
 
-#########################################
-# Create single dtb and write fip image #
-#########################################
-if [ -n "$write2fip" ]; then
+#####################
+# Create single dtb #
+#####################
+if [ -n "$write2dtb" ]; then
   rm -v /boot/dtbos/*.dtbo /boot/dtbs/*-fixed.dtb 2>/dev/null # not used anymore
   write_dtb "$atfdtb" \
             "root=PARTLABEL=${partlabelroot}" \
             "${dtbfile}" \
             /boot/dtbos/*.dts
+fi
+
+###################
+# Write fip image #
+###################
+if [ -n "$write2fip" ]; then
   if [[ "${typefipboot}" == "fip" ]]; then
     fipfiles=""
     [ -f "$bl31file" ]   && fipfiles+=" --soc-fw $bl31file"
