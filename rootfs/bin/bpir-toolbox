@@ -355,13 +355,13 @@ else
   default_initrd="/boot/initramfs-bpir.img"
 fi
 
-if [ ! -f "$default_initrd" ]; then
-  if command -v bpir-initrd >/dev/null 2>&1; then
-    bpir-initrd -p ${for_linux}
-  elif command -v mkinitcpio >/dev/null 2>&1; then
-    mkinitcpio -p ${for_linux}
-  fi
-fi
+#if [ ! -f "$default_initrd" ]; then
+#  if command -v bpir-initrd >/dev/null 2>&1; then
+#    bpir-initrd -p ${for_linux}
+#  elif command -v mkinitcpio >/dev/null 2>&1; then
+#    mkinitcpio -p ${for_linux}
+#  fi
+#fi
 
 checkextlinux "${extlinux}"
 
