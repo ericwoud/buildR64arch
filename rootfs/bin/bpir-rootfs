@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PACKAGES="hostapd-launch ssh-fix-reboot bpir-initrd"
+PACKAGES="build-r64-arch-utils-git hostapd-launch ssh-fix-reboot bpir-initrd"
 TIMEZONE="Europe/Paris"
 USERNAME="user"
 USERPWD="admin"
