@@ -17,6 +17,7 @@ while [ "${1:-}" != '' ]; do
   '--uboot-remove')                  uboot_remove=1       ;;
   '--uartboot')                      uartboot=1           ;;
   '--remove-dtb')                    remove_dtb=1         ;;
+  '--clean-boot')                    clean_boot=1         ;;
   '--for-linux')              shift; for_linux="${1}"     ;;
   '--for-linux'=*)                   for_linux="${1#*=}"  ;;
   *) [ -n "$1" ] && echo "Unknown option: $1"
@@ -663,6 +664,15 @@ fi
 #####################
 if [ -n "$remove_dtb" ]; then
   rm -vf "${dtbfile}"
+fi
+
+#####################
+# Remove boot files #
+#####################
+if [ -n "$clean_boot" ]; then
+  rm -vf  "/boot/Image-${for_linux}"    2>/dev/null
+  rm -vf  "/boot/Image-${for_linux}.gz" 2>/dev/null
+  rm -vfr "/boot/dtbs/${for_linux}"     2>/dev/null
 fi
 
 ###################
