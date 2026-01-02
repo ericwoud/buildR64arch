@@ -347,6 +347,8 @@ fi
 linuxpkg=$(getconf w linuxpkg "$default_linuxpkg")
 [ -z "${for_linux}" ] && for_linux="${linuxpkg}"
 
+unamer="$(grep /lib/modules/*/pkgbase -l -e "${for_linux}" | head -n1 | xargs dirname | xargs basename)"
+
 if [ ! -f "/boot/Image" ] || [ -f "/boot/Image-${for_linux}" ]; then
   default_image="/boot/Image-${for_linux}"
   default_initrd="/boot/initramfs-${for_linux}.img"
@@ -672,6 +674,9 @@ fi
 if [ -n "$clean_boot" ]; then
   rm -vf  "/boot/Image-${for_linux}"    2>/dev/null
   rm -vf  "/boot/Image-${for_linux}.gz" 2>/dev/null
+  rm -vf  "/boot/config-${unamer}"      2>/dev/null
+  rm -vf  "/boot/System.map-${unamer}"  2>/dev/null
+  rm -vf  "/boot/"*"${unamer}.itb"      2>/dev/null
   rm -vfr "/boot/dtbs/${for_linux}"     2>/dev/null
 fi
 
