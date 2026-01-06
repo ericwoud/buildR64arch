@@ -381,18 +381,14 @@ function ask() {
     eval 'items=("${'"${2}"'[@]}")'
     eval 'count=${#'"${2}"'[@]}'
     if [ ${count} -gt 1 ]; then
-      PS3="${3} "; COLUMNS=1
+      PS3="${3} "; COLUMNS=1; echo
       select a in "${items[@]}" "Quit"; do
-        if (( REPLY > 0 && REPLY <= ${count} )) ; then
-          break
-        else
-          exit 1
-        fi
+        (( REPLY > 0 && REPLY <= ${count} )) && break || exit 1
       done
-      export declare $1=${a%% *}
     else
-      export declare $1=${items[0]}
+      a=${items[0]}
     fi
+    export declare $1=${a%% *}
   fi
 }
 
@@ -536,13 +532,9 @@ fi
 [ -f "config.sh" ] && source config.sh
 
 if [ "$F" = true ]; then
-  if [ -z "$target" ]; then
-    ask target TARGETS "Choose target to format image for:"
-  fi
-  if [ -z "$atfdevice" ]; then
-    setupenv # Now that target is known.
-    ask atfdevice atfdevices "Choose atfdevice to format image for:"
-  fi
+  ask target TARGETS "Choose target to format image for:"
+  setupenv # Now that target is known.
+  ask atfdevice atfdevices "Choose atfdevice to format image for:"
   if [ "$l" = true ]; then
     [ ! -f $IMAGE_FILE ] && touch $IMAGE_FILE
     loopdev=$(losetup --show --find $IMAGE_FILE 2>/dev/null)
@@ -580,7 +572,6 @@ if [ "$r" = true ]; then
   [ "$p" = true ] && bpirtoolbox="--fip2boot"
   [ "$P" = true ] && bpirtoolbox="--boot2fip"
   if [ "$F" = true ]; then
-    echo -e "\nCreate root filesystem\n"
     ask distro DISTROS "Choose distro to create root for:"
     echo "Distro="${distro}
   fi

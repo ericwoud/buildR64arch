@@ -13,6 +13,7 @@ while [ "${1:-}" != '' ]; do
   '--write2dtb' | '--dtb')           write2dtb=1          ;;
   '--write2atf' | '--atf')           write2atf=1          ;;
   '--write2fip' | '--fip')           write2fip=1          ;;
+  '--write1uboot2fip')               write1uboot2fip=1    ;;
   '--write2extlinux' | '--extlinux') write2extlinux=1     ;;
   '--uboot-install')                 uboot_install=1      ;;
   '--uboot-remove')                  uboot_remove=1       ;;
@@ -21,6 +22,7 @@ while [ "${1:-}" != '' ]; do
   '--clean-boot')                    clean_boot=1         ;;
   '--pkgbase')                shift; pkgbase="${1}"       ;;
   '--pkgbase'=*)                     pkgbase="${1#*=}"    ;;
+  '--set-atf-linuxpkg')              set_atf_linuxpkg=1   ;;
   *) [ -n "$1" ] && echo "Unknown option: $1"
      cat <<-EOF
 	Usage: $(basename "$0") [OPTION]...
@@ -35,12 +37,15 @@ while [ "${1:-}" != '' ]; do
 	  --write2dtb              Combine dtbos with dtb and create one dtb file
 	  --write2atf              Write arm-trusted-firmware
 	  --write2fip              Create all files needed for fip and write it, adds --write2dtb
+	  --write1uboot2fip        Write uboot in fip instead of linuxpkg
+	                             also creates /boot/extlinux/extlinux.conf if not present
 	  --write2extlinux         Create a new /boot/extlinux/extlinux.conf
 	  --uboot-install          Copies U-Boot to /boot/u-boot.bin (needs boot partition),
 	                             also creates /boot/extlinux/extlinux.conf if not present
 	  --uboot-remove           Removes /boot/u-boot.bin
 	  --uartboot               Create a uartboot image
 	  --pkgbase ...            Specify linuxpkg to create files for
+	  --set-atf-linuxpkg       Set linuxpkg atf will directly boot, specified in pkgbase
 	  --remove-dtb             Remove dtb file
 	EOF
     exit 1
@@ -55,7 +60,8 @@ extlinux="/boot/extlinux/extlinux.conf"
 [ -n "$write2fip" ] && write2dtb=1
 [ -n "$nand_image" ]  && nand_update=1
 [ -n "$nand_format" ] && nand_update=1
-[ -n "$uboot_install" ] && [ ! -f "$extlinux" ] && write2extlinux=1
+[ -n "$uboot_install" ]   && [ ! -f "$extlinux" ] && write2extlinux=1
+[ -n "$write1uboot2fip" ] && [ ! -f "$extlinux" ] && write2extlinux=1
 
 #############
 # Functions #
@@ -70,7 +76,7 @@ function checkconf {
 
 function getconf {
   local conf=$(cat /boot/bootcfg/${2} 2>/dev/null)
-  if [ -z "$conf" ]; then
+  if [ -z "${conf}" ]; then
     conf="${3}"
     [[ "${1}" == "w" ]] && echo -n "${conf}" >"/boot/bootcfg/${2}"
   fi
@@ -139,7 +145,7 @@ function imageid {
 
 function get_emmcbootpart {
   local bootpart="0"$(mmc extcsd read ${1} | grep PARTITION_CONFIG | cut -f 2 -d'0' | cut -f 1 -d']')
-  echo $(( ($bootpart & 0x38) >> 3 ))
+  echo $(( (${bootpart} & 0x38) >> 3 ))
 }
 
 function set_emmcbootpart {
@@ -169,8 +175,8 @@ function mtdnr {
 
 function ubivol {
   for u in /sys/class/ubi/${ubidev/"/dev/"/}_*/name; do
-    if [[ "$(cat $u)" == "$1" ]]; then
-      echo $(basename $(dirname $u))
+    if [[ "$(cat ${u})" == "$1" ]]; then
+      echo $(basename $(dirname ${u}))
       return
     fi
   done
@@ -188,8 +194,8 @@ function ubiupdate {
 function get_ubidev {
   local ubidevice
   ubidevice="$(basename /sys/class/mtd/mtd${1}/ubi*)"
-  [ ! -e "/sys/class/ubi/$ubidevice" ] && return 1
-  echo "/dev/$ubidevice"
+  [ ! -e "/sys/class/ubi/${ubidevice}" ] && return 1
+  echo "/dev/${ubidevice}"
   return 0
 }
 
@@ -206,11 +212,11 @@ function _ubimkvol {
       esac
     done
     (
-      echo -e "[${N}-volume]\nmode=ubi\nimage=$tmp/${N}.bin\nvol_id=${i}\nvol_name=${N}\nvol_alignment=1"
+      echo -e "[${N}-volume]\nmode=ubi\nimage=${tmp}/${N}.bin\nvol_id=${i}\nvol_name=${N}\nvol_alignment=1"
       [[ ${m} == "true" ]]   && echo "vol_flags=autoresize" || echo "vol_size=${s}"
       [[ ${t} == "static" ]] && echo "vol_type=static"      || echo "vol_type=dynamic"
       echo
-    ) >> $tmp/ubinize.conf
+    ) >> ${tmp}/ubinize.conf
   else
     ubimkvol $@
   fi
@@ -235,11 +241,11 @@ function write_dtb {
   cp -vf "$3" "${tmp}/fixed.dtb"
   rm -rf ${tmp}/dtbos/* 
   for dts in "${@:4}"; do
-    [[ "$dts" =~ '*' ]] && continue
-    dtsname=$(basename $dts)
-    echo "Creating .dtbo from $dtsname"
-    cat $dts | grep -v -e '^#define' > "${tmp}/dtbos/${dtsname}"
-    cat $dts | grep -e '^#define' | while read -r line ; do
+    [[ "${dts}" =~ '*' ]] && continue
+    dtsname=$(basename ${dts})
+    echo "Creating .dtbo from ${dtsname}"
+    cat ${dts} | grep -v -e '^#define' > "${tmp}/dtbos/${dtsname}"
+    cat ${dts} | grep -e '^#define' | while read -r line ; do
       macroname=$(echo "${line}" | tr -s ' \t' ' ' | cut -d ' ' -f 2)
       macrotext=$(echo "${line}" | tr -s ' \t' ' ' | cut -d ' ' -f 3)
       if [ -n "${macroname}" ]; then
@@ -247,7 +253,7 @@ function write_dtb {
         sed -i "s/${macroname}/${macrotext}/g" "${tmp}/dtbos/${dtsname}"
       fi
     done
-    cat $dts | grep "//fdtput" | while read -r line ; do
+    cat ${dts} | grep "//fdtput" | while read -r line ; do
       echo fdtput "${tmp}/fixed.dtb" ${line/"//fdtput"/""}
            fdtput "${tmp}/fixed.dtb" ${line/"//fdtput"/""}
     done
@@ -257,26 +263,26 @@ function write_dtb {
   fdtoverlay -vi "${tmp}/fixed.dtb" -o "$1" \
                   ${tmp}/dtbos/*.dtbo
   origargs=$(fdtget -ts "$1" "/chosen" "bootargs")
-  bootargs="$2 $origargs $cmdline"
-  echo BOOTARGS = "$bootargs"
-  fdtput -ts "$1" "/chosen" "bootargs" "$bootargs"
+  bootargs="$2 ${origargs} ${cmdline}"
+  echo BOOTARGS = "${bootargs}"
+  fdtput -ts "$1" "/chosen" "bootargs" "${bootargs}"
   fdtput -ts "$1" "/memory" "device_type" "memory"
   d1=$(printf "%x" $((ddrsize >> 2)) )
   d2=$(printf "%x" $(( $((ddrsize << 2)) & 15 )) )
   fdtput -tx "$1" "/memory" "reg" 00 40000000 0${d1} ${d2}0000000
-  if [ -f "$initrd" ]; then
+  if [ -f "${initrd}" ]; then
     ins="0x48000000"
-    ine="0x$(printf '%x\n' $(( $ins + $(du -b $initrd | cut -f1) )))"
-    fdtput -tx "$1" "/chosen" "linux,initrd-end" "$ine"
-    fdtput -tx "$1" "/chosen" "linux,initrd-start" "$ins"
+    ine="0x$(printf '%x\n' $(( $ins + $(du -b ${initrd} | cut -f1) )))"
+    fdtput -tx "$1" "/chosen" "linux,initrd-end" "${ine}"
+    fdtput -tx "$1" "/chosen" "linux,initrd-start" "${ins}"
   fi
 }
 
 function download {
   echo "Download $1..."
-  pkg=$(cat $tmp/ericwoud/$1-*/desc 2>/dev/null | grep "%FILENAME%" -A1 | head -n 2 | tail -n1)
-  [ -z "$pkg" ] && return 1
-  until curl -L $repo'/'$pkg | xz -dc - | tar x -mC /
+  pkg=$(cat ${tmp}/ericwoud/$1-*/desc 2>/dev/null | grep "%FILENAME%" -A1 | head -n 2 | tail -n1)
+  [ -z "${pkg}" ] && return 1
+  until curl -L $repo'/'${pkg} | xz -dc - | tar x -mC /
   do sleep 2; done
   return 0
 }
@@ -318,13 +324,15 @@ case ${target} in
     exit 1
     ;;
 esac
+default_cmdline="console=ttyS0,115200 debug=7 rw rootwait audit=0"
 
-if [ -z "$rootdev" ]; then
+if [ -z "${rootdev}" ]; then
   if [ -f "/etc/bpir-is-initrd" ]; then  # Writing NAND while running from initrd
+    default_device=${nandtype}
     if  [ -n "$nand_update" ] || [ -n "$download2root" ]; then
-      mkdir -p "$tmp/ericwoud"
+      mkdir -p "${tmp}/ericwoud"
       repo="ftp://ftp.woudstra.mywire.org/repo/aarch64"
-      until curl -L ${repo}/ericwoud.db | tar -xz -mC "$tmp/ericwoud"
+      until curl -L ${repo}/ericwoud.db | tar -xz -mC "${tmp}/ericwoud"
       do sleep 2; done
       download "${default_linuxpkg}"
       download mkinitcpio-bpir
@@ -338,9 +346,10 @@ if [ -z "$rootdev" ]; then
     exit 1
   fi
 else
-  partlabelroot=$(blkid $rootdev -s PARTLABEL -o value)
-  [ -z "$partlabelroot" ] && exit 1
-  target=$(echo $partlabelroot | cut -d'-' -f1)
+  partlabelroot=$(blkid ${rootdev} -s PARTLABEL -o value)
+  [ -z "${partlabelroot}" ] && exit 1
+  target=$(echo ${partlabelroot} | cut -d'-' -f1)
+  default_device="$(echo ${partlabelroot} | cut -d'-' -f2)"
 fi
 
 rm -rf "${tmp}"
@@ -351,7 +360,13 @@ if [ -n "$default_bootcfg" ]; then
   find "/boot/bootcfg" -type f ! -name 'ddrsize' -delete
 fi
 
+if [ -n "$set_atf_linuxpkg" ] && [ -n "$pkgbase" ]; then
+  rm -vf /boot/bootcfg/linuxpkg /boot/bootcfg/linux /boot/bootcfg/atfdtb
+  default_linuxpkg="${pkgbase}"
+fi
+
 if [ -z "$(grep /lib/modules/*/pkgbase -l -e ${default_linuxpkg})" ]; then
+  # default_linuxpkg not valid, set first (alfabetically sorted) linux kernel installed
   default_linuxpkg="$(cat $(echo /lib/modules/*/kernel | head -n1 | xargs dirname)/pkgbase)"
   [ -z "${default_linuxpkg}" ] && exit 1
 fi
@@ -363,20 +378,12 @@ linuxpkg=$(getconf w linuxpkg "${default_linuxpkg}")
 unamer="$(grep /lib/modules/*/pkgbase -l -e "${pkgbase}" | head -n1 | xargs dirname | xargs basename)"
 
 if [ ! -f "/boot/Image" ] || [ -f "/boot/Image-${pkgbase}" ]; then
-  default_image="/boot/Image-${pkgbase}"
+  default_linux="/boot/Image-${pkgbase}"
   default_initrd="/boot/initramfs-${pkgbase}.img"
 else
-  default_image="/boot/Image"
+  default_linux="/boot/Image"
   default_initrd="/boot/initramfs-bpir.img"
 fi
-
-#if [ ! -f "$default_initrd" ]; then
-#  if command -v bpir-initrd >/dev/null 2>&1; then
-#    bpir-initrd -p ${pkgbase}
-#  elif command -v mkinitcpio >/dev/null 2>&1; then
-#    mkinitcpio -p ${pkgbase}
-#  fi
-#fi
 
 checkextlinux "${extlinux}"
 
@@ -384,21 +391,22 @@ checkconf linux
 checkconf initrd
 checkconf atfdtb
 
-dtb=$(getconf r dtb "$default_dtb")
+dtb=$(getconf r dtb "${default_dtb}")
 dtbfile="/boot/dtbs/${pkgbase}/${dtb}.dtb"
 [ ! -f "${dtbfile}" ] && dtbfile="/boot/dtbs/mediatek/${dtb}.dtb"
 [ ! -f "${dtbfile}" ] && dtbfile="/boot/dtbs/${dtb}.dtb"
 [ ! -f "${dtbfile}" ] && exit 1
+default_atfdtb="${dtbfile%.dtb}-atf.dtb"
 
-device=$(  getconf r device   "$(echo $partlabelroot | cut -d'-' -f2)")
-linux=$(   getconf w linux    "$default_image")
-cmdline=$( getconf w cmdline  "console=ttyS0,115200 debug=7 rw rootwait audit=0")
-initrd=$(  getconf w initrd   "$default_initrd")
-atfdtb=$(  getconf w atfdtb   "${dtbfile%.dtb}-atf.dtb")
-ddrsize=$( getconf r ddrsize  "$default_ddrsize")
+device=$(  getconf r device   "${default_device}")
+linux=$(   getconf w linux    "${default_linux}")
+cmdline=$( getconf w cmdline  "${default_cmdline}")
+initrd=$(  getconf w initrd   "${default_initrd}")
+atfdtb=$(  getconf w atfdtb   "${default_atfdtb}")
+ddrsize=$( getconf r ddrsize  "${default_ddrsize}")
 
 extra=""
-[[ "$ddrsize" != "$default_ddrsize" ]] && extra+="-${ddrsize}gb"
+[[ "${ddrsize}" != "${default_ddrsize}" ]] && extra+="-${ddrsize}gb"
 [ -d "/usr/share/bpir-atf" ] && atfdir="/usr/share/bpir-atf" || atfdir="/boot"
 headerfile="${atfdir}/${target}-atf-${device}-header${extra}.bin"
 atffile="${atfdir}/${target}-atf-${device}-atf${extra}.bin"
@@ -406,17 +414,17 @@ bl31file="${atfdir}/${target}-atf-${device}-bl31${extra}.bin"
 
 atfdevice=$(getdev atf)
 fipbootdevice=$(getdev fip)
-[ -z "$fipbootdevice" ] && fipbootdevice=$(getdev boot)
-if [ -n "$fipbootdevice" ]; then
+[ -z "${fipbootdevice}" ] && fipbootdevice=$(getdev boot)
+if [ -n "${fipbootdevice}" ]; then
   pkfipboot=$(lsblk -rno pkname ${fipbootdevice} 2>/dev/null)
-  [ -z "$pkfipboot" ] && exit 1
+  [ -z "${pkfipboot}" ] && exit 1
   nrfipboot=$(cat "/sys/block/${pkfipboot}/$(basename ${fipbootdevice})/partition" 2>/dev/null)
-  [ -z "$nrfipboot" ] && exit 1
-  partlabelfipboot=$(blkid $fipbootdevice -s PARTLABEL -o value)
-  [ -z "$partlabelfipboot" ] && exit 1
+  [ -z "${nrfipboot}" ] && exit 1
+  partlabelfipboot=$(blkid ${fipbootdevice} -s PARTLABEL -o value)
+  [ -z "${partlabelfipboot}" ] && exit 1
   typefipboot=$(echo ${partlabelfipboot} | cut -d "-" -f3)
   [ -z "${typefipboot}" ] && typefipboot="${partlabelfipboot}"
-  echo "Type of bootchain installed (fip or boot): $typefipboot"
+  echo "Type of bootchain installed (fip or boot): ${typefipboot}"
 fi
 
 # Copy DTBO's if there are none.
@@ -431,15 +439,15 @@ fi
 #########################################
 
 if [ -n "$fip2boot" ] || [ -n "$boot2fip" ]; then
-  rm -rf $tmp/boot; mkdir $tmp/boot
-  echo "Copying files from /boot to $tmp/boot"
-  cp -rfT /boot/ $tmp/boot
+  rm -rf ${tmp}/boot; mkdir ${tmp}/boot
+  echo "Copying files from /boot to ${tmp}/boot"
+  cp -rfT /boot/ ${tmp}/boot
   sync
-  [ -z "$fipbootdevice" ] && exit 1
+  [ -z "${fipbootdevice}" ] && exit 1
   while mountpoint -q /boot; do umount -R /boot; sleep 0.1; done
   if [ -n "$fip2boot" ]; then
-    parted -s -- "/dev/$pkfipboot" name $nrfipboot boot \
-                               set  $nrfipboot boot on
+    parted -s -- "/dev/${pkfipboot}" name ${nrfipboot} boot \
+                               set  ${nrfipboot} boot on
     sync
     mkfs.vfat -v -F 32 -S 512 -s 16 -n "${target^^}-BOOT" ${fipbootdevice}
     rm -rf /boot; mkdir /boot; chmod 0700 /boot
@@ -449,15 +457,15 @@ if [ -n "$fip2boot" ] || [ -n "$boot2fip" ]; then
     do echo "Waiting for /boot being mounted..."; sleep 0.1; done
     typefipboot="boot"
   else
-    parted -s -- "/dev/$pkfipboot" name $nrfipboot fip
+    parted -s -- "/dev/${pkfipboot}" name ${nrfipboot} fip
     rm -rf /boot; mkdir /boot; chmod 0700 /boot
     typefipboot="fip"
   fi
   sync
   fix_partlabelfipboot
   sync
-  echo "Copying files from $tmp/boot to /boot"
-  cp -rfT $tmp/boot /boot
+  echo "Copying files from ${tmp}/boot to /boot"
+  cp -rfT ${tmp}/boot /boot
   sync
   write2fip=1
 fi
@@ -495,7 +503,7 @@ if [ -n "$nand_force_erase" ]; then
   ubidetach -p /dev/mtd${ubinr} 2>/dev/null
   echo Y >/sys/kernel/debug/mtd/expert_analysis_mode
   for i in $(cat /proc/mtd | tail -n+2 | cut -d' ' -f1 | tr -d ':'); do
-    flash_erase --noskipbad "/dev/$i" 0 0
+    flash_erase --noskipbad "/dev/${i}" 0 0
   done
   echo N >/sys/kernel/debug/mtd/expert_analysis_mode
 fi
@@ -514,18 +522,18 @@ elif [ -n "$nand_format" ]; then
   ubiattach -p /dev/mtd${ubinr}
   ubidev=$(get_ubidev ${ubinr})
   [[ $? != 0 ]] && exit 1
-  [[ "$ubidev" == "/dev/ubi_ctrl" ]] && exit 1
+  [[ "${ubidev}" == "/dev/ubi_ctrl" ]] && exit 1
 fi
 if [ -n "${ubidev}" ]; then
-  rm -f $tmp/ubinize.conf
+  rm -f ${tmp}/ubinize.conf
   i=0
-  _ubimkvol ${ubidev} -n $i -N fip       -s 2MiB   -t static
+  _ubimkvol ${ubidev} -n ${i} -N fip       -s 2MiB   -t static
   ((i++))
-  _ubimkvol ${ubidev} -n $i -N ubootenv  -s 128KiB
+  _ubimkvol ${ubidev} -n ${i} -N ubootenv  -s 128KiB
   ((i++))
-  _ubimkvol ${ubidev} -n $i -N ubootenv2 -s 128KiB
+  _ubimkvol ${ubidev} -n ${i} -N ubootenv2 -s 128KiB
   ((i++))
-  _ubimkvol ${ubidev} -n $i -N rootfs    -m
+  _ubimkvol ${ubidev} -n ${i} -N rootfs    -m
   if [ ${ubidev} != "image" ]; then
     while [ ! -e "${ubidev}_${i}" ]; do sleep 0.1; done
     mkfs.ubifs ${ubidev}_${i}
@@ -540,36 +548,36 @@ if [ -n "$nand_update" ]; then
   atfbin="/usr/share/bpir-atf/${target}-atf-${nandtype}-atf${extra}.bin"
   [ -f "${linux}.gz" ] && ubootlinux="${linux}.gz" || ubootlinux="${linux}"
   ubootfile="/usr/share/bpir-uboot/u-boot-${target}.bin"
-  [ ! -f "$ubootfile" ] && exit 1
+  [ ! -f "${ubootfile}" ] && exit 1
   fipfiles=""
-  [ -f "$nandbl31file" ] && fipfiles+=" --soc-fw $nandbl31file"
+  [ -f "${nandbl31file}" ] && fipfiles+=" --soc-fw ${nandbl31file}"
   fipfiles+=" --nt-fw ${ubootfile}"
-  fiptool --verbose create $tmp/fip.bin $fipfiles
-  fiptool info $tmp/fip.bin
-  write_dtb "$tmp/atf.dtb" \
+  fiptool --verbose create ${tmp}/fip.bin ${fipfiles}
+  fiptool info ${tmp}/fip.bin
+  write_dtb "${tmp}/atf.dtb" \
             "root=" \
             "${dtbfile}" \
 	    /usr/share/buildR64arch/boot/${target^^}/*.dts \
 	    /usr/share/buildR64arch/boot/${target^^}-NAND/*.dts
-  write_extlinux "$tmp/extlinux.conf" \
+  write_extlinux "${tmp}/extlinux.conf" \
                  "${ubootlinux}" \
                  "${initrd}" \
                  "${atfdtb}"
-  mkdir -p $tmp/mnt
+  mkdir -p ${tmp}/mnt
   if [ -n "$nand_image" ]; then
-    mkdir -p $tmp/mnt/boot/extlinux $tmp/mnt/boot/dtbs
-    cp -vf "$tmp/atf.dtb" "$tmp/mnt${atfdtb}"
-    cp -vf "$tmp/extlinux.conf" "$tmp/mnt/boot/extlinux/extlinux.conf"
-    cp -vf "$ubootlinux" "$tmp/mnt$ubootlinux"
-    cp -vf "$initrd" "$tmp/mnt$initrd"
-    mkfs.ubifs -m 2048 -e 124KiB -c 800 -r "$tmp/mnt" "$tmp/rootfs.bin"
-    echo > "$tmp/ubootenv.bin"
-    echo > "$tmp/ubootenv2.bin"
+    mkdir -p ${tmp}/mnt/boot/extlinux ${tmp}/mnt/boot/dtbs
+    cp -vf "${tmp}/atf.dtb" "${tmp}/mnt${atfdtb}"
+    cp -vf "${tmp}/extlinux.conf" "${tmp}/mnt/boot/extlinux/extlinux.conf"
+    cp -vf "${ubootlinux}" "${tmp}/mnt${ubootlinux}"
+    cp -vf "${initrd}" "${tmp}/mnt${initrd}"
+    mkfs.ubifs -m 2048 -e 124KiB -c 800 -r "${tmp}/mnt" "${tmp}/rootfs.bin"
+    echo > "${tmp}/ubootenv.bin"
+    echo > "${tmp}/ubootenv2.bin"
     mkdir -p /tmp/nandimage
     cp -vf "${atfdir}/${target}-atf-${nandtype}-atf${extra}.bin" \
              "/tmp/nandimage/nand-${target}-bl2${extra}.bin" 2>/dev/null
     nandfile="/tmp/nandimage/nand-${target}-ubi${extra}.bin"
-    ubinize -o "${nandfile}" -m 2048 -p 128KiB "$tmp/ubinize.conf"
+    ubinize -o "${nandfile}" -m 2048 -p 128KiB "${tmp}/ubinize.conf"
     ls -l "/tmp/nandimage"
   else
     [[ "$(tr -d '\0' 2>/dev/null </proc/device-tree/compatible)" != "bananapi,"* ]] && exit 1
@@ -581,36 +589,36 @@ if [ -n "$nand_update" ]; then
       ubidev=$(get_ubidev ${ubinr})
       [[ $? != 0 ]] && exit 1
     fi
-    if [[ "$ubidev" == "/dev/ubi_ctrl" ]] || [[ "$ubidev" == "/dev/ubi*" ]]; then exit 1; fi
+    if [[ "${ubidev}" == "/dev/ubi_ctrl" ]] || [[ "${ubidev}" == "/dev/ubi*" ]]; then exit 1; fi
     ubifip=$(ubivol fip)
     ubirootfs=$(ubivol rootfs)
-    dd if=/dev/mtdblock${bl2nr} of="$tmp/dump.bin" bs=$(du -b "$atfbin" | cut -f1) count=1 >/dev/null 2>&1
-    #nanddump -nf "$tmp/dump.bin" -l $(du -b "$atfbin" | cut -f1) /dev/mtd${bl2nr}
-    if ! diff "$tmp/dump.bin" "$atfbin"; then
+    dd if=/dev/mtdblock${bl2nr} of="${tmp}/dump.bin" bs=$(du -b "${atfbin}" | cut -f1) count=1 >/dev/null 2>&1
+    #nanddump -nf "${tmp}/dump.bin" -l $(du -b "${atfbin}" | cut -f1) /dev/mtd${bl2nr}
+    if ! diff "${tmp}/dump.bin" "${atfbin}"; then
       echo "Updating bl2 on NAND:"
-      dd if="$atfbin" of=/dev/mtdblock${bl2nr}
-      #flashcp -v "$atfbin" /dev/mtd${bl2nr}
+      dd if="${atfbin}" of=/dev/mtdblock${bl2nr}
+      #flashcp -v "${atfbin}" /dev/mtd${bl2nr}
     else
       echo "Skipping bl2 on NAND"
     fi
-    dd if="/dev/${ubifip}" of="$tmp/dump.bin"
-    if ! diff "$tmp/dump.bin" "$tmp/fip.bin"; then
+    dd if="/dev/${ubifip}" of="${tmp}/dump.bin"
+    if ! diff "${tmp}/dump.bin" "${tmp}/fip.bin"; then
       echo "Updating fip on NAND"
-      ubiupdatevol "/dev/${ubifip}" $tmp/fip.bin
+      ubiupdatevol "/dev/${ubifip}" ${tmp}/fip.bin
     else
       echo "Skipping fip on NAND"
     fi
-    mount -t ubifs ${ubirootfs} $tmp/mnt
-    while ! mountpoint -q $tmp/mnt; do sleep 0.1; done
-    mkdir -p $tmp/mnt/boot/extlinux $tmp/mnt/boot/dtbs
-    ubiupdate "$tmp/atf.dtb" "$tmp/mnt${atfdtb}"
-    ubiupdate "$tmp/extlinux.conf" "$tmp/mnt/boot/extlinux/extlinux.conf"
-    ubiupdate "$ubootlinux" "$tmp/mnt$ubootlinux"
-    ubiupdate "$initrd" "$tmp/mnt$initrd"
+    mount -t ubifs ${ubirootfs} ${tmp}/mnt
+    while ! mountpoint -q ${tmp}/mnt; do sleep 0.1; done
+    mkdir -p ${tmp}/mnt/boot/extlinux ${tmp}/mnt/boot/dtbs
+    ubiupdate "${tmp}/atf.dtb" "${tmp}/mnt${atfdtb}"
+    ubiupdate "${tmp}/extlinux.conf" "${tmp}/mnt/boot/extlinux/extlinux.conf"
+    ubiupdate "${ubootlinux}" "${tmp}/mnt${ubootlinux}"
+    ubiupdate "${initrd}" "${tmp}/mnt${initrd}"
     sync
-    ls -lR $tmp/mnt
+    ls -lR ${tmp}/mnt
     sync
-    while mountpoint -q $tmp/mnt; do umount $tmp/mnt; sleep 0.1; done
+    while mountpoint -q ${tmp}/mnt; do umount ${tmp}/mnt; sleep 0.1; done
   fi
 fi
 
@@ -620,7 +628,7 @@ fi
 if [ -n "$uartboot" ]; then
   mkdir -p /tmp/uartboot
   rm -rf /tmp/uartboot/*
-  write_dtb "$tmp/atf.dtb" \
+  write_dtb "${tmp}/atf.dtb" \
             "root=" \
             "${dtbfile}" \
 	    /usr/share/buildR64arch/boot/${target^^}/*.dts \
@@ -630,12 +638,12 @@ if [ -n "$uartboot" ]; then
   fipfile="/tmp/uartboot/uart-${target}-fip${extra}.bin"
   fipfiles=""
   uartbl31file="${atfdir}/${target}-atf-ram-bl31${extra}.bin"
-  [ -f "$uartbl31file" ] && fipfiles+=" --soc-fw $uartbl31file"
+  [ -f "${uartbl31file}" ] && fipfiles+=" --soc-fw ${uartbl31file}"
   fipfiles+=" --nt-fw ${linux}"
-  fipfiles+=" --nt-fw-config $tmp/atf.dtb"
-  fipfiles+=" --tos-fw-extra2 $initrd"
-  fiptool --verbose create $fipfile $fipfiles
-  fiptool info $fipfile
+  fipfiles+=" --nt-fw-config ${tmp}/atf.dtb"
+  fipfiles+=" --tos-fw-extra2 ${initrd}"
+  fiptool --verbose create ${fipfile} ${fipfiles}
+  fiptool info ${fipfile}
   ls -l "/tmp/uartboot"
 fi
 
@@ -659,8 +667,8 @@ fi
 
 if [ -n "$uboot_remove" ]; then
   rm -vf "/boot/u-boot.bin"
-  rm -vf $extlinux
-  rmdir -v $(dirname $extlinux)
+  rm -vf ${extlinux}
+  rmdir -v $(dirname ${extlinux})
 fi
 
 #####################
@@ -668,7 +676,7 @@ fi
 #####################
 if [ -n "$write2dtb" ]; then
   rm -v /boot/dtbos/*.dtbo /boot/dtbs/*-fixed.dtb 2>/dev/null # not used anymore
-  write_dtb "$atfdtb" \
+  write_dtb "${atfdtb}" \
             "root=PARTLABEL=${partlabelroot}" \
             "${dtbfile}" \
             /boot/dtbos/*.dts
@@ -693,22 +701,39 @@ if [ -n "$clean_boot" ]; then
   rm -vfr "/boot/dtbs/${pkgbase}"     2>/dev/null
 fi
 
-###################
-# Write fip image #
-###################
+############################
+# Write linux to fip image #
+############################
 if [ -n "$write2fip" ] && [[ "${pkgbase}" == "${linuxpkg}" ]]; then
   if [[ "${typefipboot}" == "fip" ]]; then
     fipfiles=""
-    [ -f "$bl31file" ]   && fipfiles+=" --soc-fw $bl31file"
-    [ -f "$linux" ]  && fipfiles+=" --nt-fw $linux"
-    if [[ "$(imageid $linux)" == "5241644d" ]]; then # We have a linux kernel image
-      [ -f "$atfdtb" ] && fipfiles+=" --nt-fw-config $atfdtb"
-      [ -f "$initrd" ] && fipfiles+=" --tos-fw-extra2 $initrd"
+    [ -f "${bl31file}" ] && fipfiles+=" --soc-fw ${bl31file}"
+    [ -f "${linux}" ]  && fipfiles+=" --nt-fw ${linux}"
+    if [[ "$(imageid ${linux})" == "5241644d" ]]; then # We have a linux kernel image
+      [ -f "${atfdtb}" ] && fipfiles+=" --nt-fw-config ${atfdtb}"
+      [ -f "${initrd}" ] && fipfiles+=" --tos-fw-extra2 ${initrd}"
     fi
-    fiptool --verbose create $tmp/fip.bin $fipfiles
-    fiptool info $tmp/fip.bin
+    fiptool --verbose create ${tmp}/fip.bin ${fipfiles}
+    fiptool info ${tmp}/fip.bin
     echo Writing FIP to: ${fipbootdevice}
-    dd bs=4M of=${fipbootdevice} if=$tmp/fip.bin conv=fsync
+    dd bs=4M of=${fipbootdevice} if=${tmp}/fip.bin conv=fsync
+  fi
+fi
+
+############################
+# Write uboot to fip image #
+############################
+if [ -n "$write1uboot2fip" ]; then
+  if [[ "${typefipboot}" == "fip" ]]; then
+    ubootfile="/usr/share/bpir-uboot/u-boot-${target}-${device}.bin"
+    [ ! -f "${ubootfile}" ] && exit 1
+    fipfiles=""
+    [ -f "${bl31file}" ] && fipfiles+=" --soc-fw ${bl31file}"
+    fipfiles+=" --nt-fw ${ubootfile}"
+    fiptool --verbose create ${tmp}/fip.bin ${fipfiles}
+    fiptool info ${tmp}/fip.bin
+    echo Writing FIP to: ${fipbootdevice}
+    dd bs=4M of=${fipbootdevice} if=${tmp}/fip.bin conv=fsync
   fi
 fi
 

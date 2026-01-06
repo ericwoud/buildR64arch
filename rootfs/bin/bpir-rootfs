@@ -53,28 +53,28 @@ fi
 
 case ${target} in
   bpir64)
-    DDRSIZE=("default    1 GB")
-    SETUPBPIR=("RT       Router setup"
+    DDRSIZES=("default    1 GB")
+    SETUPS=("RT       Router setup"
                "AP       Access Point setup")
     WIFIMODULE="mt7615e"
     ;;
   bpir3)
-    DDRSIZE=("default    2 GB")
-    SETUPBPIR=("RT       Router setup, SFP module eth1 as wan"
+    DDRSIZES=("default    2 GB")
+    SETUPS=("RT       Router setup, SFP module eth1 as wan"
                "RTnoSFP  Router setup, not using SFP module"
                "AP       Access Point setup")
     WIFIMODULE="mt7915e"
     ;;
   bpir3m)
-    DDRSIZE=("default    2 GB")
-    SETUPBPIR=("RT       Router setup"
+    DDRSIZES=("default    2 GB")
+    SETUPS=("RT       Router setup"
                "AP       Access Point setup")
     WIFIMODULE="mt7915e"
     ;;
   bpir4)
-    DDRSIZE=("default    4 GB"
+    DDRSIZES=("default    4 GB"
              "8          8 GB")
-    SETUPBPIR=("RTnoSFP  Router setup, not using SFP module, wan=lan0"
+    SETUPS=("RTnoSFP  Router setup, not using SFP module, wan=lan0"
                "AP       Access Point setup")
     WIFIMODULE="mt7915e"
     ;;
@@ -94,26 +94,27 @@ if [ -z "$bpirtoolbox" ]; then
   esac
 fi
 
-if [ -z "$configonly" ]; then
-    if [ -z "$ddrsize" ]; then
-      if [ ${#DDRSIZE[@]} -gt 1 ]; then
-        PS3="Choose the size of ddr ram: "; COLUMNS=1
-        select ddrsize in "${DDRSIZE[@]}" "Quit" ; do
-          if (( REPLY > 0 && REPLY <= ${#DDRSIZE[@]} )) ; then break; else exit 1; fi
-        done
-      else
-        ddrsize=${DDRSIZE[0]}
-      fi
-      ddrsize=${ddrsize%% *}
-    fi
-    if [ -z "$setup" ]; then
-      PS3="Choose setup to create root for: "; COLUMNS=1
-      select setup in "${SETUPBPIR[@]}" "Quit" ; do
-        if (( REPLY > 0 && REPLY <= ${#SETUPBPIR[@]} )) ; then break; else exit 1; fi
+function ask() {
+  local a items count
+  if [ -z "${!1}" ]; then
+    eval 'items=("${'"${2}"'[@]}")'
+    eval 'count=${#'"${2}"'[@]}'
+    if [ ${count} -gt 1 ]; then
+      PS3="${3} "; COLUMNS=1; echo
+      select a in "${items[@]}" "Quit"; do
+        (( REPLY > 0 && REPLY <= ${count} )) && break || exit 1
       done
-      setup=${setup%% *}
-      echo "Setup="${setup}
+    else
+      a=${items[0]}
+      echo -e "\n${3} $a"
     fi
+    export declare $1=${a%% *}
+  fi
+}
+
+if [ -z "$configonly" ]; then
+    ask ddrsize DDRSIZES "Choose the size of ddr ram:"
+    ask setup SETUPS "Choose setup to create root for:"
     if [ -z "$brlanip" ]; then
       read -p "Enter ip address for local network (emtpy for default): " brlanip
       [ -z "$brlanip" ] && brlanip="default"
