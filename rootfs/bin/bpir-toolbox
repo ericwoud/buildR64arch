@@ -18,8 +18,8 @@ while [ "${1:-}" != '' ]; do
   '--uartboot')                      uartboot=1           ;;
   '--remove-dtb')                    remove_dtb=1         ;;
   '--clean-boot')                    clean_boot=1         ;;
-  '--for-linux')              shift; for_linux="${1}"     ;;
-  '--for-linux'=*)                   for_linux="${1#*=}"  ;;
+  '--pkgbase')                shift; pkgbase="${1}"       ;;
+  '--pkgbase'=*)                     pkgbase="${1#*=}"    ;;
   *) [ -n "$1" ] && echo "Unknown option: $1"
      cat <<-EOF
 	Usage: $(basename "$0") [OPTION]...
@@ -38,7 +38,7 @@ while [ "${1:-}" != '' ]; do
 	                             also creates /boot/extlinux/extlinux.conf if not present
 	  --uboot-remove           Removes /boot/u-boot.bin
 	  --uartboot               Create a uartboot image
-	  --for-linux ...          Specify linuxpkg to create files for
+	  --pkgbase ...            Specify linuxpkg to create files for
 	  --remove-dtb             Remove dtb file
 	EOF
     exit 1
@@ -283,18 +283,51 @@ function download {
 #################
 tmp="/tmp/bpir-toolbox-tmp"
 rootdev=$(lsblk -pilno name,type,mountpoint | grep -G 'part /$' | head -n1 | cut -d " " -f1)
+[ -f "/etc/bpir-is-initrd" ] && source /etc/bpir-is-initrd
+
+case ${target} in
+  bpir64)
+    default_linuxpkg="linux-bpir-git"
+    default_dtb="mt7622-bananapi-bpi-r64"
+    default_ddrsize=1
+    nandtype="snand"
+    ;;
+  bpir3)
+    default_linuxpkg="linux-bpir-git"
+    default_dtb="mt7986a-bananapi-bpi-r3"
+    default_ddrsize=2
+    nandtype="spim-nand"
+    ;;
+  bpir3m)
+    default_linuxpkg="linux-bpir-git"
+    default_dtb="mt7986a-bananapi-bpi-r3-mini"
+    default_ddrsize=2
+    nandtype="spim-nand"
+    ;;
+  bpir4)
+    default_linuxpkg="linux-bpir4-git"
+    default_dtb="mt7988a-bananapi-bpi-r4"
+    default_ddrsize=4
+    nandtype="spim-nand"
+    ;;
+  *)
+    echo "Unknown target ${target}"
+    exit 1
+    ;;
+esac
+
 if [ -z "$rootdev" ]; then
   if [ -f "/etc/bpir-is-initrd" ]; then  # Writing NAND while running from initrd
     if  [ -n "$nand_update" ] || [ -n "$download2root" ]; then
-      source /etc/bpir-is-initrd
       mkdir -p "$tmp/ericwoud"
       repo="ftp://ftp.woudstra.mywire.org/repo/aarch64"
       until curl -L ${repo}/ericwoud.db | tar -xz -mC "$tmp/ericwoud"
       do sleep 2; done
-      download linux-${target}-git
-      [[ $? == 1 ]] && download linux-bpir-git
+      download "${default_linuxpkg}"
+      download mkinitcpio-bpir
       download bpir-atf-git
       download bpir-uboot-git
+      echo -n "${default_linuxpkg}" >"$(echo /lib/modules/*/kernel | head -n1 | xargs dirname)/pkgbase"
       bpir-initrd -P
     fi
   else
@@ -307,51 +340,19 @@ else
   target=$(echo $partlabelroot | cut -d'-' -f1)
 fi
 
-case ${target} in
-  bpir64)
-    default_dtb="mt7622-bananapi-bpi-r64"
-    default_ddrsize=1
-    nandtype="snand"
-    ;;
-  bpir3)
-    default_dtb="mt7986a-bananapi-bpi-r3"
-    default_ddrsize=2
-    nandtype="spim-nand"
-    ;;
-  bpir3m)
-    default_dtb="mt7986a-bananapi-bpi-r3-mini"
-    default_ddrsize=2
-    nandtype="spim-nand"
-    ;;
-  bpir4)
-    default_dtb="mt7988a-bananapi-bpi-r4"
-    default_ddrsize=4
-    nandtype="spim-nand"
-    ;;
-  *)
-    echo "Unknown target ${target}"
-    exit 1
-    ;;
-esac
-
 rm -rf "${tmp}"
 mkdir -p "${tmp}/dtbos"
 mkdir -p /boot/bootcfg
 
-if [ -n "${for_linux}" ]; then
-  default_linuxpkg="${for_linux}"
-else
-  default_linuxpkg=$(cat /lib/modules/*/pkgbase | tail -n1)
-  [ -z "${default_linuxpkg}" ] && default_linuxpkg=$(ls /etc/initcpio/install/* | head -n1 | xargs basename) ### fout !!!
-fi
-linuxpkg=$(getconf w linuxpkg "$default_linuxpkg")
-[ -z "${for_linux}" ] && for_linux="${linuxpkg}"
+[ -n "${pkgbase}" ] && default_linuxpkg="${pkgbase}"
+linuxpkg=$(getconf w linuxpkg "${default_linuxpkg}")
+[ -z "${pkgbase}" ] && pkgbase="${linuxpkg}"
 
-unamer="$(grep /lib/modules/*/pkgbase -l -e "${for_linux}" | head -n1 | xargs dirname | xargs basename)"
+unamer="$(grep /lib/modules/*/pkgbase -l -e "${pkgbase}" | head -n1 | xargs dirname | xargs basename)"
 
-if [ ! -f "/boot/Image" ] || [ -f "/boot/Image-${for_linux}" ]; then
-  default_image="/boot/Image-${for_linux}"
-  default_initrd="/boot/initramfs-${for_linux}.img"
+if [ ! -f "/boot/Image" ] || [ -f "/boot/Image-${pkgbase}" ]; then
+  default_image="/boot/Image-${pkgbase}"
+  default_initrd="/boot/initramfs-${pkgbase}.img"
 else
   default_image="/boot/Image"
   default_initrd="/boot/initramfs-bpir.img"
@@ -359,9 +360,9 @@ fi
 
 #if [ ! -f "$default_initrd" ]; then
 #  if command -v bpir-initrd >/dev/null 2>&1; then
-#    bpir-initrd -p ${for_linux}
+#    bpir-initrd -p ${pkgbase}
 #  elif command -v mkinitcpio >/dev/null 2>&1; then
-#    mkinitcpio -p ${for_linux}
+#    mkinitcpio -p ${pkgbase}
 #  fi
 #fi
 
@@ -372,7 +373,7 @@ checkconf initrd
 checkconf atfdtb
 
 dtb=$(getconf r dtb "$default_dtb")
-dtbfile="/boot/dtbs/${for_linux}/${dtb}.dtb"
+dtbfile="/boot/dtbs/${pkgbase}/${dtb}.dtb"
 [ ! -f "${dtbfile}" ] && dtbfile="/boot/dtbs/mediatek/${dtb}.dtb"
 [ ! -f "${dtbfile}" ] && dtbfile="/boot/dtbs/${dtb}.dtb"
 [ ! -f "${dtbfile}" ] && exit 1
@@ -672,18 +673,18 @@ fi
 # Remove boot files #
 #####################
 if [ -n "$clean_boot" ]; then
-  rm -vf  "/boot/Image-${for_linux}"    2>/dev/null
-  rm -vf  "/boot/Image-${for_linux}.gz" 2>/dev/null
+  rm -vf  "/boot/Image-${pkgbase}"    2>/dev/null
+  rm -vf  "/boot/Image-${pkgbase}.gz" 2>/dev/null
   rm -vf  "/boot/config-${unamer}"      2>/dev/null
   rm -vf  "/boot/System.map-${unamer}"  2>/dev/null
   rm -vf  "/boot/"*"${unamer}.itb"      2>/dev/null
-  rm -vfr "/boot/dtbs/${for_linux}"     2>/dev/null
+  rm -vfr "/boot/dtbs/${pkgbase}"     2>/dev/null
 fi
 
 ###################
 # Write fip image #
 ###################
-if [ -n "$write2fip" ] && [[ "${for_linux}" == "${linuxpkg}" ]]; then
+if [ -n "$write2fip" ] && [[ "${pkgbase}" == "${linuxpkg}" ]]; then
   if [[ "${typefipboot}" == "fip" ]]; then
     fipfiles=""
     [ -f "$bl31file" ]   && fipfiles+=" --soc-fw $bl31file"
