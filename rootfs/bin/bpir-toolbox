@@ -2,6 +2,7 @@
 
 while [ "${1:-}" != '' ]; do
   case "$1" in
+  '--default-bootcfg'                default_bootcfg=1    ;;
   '--fip2boot')                      fip2boot=1           ;;
   '--boot2fip')                      boot2fip=1           ;;
   '--download2root')                 download2root=1      ;;
@@ -23,6 +24,7 @@ while [ "${1:-}" != '' ]; do
   *) [ -n "$1" ] && echo "Unknown option: $1"
      cat <<-EOF
 	Usage: $(basename "$0") [OPTION]...
+	  --default-bootcfg        Restore default bootcfg, adds --write2fip
 	  --fip2boot               Convert fip partition to boot partition bootchain (sd/emmc)
 	  --boot2fip               Convert boot partition to fip partition bootchain (sd/emmc)
 	  --download2root          Download files needed for nand-image (when started from initrd)
@@ -32,7 +34,7 @@ while [ "${1:-}" != '' ]; do
 	  --nand-update            Updates all files on nand, only writes when needed
 	  --write2dtb              Combine dtbos with dtb and create one dtb file
 	  --write2atf              Write arm-trusted-firmware
-	  --write2fip              Create all files needed for fip (dtb+fip) and write it
+	  --write2fip              Create all files needed for fip and write it, adds --write2dtb
 	  --write2extlinux         Create a new /boot/extlinux/extlinux.conf
 	  --uboot-install          Copies U-Boot to /boot/u-boot.bin (needs boot partition),
 	                             also creates /boot/extlinux/extlinux.conf if not present
@@ -49,6 +51,7 @@ done
 
 extlinux="/boot/extlinux/extlinux.conf"
 
+[ -n "$default_bootcfg" ] && write2fip=1
 [ -n "$write2fip" ] && write2dtb=1
 [ -n "$nand_image" ]  && nand_update=1
 [ -n "$nand_format" ] && nand_update=1
@@ -343,6 +346,10 @@ fi
 rm -rf "${tmp}"
 mkdir -p "${tmp}/dtbos"
 mkdir -p /boot/bootcfg
+
+if [ -n "$default_bootcfg" ]; then
+  find "/boot/bootcfg" -type f ! -name 'ddrsize' -delete
+fi
 
 if [ -z "$(grep /lib/modules/*/pkgbase -l -e ${default_linuxpkg})" ]; then
   default_linuxpkg="$(cat $(echo /lib/modules/*/kernel | head -n1 | xargs dirname)/pkgbase)"
