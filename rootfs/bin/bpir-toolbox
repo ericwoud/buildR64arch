@@ -13,7 +13,6 @@ while [ "${1:-}" != '' ]; do
   '--write2dtb' | '--dtb')           write2dtb=1          ;;
   '--write2atf' | '--atf')           write2atf=1          ;;
   '--write2fip' | '--fip')           write2fip=1          ;;
-  '--write1uboot2fip')               write1uboot2fip=1    ;;
   '--write2extlinux' | '--extlinux') write2extlinux=1     ;;
   '--uboot-install')                 uboot_install=1      ;;
   '--uboot-remove')                  uboot_remove=1       ;;
@@ -37,10 +36,8 @@ while [ "${1:-}" != '' ]; do
 	  --write2dtb              Combine dtbos with dtb and create one dtb file
 	  --write2atf              Write arm-trusted-firmware
 	  --write2fip              Create all files needed for fip and write it, adds --write2dtb
-	  --write1uboot2fip        Write uboot in fip instead of linuxpkg
-	                             also creates /boot/extlinux/extlinux.conf if not present
 	  --write2extlinux         Create a new /boot/extlinux/extlinux.conf
-	  --uboot-install          Copies U-Boot to /boot/u-boot.bin (needs boot partition),
+	  --uboot-install          Copies U-Boot to /boot/u-boot.bin (writes to fip is necessary),
 	                             also creates /boot/extlinux/extlinux.conf if not present
 	  --uboot-remove           Removes /boot/u-boot.bin
 	  --uartboot               Create a uartboot image
@@ -56,12 +53,13 @@ done
 
 extlinux="/boot/extlinux/extlinux.conf"
 
+[ -n "$uboot_install" ] && write2fip=1
+[ -n "$uboot_remove" ]  && write2fip=1
 [ -n "$default_bootcfg" ] && write2fip=1
 [ -n "$write2fip" ] && write2dtb=1
 [ -n "$nand_image" ]  && nand_update=1
 [ -n "$nand_format" ] && nand_update=1
-[ -n "$uboot_install" ]   && [ ! -f "$extlinux" ] && write2extlinux=1
-[ -n "$write1uboot2fip" ] && [ ! -f "$extlinux" ] && write2extlinux=1
+[ -n "$uboot_install" ] && [ ! -f "$extlinux" ] && write2extlinux=1
 
 #############
 # Functions #
@@ -701,35 +699,22 @@ if [ -n "$clean_boot" ]; then
   rm -vfr "/boot/dtbs/${pkgbase}"     2>/dev/null
 fi
 
-############################
-# Write linux to fip image #
-############################
+##########################################
+# Write linux or u-boot to fip partition #
+##########################################
 if [ -n "$write2fip" ] && [[ "${pkgbase}" == "${linuxpkg}" ]]; then
   if [[ "${typefipboot}" == "fip" ]]; then
     fipfiles=""
     [ -f "${bl31file}" ] && fipfiles+=" --soc-fw ${bl31file}"
-    [ -f "${linux}" ]  && fipfiles+=" --nt-fw ${linux}"
-    if [[ "$(imageid ${linux})" == "5241644d" ]]; then # We have a linux kernel image
-      [ -f "${atfdtb}" ] && fipfiles+=" --nt-fw-config ${atfdtb}"
-      [ -f "${initrd}" ] && fipfiles+=" --tos-fw-extra2 ${initrd}"
+    if [ -f "/boot/u-boot.bin" ]; then 
+      fipfiles+=" --nt-fw /boot/u-boot.bin"
+    elif [ -f "${linux}" ]; then
+      fipfiles+=" --nt-fw ${linux}"
+      if [[ "$(imageid ${linux})" == "5241644d" ]]; then # We have a linux kernel image
+        [ -f "${atfdtb}" ] && fipfiles+=" --nt-fw-config ${atfdtb}"
+        [ -f "${initrd}" ] && fipfiles+=" --tos-fw-extra2 ${initrd}"
+      fi
     fi
-    fiptool --verbose create ${tmp}/fip.bin ${fipfiles}
-    fiptool info ${tmp}/fip.bin
-    echo Writing FIP to: ${fipbootdevice}
-    dd bs=4M of=${fipbootdevice} if=${tmp}/fip.bin conv=fsync
-  fi
-fi
-
-############################
-# Write uboot to fip image #
-############################
-if [ -n "$write1uboot2fip" ]; then
-  if [[ "${typefipboot}" == "fip" ]]; then
-    ubootfile="/usr/share/bpir-uboot/u-boot-${target}-${device}.bin"
-    [ ! -f "${ubootfile}" ] && exit 1
-    fipfiles=""
-    [ -f "${bl31file}" ] && fipfiles+=" --soc-fw ${bl31file}"
-    fipfiles+=" --nt-fw ${ubootfile}"
     fiptool --verbose create ${tmp}/fip.bin ${fipfiles}
     fiptool info ${tmp}/fip.bin
     echo Writing FIP to: ${fipbootdevice}
