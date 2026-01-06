@@ -117,64 +117,12 @@ Make sure your internet connection is working on the R64. Ping 8.8.8.8 should wo
 Choose `emmc` in the script instead of `sdmmc`. Now format the emmc and let it setup rootfs.
 
 
-## R64/R3 Build/Install emmc version using image [DEPRECATED]
-
-Create an SD card for the R64/R3.
-```
-./build.sh -F
-```
-Create an EMMC image for the R64/R3 and have it compressed.
-```
-./build.sh -lFx
-```
-Then copy the bpir.img.gz to the SD card /tmp/ folder. It is accessable without root.
-
-If using a pre-build image, rename it to `bpir.img.gz`
-
-Boot the R64/R3 with the SD card with UART connected. When kernel starts keep 'shift E' keys pressed. When finised, you can reboot.
-
-You can keep 'x' pressed instead if you want to enter a shell.
-
-Note for R3: To run on EMMC, only the switch most near to powerplug (D) should be down, the rest up.
-This is different from the normal switch settings. It is done so that you do not need mmcblk0boot0.
-
-## R3-MINI & R4 Build/Install emmc version using image (openwrt on nand)
-
-Create an EMMC card for the R3-MINI/R4 and have it compressed to a .gz file.
-```
-./build.sh -lFz
-```
-Then copy the bpir.img.gz to a FAT formatted usb-stick and plug it in to the board.
-
-Boot the board in NAND mode with UART connected. Boot to Openwrt Busybox command prompt.
-
-```
-echo 0 > /sys/block/mmcblk0boot0/force_ro
-gunzip -c /mnt/sda1/bpir.img.gz | dd of=/dev/mmcblk0 bs=4M conv=fsync
-dd if=/dev/mmcblk0 of=/dev/mmcblk0boot0 bs=17K skip=1 count=32 conv=fsync
-mmc bootpart enable 1 1 /dev/mmcblk0
-```
-
-Switch boot-switch to EMMC and reboot.
-
-## Using pre-build images for a quick try-out
-
-On my site you will find downloadable images at the release branches. Prefer to use the script.
-
-https://ftp.woudstra.mywire.org/images/
-
-Write the image file for sd-card to the appropriate device, MAKE SURE YOU HAVE THE CORRECT DEVICE!
-```
-gunzip -c ~/Downloads/bpir64-sdmmc.img.gz | sudo dd of=/dev/sda
-```
-
-
 ## Changing kernel commandline options or devicetree overlays
 
 When changing the kernel commandline options in `/boot/bootcfg/cmdline` or changing/adding/removing devicetree overlays in `/boot/dtbos`
 you should run the folling command on the bpir64/3 to write the changes so that they will be activated on the next boot:
 ```
-bpir-writefip
+bpir-toolbox --write2fip
 ```
 If something goes wrong and you cannot boot, insert the card in your laptop/computer and use the chroot option to undo the changes. Then use the `bpir-writefip` command again. On EMMC (specially on the R3) it will be much more complicated.
 
@@ -235,9 +183,6 @@ But of course you can just manually use parted and debootstrap to install any ot
 If you have used bpir-build to build the nvme/emmc rootfs, you can also use the same tool when running from the initramdisk to enter it via chroot. Just run the command without arguments.
 
 This all needs more testing...
-
-Note: Use archlinuxarm (not ubuntu) for now to build and write the image to nand. There is still a small issue in ubuntu, which is missing the bpi-r3m airoha firmware files in the standard linux-firmware package.
-
 
 
 ## Recovery UART boot to a linux rescue image
@@ -371,6 +316,57 @@ but still in /boot. If you want to boot emmc, change /boot/bootcfg/linux and /bo
 
 It is also be possible to install the U-Boot package and have U-Boot do the startup from nvme.
 
+## R64/R3 Build/Install emmc version using image [DEPRECATED]
+
+Create an SD card for the R64/R3.
+```
+./build.sh -F
+```
+Create an EMMC image for the R64/R3 and have it compressed.
+```
+./build.sh -lFx
+```
+Then copy the bpir.img.gz to the SD card /tmp/ folder. It is accessable without root.
+
+If using a pre-build image, rename it to `bpir.img.gz`
+
+Boot the R64/R3 with the SD card with UART connected. When kernel starts keep 'shift E' keys pressed. When finised, you can reboot.
+
+You can keep 'x' pressed instead if you want to enter a shell.
+
+Note for R3: To run on EMMC, only the switch most near to powerplug (D) should be down, the rest up.
+This is different from the normal switch settings. It is done so that you do not need mmcblk0boot0.
+
+## R3-MINI & R4 Build/Install emmc version using image (openwrt on nand)
+
+Create an EMMC card for the R3-MINI/R4 and have it compressed to a .gz file.
+```
+./build.sh -lFz
+```
+Then copy the bpir.img.gz to a FAT formatted usb-stick and plug it in to the board.
+
+Boot the board in NAND mode with UART connected. Boot to Openwrt Busybox command prompt.
+
+```
+echo 0 > /sys/block/mmcblk0boot0/force_ro
+gunzip -c /mnt/sda1/bpir.img.gz | dd of=/dev/mmcblk0 bs=4M conv=fsync
+dd if=/dev/mmcblk0 of=/dev/mmcblk0boot0 bs=17K skip=1 count=32 conv=fsync
+mmc bootpart enable 1 1 /dev/mmcblk0
+```
+
+Switch boot-switch to EMMC and reboot.
+
+## Using pre-build images for a quick try-out
+
+On my site you will find downloadable images at the release branches. Prefer to use the script.
+
+https://ftp.woudstra.mywire.org/images/
+
+Write the image file for sd-card to the appropriate device, MAKE SURE YOU HAVE THE CORRECT DEVICE!
+```
+gunzip -c ~/Downloads/bpir64-sdmmc.img.gz | sudo dd of=/dev/sda
+```
+
 ## TODO:
 
 * Implement 802.11k 802.11r 802.11v.
@@ -381,20 +377,8 @@ It is also be possible to install the U-Boot package and have U-Boot do the star
 
 Command line options:
 
-* -F   : Format SD card or image, then setup rootfs (adds -r)
-* -l   : Add this option to use an image-file instead of an SD card
-* -r   : Build RootFS.
-* -c   : Execute chroot
-* -R   : Delete RootFS.
-* -p   : Set boot with FIP partition (default for sdmmc/emmc).
-* -P   : Set boot with FAT partition. (default for nand).
-* -b   : Create backup of rootfs
-* -B   : Restore backup of rootfs
-* -x   : Create archive from image-file .xz
-* -z   : Create archive from image-file .gz
-* none : Enter chroot, same as option `-c`
-
-* Other variables to tweak also at top of build script.
+Check the commands ./build.sh (bpir-build), bpir-toolbox and bpir-rootfs help function
+for information how to use the commands.
 
 
 ## Acknowledgments
