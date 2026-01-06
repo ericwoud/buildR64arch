@@ -6,10 +6,6 @@ There are a lot of changes lately, this readme is not updated for all of these c
 
 Downloadable images for quick test located [HERE](https://www.woudstra.mywire.org/images/)
 
-Based on: [buildR64ubuntu](https://github.com/ericwoud/buildR64ubuntu.git)
-, [openwrt atf](https://github.com/mtk-openwrt/arm-trusted-firmware)
-and [frank-w's kernel](https://github.com/frank-w/BPI-Router-Linux)
-
 R64 Notes:
 Now includes a patch so that temperature is regulated at 87 instead of 47 degrees!
 Delete the file rootfs/boot/dtbos/cpu-thermal.dts before building, if you do not want to.
