@@ -229,11 +229,11 @@ There are now 4 different bootchains supported, tested on R3 (R64 not yet tested
 
 1. ATF - KERNEL using `fip` partition.
 
-2. ATF - KERNEL using `boot` partition. Default boot method. The latest atf can boot from `boot` partition instead of `fip` partition, see https://forum.banana-pi.org/t/bpi-r3-bpi-r64-atf-with-fat32-load-capabilities/15345 . ATF will directly load the kernel from the boot (fat32) partition. Change your setup with the following command: `bpir-writefip --fip2boot`. It will rename the fip partiion to the boot partition and move all files from boot folder to boot partition. Change back to `fip` with `bpir-writefip --boot2fip`.
+2. ATF - KERNEL using `boot` partition. Default boot method. The latest atf can boot from `boot` partition instead of `fip` partition, see https://forum.banana-pi.org/t/bpi-r3-bpi-r64-atf-with-fat32-load-capabilities/15345 . ATF will directly load the kernel from the boot (fat32) partition. Change your setup with the following command: `bpir-toolbox --fip2boot`. It will rename the fip partiion to the boot partition and move all files from boot folder to boot partition. Change back to `fip` with `bpir-toolbox --boot2fip`.
 
-3. ATF - UBOOT - KERNEL using `boot` partition. U-Boot uses distro-boot to keep the package simple, using a flexible startup environment. With `boot` partition present execute the following command:`pacman -Sy bpir-uboot-git` . Copy the appropriate .bin from: `/usr/share/bpir-uboot/` to `/boot/u-boot.bin`. At boot, U-Boot will be loaded from `/boot/u-boot.bin`
+3. ATF - UBOOT - KERNEL using `boot` partition. U-Boot uses distro-boot to keep the package simple, using a flexible startup environment. Use `bpir-toolbox --uboot-install`. At boot, U-Boot will be loaded from `/boot/u-boot.bin`
 
-4. ATF - UBOOT - KERNEL using `fip` partition. When still booting with `fip` partition and having u-boot installed, change the contents of `/boot/bootcfg/linux` to read `/boot/u-boot.bin` and emtpy  `/boot/bootcfg/initrd`, then run `bpir-writefip`
+4. ATF - UBOOT - KERNEL using `fip` partition. When still booting with `fip` partition and having u-boot installed,  use `bpir-toolbox --uboot-install`. At boot, U-Boot will be loaded from fip.
 
 
 ## Setup as Access Point
