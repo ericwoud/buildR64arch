@@ -2,6 +2,8 @@
 
 Install a minimal Arch-Linux on Banana Pi R64, R3, R3mini and R4 from scratch.
 
+There are a lot of changes lately, this readme is not updated for all of these changes.
+
 Downloadable images for quick test located [HERE](https://www.woudstra.mywire.org/images/)
 
 Based on: [buildR64ubuntu](https://github.com/ericwoud/buildR64ubuntu.git)
@@ -95,16 +97,7 @@ After this, you are on your own. It is supposed to be a minimal installation of 
 
 ## Ubuntu instead of ArchLinuxARM (EXPERIMENTAL)
 
-It is possible to build an image with Ubuntu instead. Only the linux-bpir-git, bpir-atf-git, bpir-toolbox,
-bpir-initrd, bpir-flash2emmc, hostapd-launch, ssh-fix-reboot and optional bpir-uboot-git package are maintained
-through archlinux packages. Any executables within these packages are build as static binaries, so they can
-be executed independantly.
-
-On Ubuntu there is a small script to help upgrade these packages:
-```
-bpir-apt list|install|upgrade|remove [--reinstall] [pkgname...]
-```
-Only bpir-atf-git and bpir-uboot-git are normally excluded from upgrade. They need to be upgraded manually.
+It is possible to build an image with Ubuntu instead. Any executables within my custom packages are build as static binaries, so they can be executed independantly of os.
 
 
 ## R64 Build/Install emmc version using script again
@@ -124,7 +117,7 @@ Make sure your internet connection is working on the R64. Ping 8.8.8.8 should wo
 Choose `emmc` in the script instead of `sdmmc`. Now format the emmc and let it setup rootfs.
 
 
-## R64/R3 Build/Install emmc version using image [DEPRICATED]
+## R64/R3 Build/Install emmc version using image [DEPRECATED]
 
 Create an SD card for the R64/R3.
 ```
