@@ -290,7 +290,14 @@ function download {
 #################
 tmp="/tmp/bpir-toolbox-tmp"
 rootdev=$(lsblk -pilno name,type,mountpoint | grep -G 'part /$' | head -n1 | cut -d " " -f1)
-[ -f "/etc/bpir-is-initrd" ] && source /etc/bpir-is-initrd
+if [ -f "/etc/bpir-is-initrd" ]; then
+  source /etc/bpir-is-initrd # decleres target
+else
+  partlabelroot=$(blkid ${rootdev} -s PARTLABEL -o value)
+  [ -z "${partlabelroot}" ] && exit 1
+  target=$(echo ${partlabelroot} | cut -d'-' -f1)
+  default_device="$(echo ${partlabelroot} | cut -d'-' -f2)"
+fi
 
 case ${target} in
   bpir64)
@@ -343,11 +350,6 @@ if [ -z "${rootdev}" ]; then
     echo "Need to mount '/' first (and '/boot' if applicable)"
     exit 1
   fi
-else
-  partlabelroot=$(blkid ${rootdev} -s PARTLABEL -o value)
-  [ -z "${partlabelroot}" ] && exit 1
-  target=$(echo ${partlabelroot} | cut -d'-' -f1)
-  default_device="$(echo ${partlabelroot} | cut -d'-' -f2)"
 fi
 
 rm -rf "${tmp}"
