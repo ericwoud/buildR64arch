@@ -53,13 +53,14 @@ done
 
 extlinux="/boot/extlinux/extlinux.conf"
 
-[ -n "$uboot_install" ] && write2fip=1
-[ -n "$uboot_remove" ]  && write2fip=1
-[ -n "$default_bootcfg" ] && write2fip=1
-[ -n "$write2fip" ] && write2dtb=1
-[ -n "$nand_image" ]  && nand_update=1
-[ -n "$nand_format" ] && nand_update=1
-[ -n "$uboot_install" ] && [ ! -f "$extlinux" ] && write2extlinux=1
+[ -n "$uboot_install" ]    && write2fip=1
+[ -n "$uboot_remove" ]     && write2fip=1
+[ -n "$default_bootcfg" ]  && write2fip=1
+[ -n "$set_atf_linuxpkg" ] && write2fip=1
+[ -n "$write2fip" ]        && write2dtb=1
+[ -n "$nand_image" ]       && nand_update=1
+[ -n "$nand_format" ]      && nand_update=1
+[ -n "$uboot_install" ]    && [ ! -f "$extlinux" ] && write2extlinux=1
 
 #############
 # Functions #
