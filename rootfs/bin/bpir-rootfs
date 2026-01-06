@@ -170,6 +170,8 @@ function rootfs {
   mkdir -p /etc/modules-load.d
   echo -e "# Load ${WIFIMODULE}.ko at boot\n${WIFIMODULE}" | \
            tee /etc/modules-load.d/${WIFIMODULE}.conf
+#  echo "options mt7915e wed_enable=Y" | \
+#           tee /etc/modprobe.d/mt7915e.conf
   echo $USERNAME:$USERPWD | chpasswd
   echo      root:$ROOTPWD | chpasswd
   sudo systemctl --force --no-pager reenable ${sshd}.service

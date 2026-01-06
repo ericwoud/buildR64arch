@@ -660,7 +660,7 @@ fi
 # U-BOOT PKG #
 ##############
 if [ -n "$uboot_install" ]; then
-  cp -vf /usr/share/bpir-uboot/u-boot-${target}.bin /boot/u-boot.bin # This is the file that boots
+  cp -vf /usr/share/bpir-uboot/u-boot-${target}-${device}.bin /boot/u-boot.bin # This is the file that boots
 fi
 
 if [ -n "$uboot_remove" ]; then
