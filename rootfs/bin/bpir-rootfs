@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PACKAGES="build-r64-arch-utils-git hostapd-launch ssh-fix-reboot bpir-initrd"
+PACKAGES="build-r64-arch-utils-git hostapd-launch ssh-fix-reboot bpir-initrd ethtool-static-git hostapd-static-git"
 TIMEZONE="Europe/Paris"
 USERNAME="user"
 USERPWD="admin"
@@ -123,7 +123,7 @@ if [ -z "$configonly" ]; then
     if [ -n "$menuonly" ]; then
       echo -n "--setup '${setup}' --ddrsize '${ddrsize}' --brlanip '${brlanip}' --bpirtoolbox '${bpirtoolbox}'" >/tmp/bpir-rootfs.txt
     else
-      read -p "Type <yes> to alter your rootfs!" prompt
+      read -p "Type <yes> to alter your rootfs! " prompt
       [[ $prompt != "yes" ]] && exit 1
     fi
 fi
