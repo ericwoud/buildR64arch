@@ -2,7 +2,7 @@
 
 while [ "${1:-}" != '' ]; do
   case "$1" in
-  '--default-bootcfg'                default_bootcfg=1    ;;
+  '--default-bootcfg')               default_bootcfg=1    ;;
   '--fip2boot')                      fip2boot=1           ;;
   '--boot2fip')                      boot2fip=1           ;;
   '--download2root')                 download2root=1      ;;
