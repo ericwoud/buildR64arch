@@ -344,6 +344,11 @@ rm -rf "${tmp}"
 mkdir -p "${tmp}/dtbos"
 mkdir -p /boot/bootcfg
 
+if [ -z "$(grep /lib/modules/*/pkgbase -l -e ${default_linuxpkg})" ]; then
+  default_linuxpkg="$(cat $(echo /lib/modules/*/kernel | head -n1 | xargs dirname)/pkgbase)"
+  [ -z "${default_linuxpkg}" ] && exit 1
+fi
+
 [ -n "${pkgbase}" ] && default_linuxpkg="${pkgbase}"
 linuxpkg=$(getconf w linuxpkg "${default_linuxpkg}")
 [ -z "${pkgbase}" ] && pkgbase="${linuxpkg}"
