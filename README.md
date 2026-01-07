@@ -187,7 +187,7 @@ Find the correct `mtk_uartboot` executable for your system. I have build files f
 
 Run:
 ```text
-./mtk_uartboot -p uart-bpir3m-atf.bin -f uart-bpir3m-fip.bin --aarch64 -s /dev/ttyUSB0
+sudo ./mtk_uartboot -p uart-bpir3m-atf.bin -f uart-bpir3m-fip.bin --aarch64 -s /dev/ttyUSB0
 ```
 
 Or, when wanting to see the debug output after uploading. Make sure you have socat installed, edit /dev/ttyXXXX, and run :
