@@ -358,11 +358,11 @@ bash, debootstrap, nano, parted, etc
 
 ## Building your own version of ATF, U-Boot or linux-kernel:
 
-Basically all custom ATF, U-Boot or linux-kernel packages are build on Archlinux (aarch64 or x86_64). It can be done on a archlinux-chroot root only if preferred. Use [https://github.com/tokland/arch-bootstrap](https://github.com/tokland/arch-bootstrap) to setup an archlinux chroot on a debian system.
+Basically all custom ATF, U-Boot or linux-kernel packages are build on Archlinux (aarch64 or x86_64). It can be done on a archlinux-chroot if preferred. Use [https://github.com/tokland/arch-bootstrap](https://github.com/tokland/arch-bootstrap) to setup an archlinux chroot on a debian system.
 
 After running makepkg, run makedeb to create the .deb (and possibly update a repo). See: [makedeb](https://github.com/ericwoud/archlinuxarm-repo/blob/makedeb/makedeb)
 
-Support to use other linux-image.deb when running on Ubuntu is also implemented, but hardly tested (also supporting to extract `Image` from `.itb` from the package).
+Support to install linux-image.deb created with other tool when running on Ubuntu is also implemented, but hardly tested (also supporting to extract `Image` from `.itb` from the package).
 
 ## R64/R3 Build/Install emmc version using image [DEPRECATED]
 
