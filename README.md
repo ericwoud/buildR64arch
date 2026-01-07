@@ -406,7 +406,7 @@ https://ftp.woudstra.mywire.org/images/
 
 Write the image file for sd-card to the appropriate device, MAKE SURE YOU HAVE THE CORRECT DEVICE!
 ```text
-gunzip -c ~/Downloads/bpir64-sdmmc.img.gz | sudo dd of=/dev/sda
+gunzip -c ~/Downloads/bpir64-sdmmc.img.gz | sudo dd of=/dev/sda bs=4M conv=fsync
 ```
 
 ## TODO:
