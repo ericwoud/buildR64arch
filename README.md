@@ -419,14 +419,6 @@ gunzip -c ~/Downloads/bpir64-sdmmc.img.gz | sudo dd of=/dev/sda bs=4M conv=fsync
 * Guest WIFI
 
 
-## Features
-
-Command line options:
-
-Check the commands ./build.sh (bpir-build), bpir-toolbox and bpir-rootfs help function
-for information how to use the commands.
-
-
 ## Acknowledgments
 
 * [frank-w's atf](https://github.com/frank-w/BPI-R64-ATF)
