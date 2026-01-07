@@ -46,13 +46,13 @@ If you have 2 bpi boards you can setup 1 as RouTer and 1 as AccessPoint. If you 
 
 Clone from Git
 
-```
+```text
 git clone https://github.com/ericwoud/buildR64arch.git
 ```
 
 Change directory
 
-```
+```text
 cd buildR64arch
 ```
 
@@ -62,14 +62,14 @@ The default value of 4MB is ok for most cards if you do not know the erase size.
 
 Now format your SD card with:
 
-```
+```text
 ./build.sh -F
 ```
 After formatting the rootfs gets build.
 
 Optionally enter chroot environment on the SD card:
 
-```
+```text
 ./build.sh
 ```
 
@@ -78,11 +78,11 @@ This script is also available when running linux on the board. It is also availa
 ## Deployment
 
 Insert the SD card,, powerup, connect to the R64/R3 wireless, SSID: WIFI24, password: justsomepassword. To start ssh to R64/R3, password admin
-```
+```text
 ssh root@192.168.5.1
 ```
 For standard router setup. IPforward is on.
-```
+```text
 ssh root@192.168.1.33
 ```
 For standard access point setup.
@@ -97,13 +97,13 @@ It is possible to build an image with Ubuntu instead. Any executables within my 
 ## R64 Build/Install emmc version using script again
 
 When building on R64 (running on sd-card) start/re-enter a screen session with:
-```
+```text
 screen -R
 ```
 Detach from the session if you want, with CTRL-A + D.
 
 When running on the R64 run:
-```
+```text
 bpir-build -F
 ```
 Make sure your internet connection is working on the R64. Ping 8.8.8.8 should work.
@@ -115,7 +115,7 @@ Choose `emmc` in the script instead of `sdmmc`. Now format the emmc and let it s
 
 When changing the kernel commandline options in `/boot/bootcfg/cmdline` or changing/adding/removing devicetree overlays in `/boot/dtbos`
 you should run the folling command on the bpir64/3 to write the changes so that they will be activated on the next boot:
-```
+```text
 bpir-toolbox --write2fip
 ```
 If something goes wrong and you cannot boot, insert the card in your laptop/computer and use the chroot option to undo the changes. Then use the `bpir-writefip` command again. On EMMC (specially on the R3) it will be much more complicated.
@@ -167,7 +167,7 @@ This will erase all blocks from nand, even erase all the bad blocks, all blocks 
 
 `bpir-build` can be run from the sd-card image, but it can also be run when booted the initrd on nand. When booted from nand, first use `bpir-dhcpd` to connect to the internet again. Once connected to the internet you can use:
 
-```
+```text
 bpir-build -F
 ```
  and go through the menu.
@@ -189,7 +189,7 @@ Find the correct `mtk_uartboot` executable for your system. I have build files f
 
 Make sure you have socat installed, edit /dev/ttyXXXX, and run :
 
-```
+```text
 sudo bash -c "./mtk_uartboot -p uart-bpir3m-atf.bin -f uart-bpir3m-fip.bin --aarch64 -s /dev/ttyUSB0 ; socat - /dev/ttyUSB0,raw,echo=0,b115200"
 ```
 
@@ -211,7 +211,7 @@ It will download necessary files and install uboot on nand. This version of U-Bo
 I need to add more documentation about 'bpir-toolbox', but you can look into the file to see which options to use. 'bpir-build' to install on nvme is added pretty recently also, so also needs documentation and testing.
 
 Run
-```
+```text
 bpir-build -F
 ```
 and go through menu to install on nvme
@@ -363,12 +363,12 @@ Support to use other linux-image.deb when running on Ubuntu is also implemented,
 ## R64/R3 Build/Install emmc version using image [DEPRECATED]
 
 Create an SD card for the R64/R3.
-```
+```text
 ./build.sh -F
 ```
 Create an EMMC image for the R64/R3 and have it compressed.
-```
-./build.sh -lFx
+```text
+./build.sh -lFz
 ```
 Then copy the bpir.img.gz to the SD card /tmp/ folder. It is accessable without root.
 
@@ -384,7 +384,7 @@ This is different from the normal switch settings. It is done so that you do not
 ## R3-MINI & R4 Build/Install emmc version using image (openwrt on nand)
 
 Create an EMMC card for the R3-MINI/R4 and have it compressed to a .gz file.
-```
+```text
 ./build.sh -lFz
 ```
 Then copy the bpir.img.gz to a FAT formatted usb-stick and plug it in to the board.
@@ -407,7 +407,7 @@ On my site you will find downloadable images at the release branches. Prefer to 
 https://ftp.woudstra.mywire.org/images/
 
 Write the image file for sd-card to the appropriate device, MAKE SURE YOU HAVE THE CORRECT DEVICE!
-```
+```text
 gunzip -c ~/Downloads/bpir64-sdmmc.img.gz | sudo dd of=/dev/sda
 ```
 
