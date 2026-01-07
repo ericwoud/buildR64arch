@@ -266,7 +266,7 @@ Prebuild Nand images (still need to test, easier to use bpir-toolbox from sd-car
 [https://ftp.woudstra.mywire.org/nandimages/](https://ftp.woudstra.mywire.org/nandimages/)
 
 ## Command available from build-host as `./build.sh` or from board as `bpir-build` in linux and initramfs. It is mostly menu driven.
-```p
+```text
 Usage: build.sh [OPTION]...
   -F --format              format sd/emmc or image-file
   -l --loopdev             use image-file instead of sd-card
@@ -299,7 +299,7 @@ Use `--cachedir` when trying multiple times, but not downloading packages multip
 After building use `--chroot` (with --loopdev) to enter the image and do some more setting up manually.
 
 ## Custom commands available from board in linux and initramfs (and uartboot):
-```p
+```text
 Usage: bpir-toolbox [OPTION]...
   --default-bootcfg        Restore default bootcfg, adds --write2fip
   --fip2boot               Convert fip partition to boot partition bootchain (sd/emmc)
@@ -321,7 +321,7 @@ Usage: bpir-toolbox [OPTION]...
   --set-atf-linuxpkg       Set linuxpkg atf will directly boot, specified in pkgbase
   --remove-dtb             Remove dtb file
 ```
-```p
+```text
 Usage: bpir-rootfs [OPTION]...
   -b --bpirtoolbox [ARGS]                 specify arguments for bpir-toolbox
   -i --brlanip [IP]                       specify ip for brlan
@@ -334,7 +334,7 @@ Usage: bpir-rootfs [OPTION]...
   -c --configonly          setup the rootfs only
 ```
 `bpir-rootfs` is menu-driven, arguments can be used instead.
-```p
+```text
 Usage: bpir-initrd [OPTION]...
   -p --preset [PRESET]       specify preset
   -P --allpresets            build all presets
@@ -343,7 +343,7 @@ Usage: bpir-initrd [OPTION]...
 All other linux commands available, including fiptool.
 
 ## Commands available from board in initramfs (and uartboot):
-```p
+```text
 bpir-dhcpc <interface>
 bpir-synctime
 bpir-build
@@ -390,7 +390,7 @@ Then copy the bpir.img.gz to a FAT formatted usb-stick and plug it in to the boa
 
 Boot the board in NAND mode with UART connected. Boot to Openwrt Busybox command prompt.
 
-```
+```text
 echo 0 > /sys/block/mmcblk0boot0/force_ro
 gunzip -c /mnt/sda1/bpir.img.gz | dd of=/dev/mmcblk0 bs=4M conv=fsync
 dd if=/dev/mmcblk0 of=/dev/mmcblk0boot0 bs=17K skip=1 count=32 conv=fsync
