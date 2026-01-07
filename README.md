@@ -300,7 +300,7 @@ Use `--cachedir` when trying multiple times, but not downloading packages multip
 
 After building use `--chroot` (with --loopdev) to enter the image and do some more setting up manually.
 
-## Custom commands available from board in linux and initramfs (and uartboot):
+## Custom commands available from board in linux and initramfs or chroot (and uartboot):
 ```text
 Usage: bpir-toolbox [OPTION]...
   --default-bootcfg        Restore default bootcfg, adds --write2fip
@@ -342,7 +342,7 @@ Usage: bpir-initrd [OPTION]...
   -P --allpresets            build all presets
   -m --modulesonly           build only when image holds modules [to be implemented]
 ```
-All other linux commands available, including fiptool.
+All other linux commands available, including bpir-build and fiptool.
 
 ## Commands available from board in initramfs (and uartboot):
 ```text
