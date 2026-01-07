@@ -282,14 +282,18 @@ Usage: build.sh [OPTION]...
   -u --uartboot            create uartboot image
   -d --cachedir            store packages in cachedir
   -R --clearrootfs         empty rootfs
-  --imagefile[ FILENAME]               specify image file name
-  --imagesize [FILESIZE]               specify image file size
-  --bpirtoolbox [ARGS]                 specify arguments for bpir-toolbox
-  --brlanip [IP]                       specify ip for brlan
-  --ddrsize [default|8]                specify ddr size
-  --setup [AP|RT|...]                  specify setup for network
-  --target [bpir64|bpir3|bpir3m|bpir4] specify target
-  --atfdevice [sdmmc|emmc|nvme|sata]   specify device
+  --imagefile [FILENAME]   image file name, default bpir.img
+  --imagesize [FILESIZE]   image file size in Mib, default 7456
+  --atfend [ATFEND]        sd/emmc: atf partition end in KiB, default 1024
+  --fipsize [FIPSIZE]      sd/emmc: fip/boot-part size (mod erasesize) in MiB, default 190
+  --rootend [ROOTEND]      sd/emmc: root partition end in MiB or %, default 100%
+  --erasesize [SIZE]       sd/emmc: erasesize in MiB, default 4
+  --bpirtoolbox [ARGS]     arguments for bpir-toolbox
+  --brlanip [default|IP]   ip for brlan
+  --ddrsize [default|8]    ddr size in GB
+  --setup [AP|RT|...]      setup for network
+  --target [bpir64|bpir3|bpir3m|bpir4]   specify target
+  --atfdevice [sdmmc|emmc|nvme|sata]     specify device
 ```
 
 Start with `--format` to format a sdcard/image.
