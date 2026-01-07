@@ -55,27 +55,27 @@ case ${target} in
   bpir64)
     DDRSIZES=("default    1 GB")
     SETUPS=("RT       Router setup"
-               "AP       Access Point setup")
+            "AP       Access Point setup")
     WIFIMODULE="mt7615e"
     ;;
   bpir3)
     DDRSIZES=("default    2 GB")
     SETUPS=("RT       Router setup, SFP module eth1 as wan"
-               "RTnoSFP  Router setup, not using SFP module"
-               "AP       Access Point setup")
+            "RTnoSFP  Router setup, not using SFP module"
+            "AP       Access Point setup")
     WIFIMODULE="mt7915e"
     ;;
   bpir3m)
     DDRSIZES=("default    2 GB")
     SETUPS=("RT       Router setup"
-               "AP       Access Point setup")
+            "AP       Access Point setup")
     WIFIMODULE="mt7915e"
     ;;
   bpir4)
     DDRSIZES=("default    4 GB"
-             "8          8 GB")
+              "8          8 GB")
     SETUPS=("RTnoSFP  Router setup, not using SFP module, wan=lan0"
-               "AP       Access Point setup")
+            "AP       Access Point setup")
     WIFIMODULE="mt7915e"
     ;;
   *)

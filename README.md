@@ -56,16 +56,14 @@ Change directory
 cd buildR64arch
 ```
 
-Set `SD_ERASE_SIZE_MB` in build.sh if using a cardreader with naming /dev/sdX. Only from a cardreader with naming /dev/mmcblkX
-it is possible to read the erase size. Using this kind of reader the script will automatically read the erase size.
-The default value of 4MB is ok for most cards if you do not know the erase size. Later you can read it when the sd-card is inserted in a running bpir64/3.
-
-Now format your SD card with:
+Format your SD card with:
 
 ```text
 ./build.sh -F
 ```
 After formatting the rootfs gets build.
+
+Use for `./build.sh -F --erasesize=XX` if using a cardreader with naming /dev/sdX. Using a reader with /dev/mmcblkX the script will automatically read the erase size. For readers with /dev/sdX the default value of 4MiB is ok for most cards. If you do not know the erase size, later you can read it when the sd-card is inserted in a running bpir64/3. `cat /sys/block/mmcblk0/device/preferred_erase_size` will show it in bytes.
 
 Optionally enter chroot environment on the SD card:
 

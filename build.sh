@@ -27,14 +27,13 @@ DEBOOTSTR_COMPNS="main,restricted,universe,multiverse"
 #DEBOOTSTR_COMPNS="main,contrib,non-free"
 
 # Standard erase size, when it cannot be determined (using /dev/sdX cardreader or loopdev)
-SD_ERASE_SIZE_MB=4             # in Mega bytes
-
-ATF_END_KB=1024                # End of atf partition
-MINIMAL_SIZE_FIP_MB=190        # Minimal size of fip partition
-ROOT_END_MB=100%               # Size of root partition
+SD_ERASE_SIZE_MB=4             # in MiB
+ATF_END_KB=1024                # End of atf partition in KiB
+MINIMAL_SIZE_FIP_MB=190        # Minimal size of fip partition in MiB
+ROOT_END_MB=100%               # Size of root partition in MiG
 #ROOT_END_MB=$(( 4*1024  ))    # Size 4GiB
 IMAGE_SIZE_MB=7456             # Size of image
-IMAGE_FILE="./bpir.img"        # Name of image
+IMAGE_FILE="bpir.img"          # Name of image
 
 STRAP_PACKAGES_ALARM="pacman archlinuxarm-keyring inetutils"
 STRAP_PACKAGES_DEBIAN="apt-utils ca-certificates gnupg hostname"
@@ -49,7 +48,7 @@ TARGETS=("bpir64 Bananapi-R64"
          "bpir4  Bananapi-R4")
 
 DISTROS=("alarm    ArchLinuxARM"
-            "ubuntu   Ubuntu (experimental with bugs)")
+         "ubuntu   Ubuntu (experimental with bugs)")
 
 function setupenv {
 arch='aarch64'
@@ -57,9 +56,9 @@ arch='aarch64'
 BACKUPFILE="./${target}-${atfdevice}-rootfs.tar"
 atfdevices=()
 [[ $target != "bpir3m" ]] && atfdevices+=("sdmmc SD Card")
-atfdevices+=("emmc  EMMC onboard")
-[[ $target == "bpir64" ]] && atfdevices+=("sata  SATA onboard") \
-                          || atfdevices+=("nvme  NVME onboard")
+                             atfdevices+=("emmc  EMMC onboard")
+[[ $target == "bpir64" ]] && atfdevices+=("sata  SATA onboard")
+[[ $target != "bpir64" ]] && atfdevices+=("nvme  NVME onboard")
 }
 
 # End of default configuration values
@@ -103,7 +102,6 @@ function parts {
 }
 
 function formatimage_nvme {
-  echo TODO
   for part in $(parts "${device}"); do umount "${part}" 2>/dev/null; done
   if [ "$l" != true ]; then
     parted -s "${device}" unit MiB print
@@ -356,7 +354,6 @@ function schrootstrap() {
 
 function schroot() {
   if [[ -z "${*}" ]]; then
-#chroot $rootfsdir /bin/bash
     unshare --fork --kill-child --pid --uts --root=$rootfsdir su -c "hostname ${target};bash"
   else
     unshare --fork --kill-child --pid --uts --root=$rootfsdir su -c "hostname ${target};${*}"
@@ -409,14 +406,18 @@ function usage {
 	  -u --uartboot            create uartboot image
 	  -d --cachedir            store packages in cachedir
 	  -R --clearrootfs         empty rootfs
-	  --imagefile[ FILENAME]               specify image file name
-	  --imagesize [FILESIZE]               specify image file size
-	  --bpirtoolbox [ARGS]                 specify arguments for bpir-toolbox
-	  --brlanip [IP]                       specify ip for brlan
-	  --ddrsize [default|8]                specify ddr size
-	  --setup [AP|RT|...]                  specify setup for network
-	  --target [bpir64|bpir3|bpir3m|bpir4] specify target
-	  --atfdevice [sdmmc|emmc|nvme|sata]   specify device
+	  --imagefile [FILENAME]   image file name, default bpir.img
+	  --imagesize [FILESIZE]   image file size in Mib, default ${IMAGE_SIZE_MB}
+	  --atfend [ATFEND]        sd/emmc: atf partition end in KiB, default ${ATF_END_KB}
+	  --fipsize [FIPSIZE]      sd/emmc: fip/boot-part size (mod erasesize) in MiB, default ${MINIMAL_SIZE_FIP_MB}
+	  --rootend [ROOTEND]      sd/emmc: root partition end in MiB or %, default ${ROOT_END_MB}
+	  --erasesize [SIZE]       sd/emmc: erasesize in MiB, default ${SD_ERASE_SIZE_MB}
+	  --bpirtoolbox [ARGS]     arguments for bpir-toolbox
+	  --brlanip [default|IP]   ip for brlan
+	  --ddrsize [default|8]    ddr size in GB
+	  --setup [AP|RT|...]      setup for network
+	  --target [bpir64|bpir3|bpir3m|bpir4]   specify target
+	  --atfdevice [sdmmc|emmc|nvme|sata]     specify device
 	EOF
     exit 1
 }
@@ -463,8 +464,16 @@ while getopts ":rlcbxzpudRFBIPS-:" opt $args; do
       atfdevice=*)        atfdevice="${OPTARG#*=}";;
       imagefile)          IMAGE_FILE="${!OPTIND}"; ((OPTIND++));;
       imagefile=*)        IMAGE_FILE="${OPTARG#*=}";;
-      imagesize)          IMAGE_SIZE="${!OPTIND}"; ((OPTIND++));;
-      imagesize=*)        IMAGE_SIZE="${OPTARG#*=}";;
+      imagesize)          IMAGE_SIZE_MB="${!OPTIND}"; ((OPTIND++));;
+      imagesize=*)        IMAGE_SIZE_MB="${OPTARG#*=}";;
+      atfend)             ATF_END_KB="${!OPTIND}"; ((OPTIND++));;
+      atfend=*)           ATF_END_KB="${OPTARG#*=}";;
+      fipsize)            MINIMAL_SIZE_FIP_MB="${!OPTIND}"; ((OPTIND++));;
+      fipsize=*)          MINIMAL_SIZE_FIP_MB="${OPTARG#*=}";;
+      rootend)            ROOT_END_MB="${!OPTIND}"; ((OPTIND++));;
+      rootend=*)          ROOT_END_MB="${OPTARG#*=}";;
+      erasesize)          SD_ERASE_SIZE_MB="${!OPTIND}"; ((OPTIND++));;
+      erasesize=*)        SD_ERASE_SIZE_MB="${OPTARG#*=}";;
       *)
         echo "Unknown option --$OPTARG"
         usage
@@ -684,6 +693,3 @@ fi
 
 exit
 
-# xz -e -k -9 -C crc32 $$< --stdout > $$@
-
-# kernelcmdline: block2mtd.block2mtd=/dev/mmcblk0p2,128KiB,MyMtd cmdlinepart.mtdparts=MyMtd:1M(mtddata)ro
