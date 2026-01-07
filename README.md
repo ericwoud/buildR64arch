@@ -347,6 +347,7 @@ All other linux commands available, including fiptool.
 bpir-dhcpc <interface>
 bpir-synctime
 bpir-build
+bpir-toolbox
 reboot
 bash, debootstrap, nano, parted, etc
 ```
