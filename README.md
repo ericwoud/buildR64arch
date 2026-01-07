@@ -1,8 +1,6 @@
 # buildR64arch
 
-Install a minimal Arch-Linux on Banana Pi R64, R3, R3mini and R4 from scratch.
-
-There are a lot of changes lately, this readme is not updated for all of these changes.
+Install a minimal ArchLinux-ARM or Ubuntu on Banana Pi R64, R3, R3mini and R4 from scratch.
 
 Downloadable images for quick test located [HERE](https://www.woudstra.mywire.org/images/)
 
@@ -16,8 +14,8 @@ Still in development stage, basics work, need more testing.
 The script can be run from Arch Linux and Debian/Ubuntu.
 
 The script only formats the SD card and installs packages and configures them. Nothing needs to be build.
-Everything that is build, is installed with prebuild packages. These packages can be updated through the AUR.
-It is also possible to build/alter a package yourself, like any other Archlinux AUR package.
+Everything that is build, is installed with prebuild packages. These packages can be updated using `pacman` or `apt`.
+It is also possible to build/alter a package yourself using makepkg (and makedeb), like any other Archlinux package.
 
 Basic settings are prompted for, when running the script. Other tweaks can be written to config.sh in the
 same directory as the script. There the environment variables can be set, that will override the default settings.
