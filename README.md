@@ -185,8 +185,12 @@ The files can be found here:
 
 Find the correct `mtk_uartboot` executable for your system. I have build files for the R64, R3, R3mini, R4. Only the R3 is tested at the moment.
 
-Make sure you have socat installed, edit /dev/ttyXXXX, and run :
+Run:
+```text
+./mtk_uartboot -p uart-bpir3m-atf.bin -f uart-bpir3m-fip.bin --aarch64 -s /dev/ttyUSB0
+```
 
+Or, when wanting to see the debug output after uploading. Make sure you have socat installed, edit /dev/ttyXXXX, and run :
 ```text
 sudo bash -c "./mtk_uartboot -p uart-bpir3m-atf.bin -f uart-bpir3m-fip.bin --aarch64 -s /dev/ttyUSB0 ; socat - /dev/ttyUSB0,raw,echo=0,b115200"
 ```
