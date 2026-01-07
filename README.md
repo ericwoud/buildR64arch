@@ -156,8 +156,6 @@ bpir-toolbox --nand-format
 ```
 This will format and install the image.
 
-I need to add more documentation about 'bpir-toolbox', but you can look into the file to see which options to use.
-
 ```text
 bpir-toolbox --nand-force-erase
 ```
