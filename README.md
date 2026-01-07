@@ -151,14 +151,14 @@ Setup my archlinuxarm image on sd-card, via my script or prebuild image. Another
 
 When running archlinuxarm from sd-card or the initrd from uartboot on the BPI-R3/R3M/R4, you can:
 
-```p
+```text
 bpir-toolbox --nand-format
 ```
 This will format and install the image.
 
 I need to add more documentation about 'bpir-toolbox', but you can look into the file to see which options to use.
 
-```p
+```text
 bpir-toolbox --nand-force-erase
 ```
 This will erase all blocks from nand, even erase all the bad blocks, all blocks are reset to normal.
@@ -197,13 +197,13 @@ The files are quite large, so get a cup of coffee when uploading it to the board
 
 It has the initrd for emmc inside, which drops to a bash shell. The initrd can run my installscript and/or debootstrap. First setup your internet connection on eth0 or any other interface (defaults to wan):
 
-```p
+```text
 bpir-dhcpc eth0
 ```
 Now you're ready to use 'bpir-build' 'bpir-toolbox' 'debootstrap' 'wget' 'curl' 'nano' 'parted' 'mkfs-btrfs' 'tar' 'xz' 'gzip' 'zstd', etc, etc.
 
 You could use:
-```p
+```text
 bpir-toolbox --nand-format
 ```
 It will download necessary files and install uboot on nand. This version of U-Boot uses the standard distroboot and is setup to scan sd/emmc - nvme - nand, for extlinux.conf in this order. Need to have the boot flag set on the partition where this file can be found. If nothing is found on sd/emmc/nvme, it loads the same rescue initrd, but now from nand.
