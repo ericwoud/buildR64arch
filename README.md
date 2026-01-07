@@ -245,7 +245,7 @@ For vlan setup the lan ports which connect router and AP as lan-trunk port on bo
 Some DSA drivers have a problem with this setup, but some are recently fixed with a fix wireless roaming fix in the kernel. You will need very recent drivers on all routers/switches and access points on your network
 
 
-## Setup booting from NVME on R3/R3mini/R4, using boot partition on emmc
+## Setup booting from NVME on R3/R3mini/R4, using boot partition on emmc (not recommended)
 
 This instruction is for the default boot method "2. ATF - KERNEL using boot partition."
 
@@ -308,7 +308,8 @@ This means that the rootfs om emmc is not really valid anymore to boot from. Onl
 the emmc can be used. If you want, make a copy of the current Image and initramfs-bpir.img with a different name,
 but still in /boot. If you want to boot emmc, change /boot/bootcfg/linux and /boot/bootcfg/initrd to the other files.
 
-## Setup booting from NVME on R3/R3mini/R4, using U-Boot
+## Setup booting from NVME on R3/R3mini/R4, using U-Boot (not recommended)
+
 
 It is also be possible to install the U-Boot package and have U-Boot do the startup from nvme.
 
