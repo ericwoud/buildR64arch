@@ -102,9 +102,9 @@ screen -R
 ```
 Detach from the session if you want, with CTRL-A + D.
 
-When running on the R64, clone the script and run:
+When running on the R64 run:
 ```
-./build.sh -F
+bpir-build -F
 ```
 Make sure your internet connection is working on the R64. Ping 8.8.8.8 should work.
 
