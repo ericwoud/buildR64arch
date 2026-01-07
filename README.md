@@ -242,6 +242,122 @@ For vlan setup the lan ports which connect router and AP as lan-trunk port on bo
 
 Some DSA drivers have a problem with this setup, but some are recently fixed with a fix wireless roaming fix in the kernel. You will need very recent drivers on all routers/switches and access points on your network
 
+## Detailed description
+
+The entire image is build around packages. All custom packages have .deb and .pkg.tar.xz versions for Ubuntu and Archlinux.
+The major difference (specially on headless systems) between Archlinux and Debian is the package manager. Other differences are really small. This makes the images for ArchLinux-ARM and Ubuntu almost identical. Because library versions can differ, all custom executables are build statically with musl, not depending on any library.
+
+- bpirXX-atf-git package contains ATF binairies, command needed for writing. Customized all-in-one (bl2 + bl31), booting U-Boot or linux from fip- or fat32-boot partition.
+- bpirXX-uboot-git package contains U-Boot binairies, command needed for writing. Customized to boot from extlinux conf or boot.scr.
+- linux-bpirXX-git package contains kernel, automatically written when upgrading. Multiple linux kernel packages can be installed.
+- hostapd-launch: helper for hostapd.conf, adding interface specifying bridge vlan id. Also implements bash substitution inside the .conf file.
+- ssh-fix-reboot: shutdown ssh session quickly at reboot
+
+Prebuild images:
+
+[https://ftp.woudstra.mywire.org/images/](https://ftp.woudstra.mywire.org/images/)
+
+UARTboot images:
+
+[https://ftp.woudstra.mywire.org/uartboot/](https://ftp.woudstra.mywire.org/uartboot/)
+
+Prebuild Nand images (still need to test, easier to use bpir-toolbox from sd-card instead):
+
+[https://ftp.woudstra.mywire.org/nandimages/](https://ftp.woudstra.mywire.org/nandimages/)
+
+## Command available from build-host as `./build.sh` or from board as `bpir-build` in linux and initramfs. It is mostly menu driven.
+```p
+Usage: build.sh [OPTION]...
+  -F --format              format sd/emmc or image-file
+  -l --loopdev             use image-file instead of sd-card
+  -r --rootfs              setup rootfs on image
+  -c --chroot              enter chroot on image
+  -b --backup              backup rootfs
+  -B --restore             restore rootfs
+  -x --createxz            create bpir.img.xz
+  -z --creategz            create bpir.img.gz
+  -p --boot2fip            setup fip-partition bootchain (sd/emmc)
+  -P --fip2boot            setup boot-partition (fat32) bootchain (sd/emmc)
+  -p --creategz            create bpir.img.gz
+  -u --uartboot            create uartboot image
+  -d --cachedir            store packages in cachedir
+  -R --clearrootfs         empty rootfs
+  --imagefile[ FILENAME]               specify image file name
+  --imagesize [FILESIZE]               specify image file size
+  --bpirtoolbox [ARGS]                 specify arguments for bpir-toolbox
+  --brlanip [IP]                       specify ip for brlan
+  --ddrsize [default|8]                specify ddr size
+  --setup [AP|RT|...]                  specify setup for network
+  --target [bpir64|bpir3|bpir3m|bpir4] specify target
+  --atfdevice [sdmmc|emmc|nvme|sata]   specify device
+```
+
+Start with `--format` to format a sdcard/image.
+Use `--loopdev` to create an image instead of using a sd-card directly.
+Use `--cachedir` when trying multiple times, but not downloading packages multiple times.
+
+After building use `--chroot` (with --loopdev) to enter the image and do some more setting up manually.
+
+## Custom commands available from board in linux and initramfs (and uartboot):
+```p
+Usage: bpir-toolbox [OPTION]...
+  --default-bootcfg        Restore default bootcfg, adds --write2fip
+  --fip2boot               Convert fip partition to boot partition bootchain (sd/emmc)
+  --boot2fip               Convert boot partition to fip partition bootchain (sd/emmc)
+  --download2root          Download files needed for nand-image (when started from initrd)
+  --nand-force-erase       Force erase nand, including bad blocks and wear history
+  --nand-format            Format the nand, also runs update
+  --nand-image             Create nand image, also runs update
+  --nand-update            Updates all files on nand, only writes when needed
+  --write2dtb              Combine dtbos with dtb and create one dtb file
+  --write2atf              Write arm-trusted-firmware
+  --write2fip              Create all files needed for fip and write it, adds --write2dtb
+  --write2extlinux         Create a new /boot/extlinux/extlinux.conf
+  --uboot-install          Copies U-Boot to /boot/u-boot.bin (writes to fip if necessary),
+                             also creates /boot/extlinux/extlinux.conf if not present
+  --uboot-remove           Removes /boot/u-boot.bin
+  --uartboot               Create a uartboot image
+  --pkgbase ...            Specify linuxpkg to create files for
+  --set-atf-linuxpkg       Set linuxpkg atf will directly boot, specified in pkgbase
+  --remove-dtb             Remove dtb file
+```
+```p
+Usage: bpir-rootfs [OPTION]...
+  -b --bpirtoolbox [ARGS]                 specify arguments for bpir-toolbox
+  -i --brlanip [IP]                       specify ip for brlan
+  -d --ddrsize [default|8]                specify ddr size
+  -s --setup [AP|RT|...]                  specify setup for network
+  -t --target [bpir64|bpir3|bpir3m|bpir4] specify target
+  -a --atfdevice [sdmmc|emmc|nvme|sata]   specify device
+  -S --disable-sandbox     disable pacman sandbox download
+  -m --menuonly            menu only
+  -c --configonly          setup the rootfs only
+```
+`bpir-rootfs` is menu-driven, arguments can be used instead.
+```p
+Usage: bpir-initrd [OPTION]...
+  -p --preset [PRESET]       specify preset
+  -P --allpresets            build all presets
+  -m --modulesonly           build only when image holds modules [to be implemented]
+```
+All other linux commands available, including fiptool.
+
+## Commands available from board in initramfs (and uartboot):
+```p
+bpir-dhcpc <interface>
+bpir-synctime
+bpir-build
+reboot
+bash, debootstrap, nano, parted, etc
+```
+
+## Building your own version of ATF, U-Boot or linux-kernel:
+
+Basically all custom ATF, U-Boot or linux-kernel packages are build on Archlinux (aarch64 or x86_64). It can be done on a archlinux-chroot root only if preferred. Use [https://github.com/tokland/arch-bootstrap](https://github.com/tokland/arch-bootstrap) to setup an archlinux chroot on a debian system.
+
+After running makepkg, run makedeb to create the .deb (and possibly update a repo). See: [makedeb](https://github.com/ericwoud/archlinuxarm-repo/blob/makedeb/makedeb)
+
+Support to use other linux-image.deb when running on Ubuntu is also implemented, but hardly tested (also supporting to extract `Image` from `.itb` from the package).
 
 ## R64/R3 Build/Install emmc version using image [DEPRECATED]
 
