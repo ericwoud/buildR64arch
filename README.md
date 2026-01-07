@@ -15,7 +15,7 @@ The script can be run from Arch Linux and Debian/Ubuntu.
 
 The script only formats the SD card and installs packages and configures them. Nothing needs to be build.
 Everything that is build, is installed with prebuild packages. These packages can be updated using `pacman` or `apt`.
-It is also possible to build/alter a package yourself using makepkg (and makedeb), like any other Archlinux package.
+It is also possible to build/alter a package yourself using `makepkg` (and `makedeb`), like any other Archlinux package.
 
 Basic settings are prompted for, when running the script. Other tweaks can be written to config.sh in the
 same directory as the script. There the environment variables can be set, that will override the default settings.
