@@ -228,7 +228,6 @@ function bootstrap {
         tee $rootfsdir/etc/apt/apt.conf.d/99onlyneeded
     echo "deb [arch=arm64] http://${WOUDSTRA}/apt-repo stable main" | \
         tee $rootfsdir/etc/apt/sources.list.d/ericwoud.list
-    mkdir -p $rootfsdir/usr/share/keyrings/
     until schroot gpg --batch --yes --keyserver "${DEBIANKEYSERVER}" --recv-keys $REPOKEY
     do sleep 2; done
     schroot gpg --batch --yes --output /etc/apt/trusted.gpg.d/ericwoud.gpg --export $REPOKEY
