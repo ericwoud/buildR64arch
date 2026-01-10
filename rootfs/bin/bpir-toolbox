@@ -19,6 +19,10 @@ while [ "${1:-}" != '' ]; do
   '--uartboot')                      uartboot=1           ;;
   '--remove-dtb')                    remove_dtb=1         ;;
   '--clean-boot')                    clean_boot=1         ;;
+  '--target')                 shift; target="${1}"        ;;
+  '--target'=*)                      target="${1#*=}"     ;;
+  '--atfdevice')              shift; atfdevice="${1}"     ;;
+  '--atfdevice'=*)                   atfdevice="${1#*=}"  ;;
   '--pkgbase')                shift; pkgbase="${1}"       ;;
   '--pkgbase'=*)                     pkgbase="${1#*=}"    ;;
   '--set-atf-linuxpkg')              set_atf_linuxpkg=1   ;;
@@ -293,6 +297,9 @@ tmp="/tmp/bpir-toolbox-tmp"
 rootdev=$(lsblk -pilno name,type,mountpoint | grep -G 'part /$' | head -n1 | cut -d " " -f1)
 if [ -f "/etc/bpir-is-initrd" ]; then
   source /etc/bpir-is-initrd # decleres target
+elif [ -n "$target" ] && [ -n "$atfdevice" ]; then
+  default_device="$atfdevice"
+  partlabelroot="${target}-${atfdevice}-root"
 else
   partlabelroot=$(blkid ${rootdev} -s PARTLABEL -o value)
   [ -z "${partlabelroot}" ] && exit 1
