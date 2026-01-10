@@ -52,13 +52,13 @@ DISTROS=("alarm    ArchLinuxARM"
 
 function setupenv {
 arch='aarch64'
-#BACKUPFILE="/run/media/$USER/DATA/${target}-${atfdevice}-rootfs.tar"
-BACKUPFILE="./${target}-${atfdevice}-rootfs.tar"
-atfdevices=()
-[[ $target != "bpir3m" ]] && atfdevices+=("sdmmc SD Card")
-                             atfdevices+=("emmc  EMMC onboard")
-[[ $target == "bpir64" ]] && atfdevices+=("sata  SATA onboard")
-[[ $target != "bpir64" ]] && atfdevices+=("nvme  NVME onboard")
+#BACKUPFILE="/run/media/$USER/DATA/${target}-${device}-rootfs.tar"
+BACKUPFILE="./${target}-${device}-rootfs.tar"
+devices=()
+[[ $target != "bpir3m" ]] && devices+=("sdmmc SD Card")
+                             devices+=("emmc  EMMC onboard")
+[[ $target == "bpir64" ]] && devices+=("sata  SATA onboard")
+[[ $target != "bpir64" ]] && devices+=("nvme  NVME onboard")
 }
 
 # End of default configuration values
@@ -102,46 +102,46 @@ function parts {
 }
 
 function formatimage_nvme {
-  for part in $(parts "${device}"); do umount "${part}" 2>/dev/null; done
+  for part in $(parts "${dev}"); do umount "${part}" 2>/dev/null; done
   if [ "$l" != true ]; then
-    parted -s "${device}" unit MiB print
-    echo -e "\nDo you want to wipe all partitions from "$device"???"
+    parted -s "${dev}" unit MiB print
+    echo -e "\nDo you want to wipe all partitions from "${dev}"???"
     read -p "Type <wipeall> to wipe all: " prompt
   else
     prompt="wipeall"
   fi
   if [[ $prompt == "wipeall" ]]; then
-    wipefs --all --force "${device}"
+    wipefs --all --force "${dev}"
     sync
-    partprobe "${device}"; udevadm settle 2>/dev/null
-    parted -s -- "${device}" mklabel gpt
+    partprobe "${dev}"; udevadm settle 2>/dev/null
+    parted -s -- "${dev}" mklabel gpt
     [[ $? != 0 ]] && exit
-    partprobe "${device}"; udevadm settle 2>/dev/null
+    partprobe "${dev}"; udevadm settle 2>/dev/null
   fi
-  mountdev=$(blkid $(parts ${device}) -t PARTLABEL=${target}-${atfdevice}-root -o device)
+  mountdev=$(blkid $(parts ${dev}) -t PARTLABEL=${target}-${device}-root -o device)
   if [ -z "$mountdev" ]; then
-    parted -s -- "${device}" unit GiB print
+    parted -s -- "${dev}" unit GiB print
     echo "To enter percentage: append the number with a '%' without space (e.g. 100%)."
     read -p "Enter GiB or percentage of start of root partition: " rootstart_gb
     read -p "Enter GiB or percentage of end of root partition: " rootend_gb
-    parted -s -- "${device}" unit GiB \
-      mkpart ${target}-${atfdevice}-root btrfs $rootstart_gb $rootend_gb
+    parted -s -- "${dev}" unit GiB \
+      mkpart ${target}-${device}-root btrfs $rootstart_gb $rootend_gb
     [[ $? != 0 ]] && exit 1
-    partprobe "${device}"; udevadm settle 2>/dev/null
+    partprobe "${dev}"; udevadm settle 2>/dev/null
     while
-      mountdev=$(blkid $(parts ${device}) -t PARTLABEL=${target}-${atfdevice}-root -o device)
+      mountdev=$(blkid $(parts ${dev}) -t PARTLABEL=${target}-${device}-root -o device)
       [ -z "$mountdev" ]
     do sleep 0.1; done
     waitdev "${mountdev}"
     partnum=$(cat /sys/class/block/$(basename ${mountdev})/partition)
     [ -z "$partnum" ] && exit 1
-    parted -s -- "${device}" set "$partnum" boot on
-    partprobe "${device}"; udevadm settle 2>/dev/null
+    parted -s -- "${dev}" set "$partnum" boot on
+    partprobe "${dev}"; udevadm settle 2>/dev/null
     while
-      [ -z "$(blkid $(parts ${device}) -t PARTLABEL=${target}-${atfdevice}-root -o device)" ]
+      [ -z "$(blkid $(parts ${dev}) -t PARTLABEL=${target}-${device}-root -o device)" ]
     do sleep 0.1; done
   elif [ "$l" != true ]; then
-    parted -s "${device}" unit MiB print
+    parted -s "${dev}" unit MiB print
     echo -e "\nAre you sure you want to format "${mountdev}"???"
     read -p "Type <format> to format: " prompt
     [[ $prompt != "format" ]] && exit
@@ -154,7 +154,7 @@ function formatimage_nvme {
 }
 
 function formatimage_mmc {
-  esize_mb=$(cat /sys/block/${device/"/dev/"/""}/device/preferred_erase_size)
+  esize_mb=$(cat /sys/block/${dev/"/dev/"/""}/device/preferred_erase_size)
   [ -z "$esize_mb" ] && esize_mb=$SD_ERASE_SIZE_MB || esize_mb=$(( $esize_mb /1024 /1024 ))
   echo "Erase size = $esize_mb MB"
   minimalrootstart_kb=$(( $ATF_END_KB + ($MINIMAL_SIZE_FIP_MB * 1024) ))
@@ -167,30 +167,30 @@ function formatimage_mmc {
   else
     root_end_kb=$(( ($ROOT_END_MB/$esize_mb*$esize_mb)*1024 ))
   fi
-  for part in $(parts "${device}"); do umount "${part}" 2>/dev/null; done
+  for part in $(parts "${dev}"); do umount "${part}" 2>/dev/null; done
   if [ "$l" != true ]; then
-    parted -s "${device}" unit MiB print
-    echo -e "\nAre you sure you want to format "$device"???"
+    parted -s "${dev}" unit MiB print
+    echo -e "\nAre you sure you want to format "${dev}"???"
     read -p "Type <format> to format: " prompt
     [[ $prompt != "format" ]] && exit
   fi
-  wipefs --all --force "${device}"
+  wipefs --all --force "${dev}"
   sync
-  partprobe "${device}"; udevadm settle 2>/dev/null
-  parted -s -- "${device}" mklabel gpt
+  partprobe "${dev}"; udevadm settle 2>/dev/null
+  parted -s -- "${dev}" mklabel gpt
   [[ $? != 0 ]] && exit
-  parted -s -- "${device}" unit kiB \
+  parted -s -- "${dev}" unit kiB \
     mkpart primary 34s $ATF_END_KB \
     mkpart primary $ATF_END_KB $rootstart_kb \
     mkpart primary $rootstart_kb $root_end_kb \
     set 1 legacy_boot on \
-    name 1 ${target}-${atfdevice}-atf \
+    name 1 ${target}-${device}-atf \
     name 2 fip \
-    name 3 ${target}-${atfdevice}-root \
+    name 3 ${target}-${device}-root \
     print
-  partprobe "${device}"; udevadm settle 2>/dev/null
+  partprobe "${dev}"; udevadm settle 2>/dev/null
   while
-    mountdev=$(blkid $(parts ${device}) -t PARTLABEL=${target}-${atfdevice}-root -o device)
+    mountdev=$(blkid $(parts ${dev}) -t PARTLABEL=${target}-${device}-root -o device)
     [ -z "$mountdev" ]
   do sleep 0.1; done
   waitdev "${mountdev}"
@@ -416,7 +416,7 @@ function usage {
 	  --ddrsize [default|8]    ddr size in GB
 	  --setup [AP|RT|...]      setup for network
 	  --target [bpir64|bpir3|bpir3m|bpir4]   specify target
-	  --atfdevice [sdmmc|emmc|nvme|sata]     specify device
+	  --device [sdmmc|emmc|nvme|sata]        specify device
 	EOF
     exit 1
 }
@@ -459,8 +459,8 @@ while getopts ":rlcbxzpudRFBIPS-:" opt $args; do
       setup=*)            setup="${OPTARG#*=}";;
       target)             target="${!OPTIND}"; ((OPTIND++));;
       target=*)           target="${OPTARG#*=}";;
-      atfdevice)          atfdevice="${!OPTIND}"; ((OPTIND++));;
-      atfdevice=*)        atfdevice="${OPTARG#*=}";;
+      device)             device="${!OPTIND}"; ((OPTIND++));;
+      device=*)           device="${OPTARG#*=}";;
       imagefile)          IMAGE_FILE="${!OPTIND}"; ((OPTIND++));;
       imagefile=*)        IMAGE_FILE="${OPTARG#*=}";;
       imagesize)          IMAGE_SIZE_MB="${!OPTIND}"; ((OPTIND++));;
@@ -542,39 +542,39 @@ fi
 if [ "$F" = true ]; then
   ask target TARGETS "Choose target to format image for:"
   setupenv # Now that target is known.
-  ask atfdevice atfdevices "Choose atfdevice to format image for:"
+  ask device devices "Choose device to format image for:"
   if [ "$l" = true ]; then
     [ ! -f $IMAGE_FILE ] && touch $IMAGE_FILE
     loopdev=$(losetup --show --find $IMAGE_FILE 2>/dev/null)
     echo "Loop device = $loopdev"
-    device=$loopdev
+    dev=$loopdev
   else
-    readarray -t devices < <(lsblk -dprno name,size \
+    readarray -t devs < <(lsblk -dprno name,size \
        | grep -v "^/dev/"${pkroot} | grep -v 'boot0 \|boot1 \|boot2 ')
-    ask device devices "Choose device to format:"
+    ask dev devs "Choose device to format:"
   fi
 else
   if [ "$l" = true ]; then
     loopdev=$(losetup --show --find $IMAGE_FILE)
     echo "Loop device = $loopdev"
     partprobe $loopdev; udevadm settle
-    device=$loopdev
+    dev=$loopdev
   else
-    readarray -t devices < <(blkid -s PARTLABEL | \
+    readarray -t devs < <(blkid -s PARTLABEL | \
         grep -E 'PARTLABEL="bpir' | grep -E -- '-root"' | grep -v ${pkroot} | grep -v 'boot0$\|boot1$\|boot2$')
-    ask device devices "Choose device to work on:"
-    device=$(lsblk -npo pkname ${device/:/})
+    ask dev devs "Choose device to work on:"
+    dev=$(lsblk -npo pkname ${dev/:/})
   fi
-  pr=$(blkid -s PARTLABEL $(parts ${device})| grep -E 'PARTLABEL="bpir' | grep -E -- '-root"' | cut -d'"' -f2)
+  pr=$(blkid -s PARTLABEL $(parts ${dev})| grep -E 'PARTLABEL="bpir' | grep -E -- '-root"' | cut -d'"' -f2)
   target=$(echo $pr | cut -d'-' -f1)
-  atfdevice=$(echo $pr | cut -d'-' -f2)
+  device=$(echo $pr | cut -d'-' -f2)
 fi
-echo -e "Device=${device}\nTarget=${target}\nATF-device="${atfdevice}
-[ -z "$device" ] && exit
+echo -e "Dev=${dev}\nTarget=${target}\ndevice="${device}
+[ -z "${dev}" ] && exit
 [ -z "${target}" ] && exit
-[ -z "${atfdevice}" ] && exit
+[ -z "${device}" ] && exit
 
-setupenv # Now that target and atfdevice are known.
+setupenv # Now that target and device are known.
 
 if [ "$r" = true ]; then
   [ "$p" = true ] && bpirtoolbox="--fip2boot"
@@ -584,7 +584,7 @@ if [ "$r" = true ]; then
     echo "Distro="${distro}
   fi
   rm -f "/tmp/bpir-rootfs.txt"
-  rootfsargs="--menuonly --target '${target}' --atfdevice '${atfdevice}' --ddrsize '${ddrsize}' --setup '${setup}' --brlanip '${brlanip}' --bpirtoolbox '${bpirtoolbox}'"
+  rootfsargs="--menuonly --target '${target}' --device '${device}' --ddrsize '${ddrsize}' --setup '${setup}' --brlanip '${brlanip}' --bpirtoolbox '${bpirtoolbox}'"
   if command -v bpir-rootfs >/dev/null 2>&1 ; then
     xargs -a <(echo -n "${rootfsargs}") bpir-rootfs
   elif [ -f "./rootfs/bin/bpir-rootfs" ]; then
@@ -604,25 +604,25 @@ fi
 if [ "$l" = true ] && [ $(stat --printf="%s" $IMAGE_FILE) -eq 0 ]; then
   echo -e "\nCreating image file..."
   dd if=/dev/zero of=$IMAGE_FILE bs=1M count=$IMAGE_SIZE_MB status=progress conv=notrunc,fsync
-  losetup --set-capacity $device
+  losetup --set-capacity ${dev}
 fi
 
 if [ "$initrd" != true ]; then
   mkdir -p "/run/udev/rules.d"
   noautomountrule="/run/udev/rules.d/10-no-automount-bpir.rules"
-  echo 'KERNELS=="'${device/"/dev/"/""}'", ENV{UDISKS_IGNORE}="1"' | tee $noautomountrule
+  echo 'KERNELS=="'${dev/"/dev/"/""}'", ENV{UDISKS_IGNORE}="1"' | tee $noautomountrule
 fi
 
 if [ "$F" = true ]; then
-  if [ "${atfdevice}" == "nvme" ] || [ "${atfdevice}" == "sata" ]; then
+  if [ "${device}" == "nvme" ] || [ "${device}" == "sata" ]; then
     formatimage_nvme
   else
     formatimage_mmc
   fi
 fi
 
-mountdev=$(blkid -s PARTLABEL $(parts ${device}) | grep -E 'PARTLABEL="bpir' | grep -E -- '-root"' | cut -d' ' -f1 | tr -d :)
-bootdev=$( blkid -s PARTLABEL $(parts ${device}) | grep -E 'PARTLABEL="'     | grep -E -- 'boot"'  | cut -d' ' -f1 | tr -d :)
+mountdev=$(blkid -s PARTLABEL $(parts ${dev}) | grep -E 'PARTLABEL="bpir' | grep -E -- '-root"' | cut -d' ' -f1 | tr -d :)
+bootdev=$( blkid -s PARTLABEL $(parts ${dev}) | grep -E 'PARTLABEL="'     | grep -E -- 'boot"'  | cut -d' ' -f1 | tr -d :)
 echo "Mountdev = $mountdev"
 echo "Bootdev  = $bootdev"
 [ -z "$mountdev" ] && exit
