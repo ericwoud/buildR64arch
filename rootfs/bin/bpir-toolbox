@@ -353,9 +353,6 @@ if [ -z "${rootdev}" ]; then
       echo -n "${default_linuxpkg}" >"$(echo /lib/modules/*/kernel | head -n1 | xargs dirname)/pkgbase"
       bpir-initrd -P
     fi
-  else
-    echo "Need to mount '/' first (and '/boot' if applicable)"
-    exit 1
   fi
 fi
 
@@ -419,6 +416,16 @@ headerfile="${atfdir}/${target}-atf-${device}-header${extra}.bin"
 atffile="${atfdir}/${target}-atf-${device}-atf${extra}.bin"
 bl31file="${atfdir}/${target}-atf-${device}-bl31${extra}.bin"
 
+# Copy DTBO's if there are none.
+if [ ! -d "/boot/dtbos/" ]; then
+  mkdir -p "/boot/dtbos/"
+  cp -vf /usr/share/buildR64arch/boot/${target^^}/*             "/boot/dtbos/" 2>/dev/null
+  cp -vf /usr/share/buildR64arch/boot/${target^^}-${device^^}/* "/boot/dtbos/" 2>/dev/null
+fi
+
+# chroot from mkosi, no devices mounted, then exit
+[ -z "${rootdev}" ] && [ ! -f "/etc/bpir-is-initrd" ] && exit
+
 atfdevice=$(getdev atf)
 fipbootdevice=$(getdev fip)
 [ -z "${fipbootdevice}" ] && fipbootdevice=$(getdev boot)
@@ -432,13 +439,6 @@ if [ -n "${fipbootdevice}" ]; then
   typefipboot=$(echo ${partlabelfipboot} | cut -d "-" -f3)
   [ -z "${typefipboot}" ] && typefipboot="${partlabelfipboot}"
   echo "Type of bootchain installed (fip or boot): ${typefipboot}"
-fi
-
-# Copy DTBO's if there are none.
-if [ ! -d "/boot/dtbos/" ]; then
-  mkdir -p "/boot/dtbos/"
-  cp -vf /usr/share/buildR64arch/boot/${target^^}/*             "/boot/dtbos/" 2>/dev/null
-  cp -vf /usr/share/buildR64arch/boot/${target^^}-${device^^}/* "/boot/dtbos/" 2>/dev/null
 fi
 
 #########################################
