@@ -683,7 +683,7 @@ fipbootdevice=$(getdev fip)
 [ -z "${fipbootdevice}" ] && fipbootdevice=$(getdev boot)
 if [ -z "${fipbootdevice}" ]; then
   if [ -n $create_parts ]; then
-    parted -s -- "/dev/${pkrootdev}" unit kiB mkpart fip $ATF_END_KB 100%
+    parted -s -- "/dev/${pkrootdev}" unit kiB mkpart fip $ATF_END_KB 256MiB
     sync
     fipbootdevice=$(getdev fip)
   fi

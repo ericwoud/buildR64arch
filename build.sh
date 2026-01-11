@@ -180,7 +180,7 @@ function formatimage_mmc {
   parted -s -- "${dev}" mklabel gpt
   [[ $? != 0 ]] && exit
   parted -s -- "${dev}" unit kiB \
-    mkpart ${target}-${device}-root $rootstart_kb $root_end_kb \
+    mkpart ${target}-${device}-root 256MiB 100% \
     print
   partprobe "${dev}"; udevadm settle 2>/dev/null
   while
