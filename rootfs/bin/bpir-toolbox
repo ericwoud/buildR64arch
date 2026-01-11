@@ -670,6 +670,15 @@ if [ -z "${atfdevice}" ]; then
   fi
   [ -z "${atfdevice}" ] && exit 1
 fi
+pkatfdevice=$(lsblk -rno pkname ${atfdevice} 2>/dev/null)
+[ -z "${pkatfdevice}" ] && exit 1
+nratfdevice=$(cat "/sys/block/${pkatfdevice}/$(basename ${atfdevice})/partition" 2>/dev/null)
+[ -z "${nratfdevice}" ] && exit 1
+if [ -n $create_parts ]; then
+    parted -s -- "${pkatfdevice}" set ${nratfdevice} legacy_boot on
+    sync
+fi
+
 fipbootdevice=$(getdev fip)
 [ -z "${fipbootdevice}" ] && fipbootdevice=$(getdev boot)
 if [ -z "${fipbootdevice}" ]; then

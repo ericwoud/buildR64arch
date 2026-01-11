@@ -180,14 +180,11 @@ function formatimage_mmc {
   parted -s -- "${dev}" mklabel gpt
   [[ $? != 0 ]] && exit
   parted -s -- "${dev}" unit kiB \
-    mkpart primary 34s $ATF_END_KB \
-    mkpart primary $ATF_END_KB $rootstart_kb \
-    mkpart primary $rootstart_kb $root_end_kb \
-    set 1 legacy_boot on \
+    mkpart ${target}-${device}-changeit $rootstart_kb $root_end_kb \
     print
   partprobe "${dev}"; udevadm settle 2>/dev/null
   while
-    mountdev=$(blkid $(parts ${dev}) -t PARTLABEL=${target}-${device}-root -o device)
+    mountdev=$(blkid $(parts ${dev}) -t PARTLABEL=${target}-${device}-changeit -o device)
     [ -z "$mountdev" ]
   do sleep 0.1; done
   waitdev "${mountdev}"
@@ -197,6 +194,10 @@ function formatimage_mmc {
   mkfs.f2fs -s $nrseg -t 0 -f -l "${target^^}-ROOT" ${mountdev}
   sync
 }
+#    mkpart primary 34s $ATF_END_KB \
+#    mkpart primary $ATF_END_KB $rootstart_kb \
+#    mkpart primary $rootstart_kb $root_end_kb \
+#    set 1 legacy_boot on \
 #    name 1 ${target}-${device}-atf \
 #    name 2 fip \
 #    name 3 ${target}-${device}-root \
