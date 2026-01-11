@@ -180,11 +180,11 @@ function formatimage_mmc {
   parted -s -- "${dev}" mklabel gpt
   [[ $? != 0 ]] && exit
   parted -s -- "${dev}" unit kiB \
-    mkpart ${target}-${device}-changeit $rootstart_kb $root_end_kb \
+    mkpart ${target}-${device}-root $rootstart_kb $root_end_kb \
     print
   partprobe "${dev}"; udevadm settle 2>/dev/null
   while
-    mountdev=$(blkid $(parts ${dev}) -t PARTLABEL=${target}-${device}-changeit -o device)
+    mountdev=$(blkid $(parts ${dev}) -t PARTLABEL=${target}-${device}-root -o device)
     [ -z "$mountdev" ]
   do sleep 0.1; done
   waitdev "${mountdev}"
