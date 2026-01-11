@@ -19,6 +19,7 @@ while [ "${1:-}" != '' ]; do
   '--uartboot')                      uartboot=1           ;;
   '--remove-dtb')                    remove_dtb=1         ;;
   '--clean-boot')                    clean_boot=1         ;;
+  '--create-parts')                  create_parts=1       ;;
   '--target')                 shift; target="${1}"        ;;
   '--target'=*)                      target="${1#*=}"     ;;
   '--device')                 shift; device="${1}"        ;;
@@ -69,7 +70,7 @@ extlinux="/boot/extlinux/extlinux.conf"
 #############
 # Functions #
 #############
-function checkconf {
+function checkbootconf {
   local conf=$(cat /boot/bootcfg/${1} 2>/dev/null)
   [ -z "$conf" ] && return
   [ -f "$conf" ] && return
@@ -78,10 +79,12 @@ function checkconf {
 }
 
 function getconf {
-  local conf=$(cat /boot/bootcfg/${2} 2>/dev/null)
+  local path
+  [[ "$1" == "boot" ]] && path="/boot/bootcfg" || path="/etc/rootcfg"
+  local conf=$(cat "${path}/${3}" 2>/dev/null)
   if [ -z "${conf}" ]; then
-    conf="${3}"
-    [[ "${1}" == "w" ]] && echo -n "${conf}" >"/boot/bootcfg/${2}"
+    conf="${4}"
+    [[ "${2}" == "w" ]] && echo -n "${conf}" >"${path}/${3}"
   fi
   echo "${conf}"
 }
@@ -294,17 +297,27 @@ function download {
 # Set variables #
 #################
 tmp="/tmp/bpir-toolbox-tmp"
+rm -rf "${tmp}"
+mkdir -p "${tmp}/dtbos"
+mkdir -p /boot/bootcfg
+mkdir -p /etc/rootcfg
+
 rootdev=$(lsblk -pilno name,type,mountpoint 2>/dev/null | grep -G 'part /$' | head -n1 | cut -d " " -f1)
+
+[ -z "${target}" ] && target=$(getconf root r target)
+[ -z "${device}" ] && device=$(getconf root r target)
 if [ -f "/etc/bpir-is-initrd" ]; then
-  source /etc/bpir-is-initrd # decleres target
-elif [ -n "$target" ] && [ -n "$device" ]; then
-  partlabelroot="${target}-${device}-root"
-else
+  source /etc/bpir-is-initrd # declares target !!!!! CHANGE
+elif [ -z "${target}" ] || [ -z "${device}" ]; then
   partlabelroot=$(blkid ${rootdev} -s PARTLABEL -o value)
   [ -z "${partlabelroot}" ] && exit 1
   target=$(echo ${partlabelroot} | cut -d'-' -f1)
-  default_device="$(echo ${partlabelroot} | cut -d'-' -f2)"
+  device=$(echo ${partlabelroot} | cut -d'-' -f2)
 fi
+
+# Write target and device if not written yet
+getconf root w target "${target}"
+getconf root w device "${device}"
 
 case ${target} in
   bpir64)
@@ -340,7 +353,7 @@ default_cmdline="console=ttyS0,115200 debug=7 rw rootwait audit=0"
 
 if [ -z "${rootdev}" ]; then
   if [ -f "/etc/bpir-is-initrd" ]; then  # Writing NAND while running from initrd
-    default_device=${nandtype}
+    device=${nandtype}
     if  [ -n "$nand_update" ] || [ -n "$download2root" ]; then
       mkdir -p "${tmp}/ericwoud"
       repo="ftp://ftp.woudstra.mywire.org/repo/aarch64"
@@ -355,10 +368,6 @@ if [ -z "${rootdev}" ]; then
     fi
   fi
 fi
-
-rm -rf "${tmp}"
-mkdir -p "${tmp}/dtbos"
-mkdir -p /boot/bootcfg
 
 if [ -n "$default_bootcfg" ]; then
   find "/boot/bootcfg" -type f ! -name 'ddrsize' -delete
@@ -376,7 +385,7 @@ if [ -z "$(grep /lib/modules/*/pkgbase -l -e ${default_linuxpkg})" ]; then
 fi
 
 [ -n "${pkgbase}" ] && default_linuxpkg="${pkgbase}"
-linuxpkg=$(getconf w linuxpkg "${default_linuxpkg}")
+linuxpkg=$(getconf boot w linuxpkg "${default_linuxpkg}")
 [ -z "${pkgbase}" ] && pkgbase="${linuxpkg}"
 
 unamer="$(grep /lib/modules/*/pkgbase -l -e "${pkgbase}" | head -n1 | xargs dirname | xargs basename)"
@@ -391,23 +400,22 @@ fi
 
 checkextlinux "${extlinux}"
 
-checkconf linux
-checkconf initrd
-checkconf atfdtb
+checkbootconf linux
+checkbootconf initrd
+checkbootconf atfdtb
 
-dtb=$(getconf r dtb "${default_dtb}")
+dtb=$(getconf boot r dtb "${default_dtb}")
 dtbfile="/boot/dtbs/${pkgbase}/${dtb}.dtb"
 [ ! -f "${dtbfile}" ] && dtbfile="/boot/dtbs/mediatek/${dtb}.dtb"
 [ ! -f "${dtbfile}" ] && dtbfile="/boot/dtbs/${dtb}.dtb"
 [ ! -f "${dtbfile}" ] && exit 1
 default_atfdtb="${dtbfile%.dtb}-atf.dtb"
 
-[ -z "$device" ] && device=$(getconf r device   "${default_device}")
-linux=$(   getconf w linux    "${default_linux}")
-cmdline=$( getconf w cmdline  "${default_cmdline}")
-initrd=$(  getconf w initrd   "${default_initrd}")
-atfdtb=$(  getconf w atfdtb   "${default_atfdtb}")
-ddrsize=$( getconf r ddrsize  "${default_ddrsize}")
+linux=$(   getconf boot w linux    "${default_linux}")
+cmdline=$( getconf boot w cmdline  "${default_cmdline}")
+initrd=$(  getconf boot w initrd   "${default_initrd}")
+atfdtb=$(  getconf boot w atfdtb   "${default_atfdtb}")
+ddrsize=$( getconf boot r ddrsize  "${default_ddrsize}")
 
 extra=""
 [[ "${ddrsize}" != "${default_ddrsize}" ]] && extra+="-${ddrsize}gb"
@@ -606,7 +614,7 @@ fi
 if [ -n "$write2dtb" ]; then
   rm -v /boot/dtbos/*.dtbo /boot/dtbs/*-fixed.dtb 2>/dev/null # not used anymore
   write_dtb "${atfdtb}" \
-            "root=PARTLABEL=${partlabelroot}" \
+            "root=PARTLABEL=${target}-${device}-root" \
             "${dtbfile}" \
             /boot/dtbos/*.dts
 fi
@@ -637,23 +645,43 @@ fi
 # Functions below need fip/boot partition          #
 # chroot from mkosi, no devices mounted, then exit #
 ####################################################
-[ -z "${rootdev}" ] && [ ! -f "/etc/bpir-is-initrd" ] && exit
+[ -z "${rootdev}" ] && [ ! -f "/etc/bpir-is-initrd" ] && exit 0
+pkrootdev=$(lsblk -rno pkname "${rootdev}")
+[ -z "${pkrootdev}" ] && exit 1
+if [[ "${device}" != "sdmmc" ]] && [[ "${device}" != "emmc" ]]; then
+  exit 1
+fi
 
-
+ATF_END_KB=1024
 atfdevice=$(getdev atf)
+if [ -z "${atfdevice}" ]; then
+  if [ -n $create_parts ]; then
+    parted -s -- "${pkrootdev}" unit kiB mkpart ${target}-${device}-atf 34s $ATF_END_KB
+    sync
+    atfdevice=$(getdev atf)
+  fi
+  [ -z "${atfdevice}" ] && exit 1
+fi
 fipbootdevice=$(getdev fip)
 [ -z "${fipbootdevice}" ] && fipbootdevice=$(getdev boot)
-if [ -n "${fipbootdevice}" ]; then
-  pkfipboot=$(lsblk -rno pkname ${fipbootdevice} 2>/dev/null)
-  [ -z "${pkfipboot}" ] && exit 1
-  nrfipboot=$(cat "/sys/block/${pkfipboot}/$(basename ${fipbootdevice})/partition" 2>/dev/null)
-  [ -z "${nrfipboot}" ] && exit 1
-  partlabelfipboot=$(blkid ${fipbootdevice} -s PARTLABEL -o value)
-  [ -z "${partlabelfipboot}" ] && exit 1
-  typefipboot=$(echo ${partlabelfipboot} | cut -d "-" -f3)
-  [ -z "${typefipboot}" ] && typefipboot="${partlabelfipboot}"
-  echo "Type of bootchain installed (fip or boot): ${typefipboot}"
+if [ -z "${fipbootdevice}" ]; then
+  if [ -n $create_parts ]; then
+    parted -s -- "${pkrootdev}" unit kiB mkpart fip $ATF_END_KB 100%
+    sync
+    fipbootdevice=$(getdev fip)
+  fi
+  [ -z "${fipbootdevice}" ] && exit 1
 fi
+
+pkfipboot=$(lsblk -rno pkname ${fipbootdevice} 2>/dev/null)
+[ -z "${pkfipboot}" ] && exit 1
+nrfipboot=$(cat "/sys/block/${pkfipboot}/$(basename ${fipbootdevice})/partition" 2>/dev/null)
+[ -z "${nrfipboot}" ] && exit 1
+partlabelfipboot=$(blkid ${fipbootdevice} -s PARTLABEL -o value)
+[ -z "${partlabelfipboot}" ] && exit 1
+typefipboot=$(echo ${partlabelfipboot} | cut -d "-" -f3)
+[ -z "${typefipboot}" ] && typefipboot="${partlabelfipboot}"
+echo "Type of bootchain installed (fip or boot): ${typefipboot}"
 
 #########################################
 # Convert boot to FIP or BOOT partition #
@@ -664,7 +692,6 @@ if [ -n "$fip2boot" ] || [ -n "$boot2fip" ]; then
   echo "Copying files from /boot to ${tmp}/boot"
   cp -rfT /boot/ ${tmp}/boot
   sync
-  [ -z "${fipbootdevice}" ] && exit 1
   while mountpoint -q /boot; do umount -R /boot; sleep 0.1; done
   if [ -n "$fip2boot" ]; then
     parted -s -- "/dev/${pkfipboot}" name ${nrfipboot} boot \
