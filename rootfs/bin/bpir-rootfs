@@ -194,7 +194,7 @@ function rootfs {
   else
     echo -n "${ddrsize}" | tee /boot/bootcfg/ddrsize
   fi
-  bpir-toolbox --target=${target} --device=${device} --atf $bpirtoolbox
+  bpir-toolbox --create-parts --target=${target} --device=${device} --atf $bpirtoolbox
   sync
 }
 

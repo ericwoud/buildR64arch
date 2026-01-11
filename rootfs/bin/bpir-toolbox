@@ -306,6 +306,7 @@ rootdev=$(lsblk -pilno name,type,mountpoint 2>/dev/null | grep -G 'part /$' | he
 
 [ -z "${target}" ] && target=$(getconf root r target)
 [ -z "${device}" ] && device=$(getconf root r target)
+
 if [ -f "/etc/bpir-is-initrd" ]; then
   source /etc/bpir-is-initrd # declares target !!!!! CHANGE
 elif [ -z "${target}" ] || [ -z "${device}" ]; then
@@ -316,8 +317,8 @@ elif [ -z "${target}" ] || [ -z "${device}" ]; then
 fi
 
 # Write target and device if not written yet
-getconf root w target "${target}"
-getconf root w device "${device}"
+echo "Target=$(getconf root w target ${target})"
+echo "Device=$(getconf root w device ${device})"
 
 case ${target} in
   bpir64)
@@ -648,6 +649,13 @@ fi
 [ -z "${rootdev}" ] && [ ! -f "/etc/bpir-is-initrd" ] && exit 0
 pkrootdev=$(lsblk -rno pkname "${rootdev}")
 [ -z "${pkrootdev}" ] && exit 1
+nrrootdev=$(cat "/sys/block/${pkrootdev}/$(basename ${rootdev})/partition" 2>/dev/null)
+[ -z "${nrrootdev}" ] && exit 1
+
+if [ -n $create_parts ]; then
+  parted -s -- "/dev/${pkrootdev}" name ${nrrootdev} ${target}-${device}-root
+fi
+
 if [[ "${device}" != "sdmmc" ]] && [[ "${device}" != "emmc" ]]; then
   exit 1
 fi
