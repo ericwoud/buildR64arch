@@ -28,8 +28,8 @@ DEBOOTSTR_COMPNS="main,restricted,universe,multiverse"
 
 # Standard erase size, when it cannot be determined (using /dev/sdX cardreader or loopdev)
 SD_ERASE_SIZE_MB=4             # in MiB
-ATF_END_KB=1024                # End of atf partition in KiB
-MINIMAL_SIZE_FIP_MB=190        # Minimal size of fip partition in MiB
+
+ROOT_START_MB=256MiB           # Size of root partition in MiG
 ROOT_END_MB=100%               # Size of root partition in MiG
 #ROOT_END_MB=$(( 4*1024  ))    # Size 4GiB
 IMAGE_SIZE_MB=7456             # Size of image
@@ -157,11 +157,6 @@ function formatimage_mmc {
   esize_mb=$(cat /sys/block/${dev/"/dev/"/""}/device/preferred_erase_size)
   [ -z "$esize_mb" ] && esize_mb=$SD_ERASE_SIZE_MB || esize_mb=$(( $esize_mb /1024 /1024 ))
   echo "Erase size = $esize_mb MB"
-  minimalrootstart_kb=$(( $ATF_END_KB + ($MINIMAL_SIZE_FIP_MB * 1024) ))
-  rootstart_kb=0
-  while [[ $rootstart_kb -lt $minimalrootstart_kb ]]; do
-    rootstart_kb=$(( $rootstart_kb + ($esize_mb * 1024) ))
-  done
   if [[ "$ROOT_END_MB" =~ "%" ]]; then
     root_end_kb=$ROOT_END_MB
   else
@@ -180,7 +175,7 @@ function formatimage_mmc {
   parted -s -- "${dev}" mklabel gpt
   [[ $? != 0 ]] && exit
   parted -s -- "${dev}" unit kiB \
-    mkpart ${target}-${device}-root 256MiB 100% \
+    mkpart ${target}-${device}-root $ROOT_START_MB $root_end_kb \
     print
   partprobe "${dev}"; udevadm settle 2>/dev/null
   while
@@ -408,8 +403,7 @@ function usage {
 	  -R --clearrootfs         empty rootfs
 	  --imagefile [FILENAME]   image file name, default bpir.img
 	  --imagesize [FILESIZE]   image file size in Mib, default ${IMAGE_SIZE_MB}
-	  --atfend [ATFEND]        sd/emmc: atf partition end in KiB, default ${ATF_END_KB}
-	  --fipsize [FIPSIZE]      sd/emmc: fip/boot-part size (mod erasesize) in MiB, default ${MINIMAL_SIZE_FIP_MB}
+	  --rootstart [ROOTSTART]  sd/emmc: root partition start in MiB, default ${ROOT_START_MB}
 	  --rootend [ROOTEND]      sd/emmc: root partition end in MiB or %, default ${ROOT_END_MB}
 	  --erasesize [SIZE]       sd/emmc: erasesize in MiB, default ${SD_ERASE_SIZE_MB}
 	  --bpirtoolbox [ARGS]     arguments for bpir-toolbox
@@ -466,10 +460,8 @@ while getopts ":rlcbxzpudRFBIPS-:" opt $args; do
       imagefile=*)        IMAGE_FILE="${OPTARG#*=}";;
       imagesize)          IMAGE_SIZE_MB="${!OPTIND}"; ((OPTIND++));;
       imagesize=*)        IMAGE_SIZE_MB="${OPTARG#*=}";;
-      atfend)             ATF_END_KB="${!OPTIND}"; ((OPTIND++));;
-      atfend=*)           ATF_END_KB="${OPTARG#*=}";;
-      fipsize)            MINIMAL_SIZE_FIP_MB="${!OPTIND}"; ((OPTIND++));;
-      fipsize=*)          MINIMAL_SIZE_FIP_MB="${OPTARG#*=}";;
+      rootstart)          ROOT_START_MB="${!OPTIND}"; ((OPTIND++));;
+      rootstart=*)        ROOT_START_MB="${OPTARG#*=}";;
       rootend)            ROOT_END_MB="${!OPTIND}"; ((OPTIND++));;
       rootend=*)          ROOT_END_MB="${OPTARG#*=}";;
       erasesize)          SD_ERASE_SIZE_MB="${!OPTIND}"; ((OPTIND++));;

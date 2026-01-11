@@ -654,17 +654,19 @@ nrrootdev=$(cat "/sys/block/${pkrootdev}/$(basename ${rootdev})/partition" 2>/de
 
 if [ -n $create_parts ]; then
   parted -s -- "/dev/${pkrootdev}" name ${nrrootdev} ${target}-${device}-root
+  sync
 fi
 
 if [[ "${device}" != "sdmmc" ]] && [[ "${device}" != "emmc" ]]; then
   exit 1
 fi
 
-ATF_END_KB=1024
+ATF_END_KB=1024kiB
+ROOT_START_MB=256MiB # MAKE AUTOMATIC!!!!
 atfdevice=$(getdev atf)
 if [ -z "${atfdevice}" ]; then
   if [ -n $create_parts ]; then
-    parted -s -- "/dev/${pkrootdev}" unit kiB mkpart ${target}-${device}-atf 34s $ATF_END_KB
+    parted -s -- "/dev/${pkrootdev}" mkpart ${target}-${device}-atf 34s $ATF_END_KB
     sync
     atfdevice=$(getdev atf)
   fi
@@ -683,7 +685,7 @@ fipbootdevice=$(getdev fip)
 [ -z "${fipbootdevice}" ] && fipbootdevice=$(getdev boot)
 if [ -z "${fipbootdevice}" ]; then
   if [ -n $create_parts ]; then
-    parted -s -- "/dev/${pkrootdev}" unit kiB mkpart fip $ATF_END_KB 256MiB
+    parted -s -- "/dev/${pkrootdev}" unit kiB mkpart fip $ATF_END_KB $ROOT_START_MB
     sync
     fipbootdevice=$(getdev fip)
   fi
