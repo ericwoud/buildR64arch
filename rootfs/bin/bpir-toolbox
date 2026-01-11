@@ -305,7 +305,7 @@ mkdir -p /etc/rootcfg
 rootdev=$(lsblk -pilno name,type,mountpoint 2>/dev/null | grep -G 'part /$' | head -n1 | cut -d " " -f1)
 
 [ -z "${target}" ] && target=$(getconf root r target)
-[ -z "${device}" ] && device=$(getconf root r target)
+[ -z "${device}" ] && device=$(getconf root r device)
 
 if [ -f "/etc/bpir-is-initrd" ]; then
   source /etc/bpir-is-initrd # declares target !!!!! CHANGE
@@ -664,7 +664,7 @@ ATF_END_KB=1024
 atfdevice=$(getdev atf)
 if [ -z "${atfdevice}" ]; then
   if [ -n $create_parts ]; then
-    parted -s -- "${pkrootdev}" unit kiB mkpart ${target}-${device}-atf 34s $ATF_END_KB
+    parted -s -- "/dev/${pkrootdev}" unit kiB mkpart ${target}-${device}-atf 34s $ATF_END_KB
     sync
     atfdevice=$(getdev atf)
   fi
@@ -675,7 +675,7 @@ pkatfdevice=$(lsblk -rno pkname ${atfdevice} 2>/dev/null)
 nratfdevice=$(cat "/sys/block/${pkatfdevice}/$(basename ${atfdevice})/partition" 2>/dev/null)
 [ -z "${nratfdevice}" ] && exit 1
 if [ -n $create_parts ]; then
-    parted -s -- "${pkatfdevice}" set ${nratfdevice} legacy_boot on
+    parted -s -- "/dev/${pkatfdevice}" set ${nratfdevice} legacy_boot on
     sync
 fi
 
@@ -683,7 +683,7 @@ fipbootdevice=$(getdev fip)
 [ -z "${fipbootdevice}" ] && fipbootdevice=$(getdev boot)
 if [ -z "${fipbootdevice}" ]; then
   if [ -n $create_parts ]; then
-    parted -s -- "${pkrootdev}" unit kiB mkpart fip $ATF_END_KB 100%
+    parted -s -- "/dev/${pkrootdev}" unit kiB mkpart fip $ATF_END_KB 100%
     sync
     fipbootdevice=$(getdev fip)
   fi
