@@ -641,10 +641,10 @@ fi
 
 
 
-####################################################
-# Functions below need fip/boot partition          #
-# chroot from mkosi, no devices mounted, then exit #
-####################################################
+#################################################
+# Functions below need fip/boot partition       #
+# When root is not mounted on blkdev, then exit #
+#################################################
 [ -z "${rootdev}" ] && [ ! -f "/etc/bpir-is-initrd" ] && exit 0
 pkrootdev=$(lsblk -rno pkname "${rootdev}")
 [ -z "${pkrootdev}" ] && exit 1
