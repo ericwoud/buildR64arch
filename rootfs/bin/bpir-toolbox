@@ -692,6 +692,10 @@ if [ -z "${fipbootdevice}" ]; then
   [ -z "${fipbootdevice}" ] && exit 1
 fi
 
+if [ -n $create_parts ]; then
+  parted -s -- "/dev/${pkrootdev}" print
+fi
+
 pkfipboot=$(lsblk -rno pkname ${fipbootdevice} 2>/dev/null)
 [ -z "${pkfipboot}" ] && exit 1
 nrfipboot=$(cat "/sys/block/${pkfipboot}/$(basename ${fipbootdevice})/partition" 2>/dev/null)
