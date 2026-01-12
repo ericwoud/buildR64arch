@@ -26,11 +26,8 @@ DEBOOTSTR_COMPNS="main,restricted,universe,multiverse"
 #DEBOOTSTR_SOURCE="http://ftp.debian.org/debian/"
 #DEBOOTSTR_COMPNS="main,contrib,non-free"
 
-# Standard erase size, when it cannot be determined (using /dev/sdX cardreader or loopdev)
-SD_ERASE_SIZE_MB=4             # in MiB
-
-ROOT_START_MB=256MiB           # Size of root partition in MiG
-ROOT_END_MB=100%               # Size of root partition in MiG
+ROOT_START_MB=256MiB           # Size of root partition in MiB
+ROOT_END_MB=100%               # Size of root partition in MiB
 #ROOT_END_MB=$(( 4*1024  ))    # Size 4GiB
 IMAGE_SIZE_MB=7456             # Size of image
 IMAGE_FILE="bpir.img"          # Name of image
@@ -154,14 +151,6 @@ function formatimage_nvme {
 }
 
 function formatimage_mmc {
-  esize_mb=$(cat /sys/block/${dev/"/dev/"/""}/device/preferred_erase_size)
-  [ -z "$esize_mb" ] && esize_mb=$SD_ERASE_SIZE_MB || esize_mb=$(( $esize_mb /1024 /1024 ))
-  echo "Erase size = $esize_mb MB"
-  if [[ "$ROOT_END_MB" =~ "%" ]]; then
-    root_end_kb=$ROOT_END_MB
-  else
-    root_end_kb=$(( ($ROOT_END_MB/$esize_mb*$esize_mb)*1024 ))
-  fi
   for part in $(parts "${dev}"); do umount "${part}" 2>/dev/null; done
   if [ "$l" != true ]; then
     parted -s "${dev}" unit MiB print
@@ -174,8 +163,8 @@ function formatimage_mmc {
   partprobe "${dev}"; udevadm settle 2>/dev/null
   parted -s -- "${dev}" mklabel gpt
   [[ $? != 0 ]] && exit
-  parted -s -- "${dev}" unit kiB \
-    mkpart ${target}-${device}-root $ROOT_START_MB $root_end_kb \
+  parted -s -- "${dev}" unit MiB \
+    mkpart ${target}-${device}-root $ROOT_START_MB $ROOT_END_MB \
     print
   partprobe "${dev}"; udevadm settle 2>/dev/null
   while
@@ -185,8 +174,7 @@ function formatimage_mmc {
   waitdev "${mountdev}"
   blkdiscard -fv "${mountdev}"
   waitdev "${mountdev}"
-  nrseg=$(( $esize_mb / 2 )); [[ $nrseg -lt 1 ]] && nrseg=1
-  mkfs.f2fs -s $nrseg -t 0 -f -l "${target^^}-ROOT" ${mountdev}
+  mkfs.btrfs -f -L "${target^^}-ROOT" ${mountdev}
   sync
 }
 #    mkpart primary 34s $ATF_END_KB \
