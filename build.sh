@@ -383,9 +383,6 @@ function usage {
 	  -B --restore             restore rootfs
 	  -x --createxz            create bpir.img.xz
 	  -z --creategz            create bpir.img.gz
-	  -p --boot2fip            setup fip-partition bootchain (sd/emmc)
-	  -P --fip2boot            setup boot-partition (fat32) bootchain (sd/emmc)
-	  -p --creategz            create bpir.img.gz
 	  -u --uartboot            create uartboot image
 	  -d --cachedir            store packages in cachedir
 	  -R --clearrootfs         empty rootfs
@@ -394,7 +391,6 @@ function usage {
 	  --rootstart [ROOTSTART]  sd/emmc: root partition start in MiB, default ${ROOT_START_MB}
 	  --rootend [ROOTEND]      sd/emmc: root partition end in MiB or %, default ${ROOT_END_MB}
 	  --erasesize [SIZE]       sd/emmc: erasesize in MiB, default ${SD_ERASE_SIZE_MB}
-	  --bpirtoolbox [ARGS]     arguments for bpir-toolbox
 	  --brlanip [default|IP]   ip for brlan
 	  --ddrsize [default|8]    ddr size in GB
 	  --setup [AP|RT|...]      setup for network
@@ -412,7 +408,7 @@ export LANGUAGE=C
 
 cd "$(dirname -- "$(realpath -- "${BASH_SOURCE[0]}")")"
 
-while getopts ":rlcbxzpudRFBIPS-:" opt $args; do
+while getopts ":rlcbxzudRFBIS-:" opt $args; do
   if [[ "${opt}" == "?" ]]; then
     echo "Unknown option -$OPTARG"
     usage
@@ -432,8 +428,6 @@ while getopts ":rlcbxzpudRFBIPS-:" opt $args; do
       disable-sandbox) opt=S ;;
       distro)             distro="${!OPTIND}"; ((OPTIND++));;
       distro=*)           distro="${OPTARG#*=}";;
-      bpirtoolbox)        bpirtoolbox="${!OPTIND}"; ((OPTIND++));;
-      bpirtoolbox=*)      bpirtoolbox="${OPTARG#*=}";;
       brlanip)            brlanip="${!OPTIND}"; ((OPTIND++));;
       brlanip=*)          brlanip="${OPTARG#*=}";;
       ddrsize)            ddrsize="${!OPTIND}"; ((OPTIND++));;
@@ -558,14 +552,12 @@ echo -e "Dev=${dev}\nTarget=${target}\ndevice="${device}
 setupenv # Now that target and device are known.
 
 if [ "$r" = true ]; then
-  [ "$p" = true ] && bpirtoolbox="--fip2boot"
-  [ "$P" = true ] && bpirtoolbox="--boot2fip"
   if [ "$F" = true ]; then
     ask distro DISTROS "Choose distro to create root for:"
     echo "Distro="${distro}
   fi
   rm -f "/tmp/bpir-rootfs.txt"
-  rootfsargs="--menuonly --target '${target}' --device '${device}' --ddrsize '${ddrsize}' --setup '${setup}' --brlanip '${brlanip}' --bpirtoolbox '${bpirtoolbox}'"
+  rootfsargs="--menuonly --target '${target}' --device '${device}' --ddrsize '${ddrsize}' --setup '${setup}' --brlanip '${brlanip}'"
   if command -v bpir-rootfs >/dev/null 2>&1 ; then
     xargs -a <(echo -n "${rootfsargs}") bpir-rootfs
   elif [ -f "./rootfs/bin/bpir-rootfs" ]; then
