@@ -660,6 +660,10 @@ if [ -n $create_parts ]; then
 fi
 
 if [[ "${device}" != "sdmmc" ]] && [[ "${device}" != "emmc" ]]; then
+  sync
+  if [ -n $create_parts ]; then
+    parted -s -- "/dev/${pkrootdev}" print
+  fi
   exit 1
 fi
 
@@ -790,4 +794,8 @@ if [ -n "$write2atf" ]; then
 fi
 
 sync
+if [ -n $create_parts ]; then
+  parted -s -- "/dev/${pkrootdev}" print
+fi
+
 exit 0
