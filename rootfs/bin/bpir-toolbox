@@ -651,6 +651,8 @@ pkrootdev=$(lsblk -rno pkname "${rootdev}")
 [ -z "${pkrootdev}" ] && exit 1
 nrrootdev=$(cat "/sys/block/${pkrootdev}/$(basename ${rootdev})/partition" 2>/dev/null)
 [ -z "${nrrootdev}" ] && exit 1
+strootdev=$(cat "/sys/block/${pkrootdev}/$(basename ${rootdev})/start" 2>/dev/null)
+[ -z "${strootdev}" ] && exit 1
 
 if [ -n $create_parts ]; then
   parted -s -- "/dev/${pkrootdev}" name ${nrrootdev} ${target}-${device}-root
@@ -662,7 +664,6 @@ if [[ "${device}" != "sdmmc" ]] && [[ "${device}" != "emmc" ]]; then
 fi
 
 ATF_END_KB=1024kiB
-ROOT_START_MB=256MiB # MAKE AUTOMATIC!!!!
 atfdevice=$(getdev atf)
 if [ -z "${atfdevice}" ]; then
   if [ -n $create_parts ]; then
@@ -685,7 +686,7 @@ fipbootdevice=$(getdev fip)
 [ -z "${fipbootdevice}" ] && fipbootdevice=$(getdev boot)
 if [ -z "${fipbootdevice}" ]; then
   if [ -n $create_parts ]; then
-    parted -s -- "/dev/${pkrootdev}" unit kiB mkpart fip $ATF_END_KB $ROOT_START_MB
+    parted -s -- "/dev/${pkrootdev}" mkpart fip "${ATF_END_KB}" "${strootdev}s"
     sync
     fipbootdevice=$(getdev fip)
   fi
