@@ -301,6 +301,7 @@ rm -rf "${tmp}"
 mkdir -p "${tmp}/dtbos"
 mkdir -p /boot/bootcfg
 mkdir -p /etc/rootcfg
+mv -vf /boot/bootcfg/ddrsize /etc/rootcfg/ddrsize 2>/dev/null
 
 rootdev=$(lsblk -pilno name,type,mountpoint 2>/dev/null | grep -G 'part /$' | head -n1 | cut -d " " -f1)
 
@@ -386,7 +387,7 @@ if [ -z "$(grep /lib/modules/*/pkgbase -l -e ${default_linuxpkg})" ]; then
 fi
 
 [ -n "${pkgbase}" ] && default_linuxpkg="${pkgbase}"
-linuxpkg=$(getconf boot w linuxpkg "${default_linuxpkg}")
+linuxpkg=$(getconf root w linuxpkg "${default_linuxpkg}")
 [ -z "${pkgbase}" ] && pkgbase="${linuxpkg}"
 
 unamer="$(grep /lib/modules/*/pkgbase -l -e "${pkgbase}" | head -n1 | xargs dirname | xargs basename)"
@@ -405,7 +406,7 @@ checkbootconf linux
 checkbootconf initrd
 checkbootconf atfdtb
 
-dtb=$(getconf boot r dtb "${default_dtb}")
+dtb=$(getconf root r dtb "${default_dtb}")
 dtbfile="/boot/dtbs/${pkgbase}/${dtb}.dtb"
 [ ! -f "${dtbfile}" ] && dtbfile="/boot/dtbs/mediatek/${dtb}.dtb"
 [ ! -f "${dtbfile}" ] && dtbfile="/boot/dtbs/${dtb}.dtb"
@@ -416,7 +417,7 @@ linux=$(   getconf boot w linux    "${default_linux}")
 cmdline=$( getconf boot w cmdline  "${default_cmdline}")
 initrd=$(  getconf boot w initrd   "${default_initrd}")
 atfdtb=$(  getconf boot w atfdtb   "${default_atfdtb}")
-ddrsize=$( getconf boot r ddrsize  "${default_ddrsize}")
+ddrsize=$( getconf root r ddrsize  "${default_ddrsize}")
 
 extra=""
 [[ "${ddrsize}" != "${default_ddrsize}" ]] && extra+="-${ddrsize}gb"
