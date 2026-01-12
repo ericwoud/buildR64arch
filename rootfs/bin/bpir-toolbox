@@ -66,6 +66,7 @@ extlinux="/boot/extlinux/extlinux.conf"
 [ -n "$nand_image" ]       && nand_update=1
 [ -n "$nand_format" ]      && nand_update=1
 [ -n "$uboot_install" ]    && [ ! -f "$extlinux" ] && write2extlinux=1
+[ -n "$create_parts" ]     && [ ! -n "$boot2fip" ] && fip2boot=1
 
 #############
 # Functions #
