@@ -119,7 +119,6 @@ if [ -z "$configonly" ]; then
       echo -n "${setup}"   > /tmp/bpir-rootfs/setup
       echo -n "${ddrsize}" > /tmp/bpir-rootfs/ddrsize
       echo -n "${brlanip}" > /tmp/bpir-rootfs/brlanip
-      echo -n "--setup '${setup}' --ddrsize '${ddrsize}' --brlanip '${brlanip}'" >/tmp/bpir-rootfs.txt
     elif [ -z "$noask" ]; then
       read -p "Type <yes> to alter your rootfs! " prompt
       [[ $prompt != "yes" ]] && exit 1

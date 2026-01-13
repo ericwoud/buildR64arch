@@ -150,41 +150,6 @@ function formatimage {
   sync
 }
 
-function formatimage_mmc {
-  for part in $(parts "${dev}"); do umount "${part}" 2>/dev/null; done
-  if [ "$l" != true ]; then
-    parted -s "${dev}" unit MiB print
-    echo -e "\nAre you sure you want to format "${dev}"???"
-    read -p "Type <format> to format: " prompt
-    [[ $prompt != "format" ]] && exit
-  fi
-  wipefs --all --force "${dev}"
-  sync
-  partprobe "${dev}"; udevadm settle 2>/dev/null
-  parted -s -- "${dev}" mklabel gpt
-  [[ $? != 0 ]] && exit
-  parted -s -- "${dev}" unit MiB \
-    mkpart ${target}-${device}-root $ROOT_START_MB $ROOT_END_MB \
-    print
-  partprobe "${dev}"; udevadm settle 2>/dev/null
-  while
-    mountdev=$(blkid $(parts ${dev}) -t PARTLABEL=${target}-${device}-root -o device)
-    [ -z "$mountdev" ]
-  do sleep 0.1; done
-  waitdev "${mountdev}"
-  blkdiscard -fv "${mountdev}"
-  waitdev "${mountdev}"
-  mkfs.btrfs -f -L "${target^^}-ROOT" ${mountdev}
-  sync
-}
-#    mkpart primary 34s $ATF_END_KB \
-#    mkpart primary $ATF_END_KB $rootstart_kb \
-#    mkpart primary $rootstart_kb $root_end_kb \
-#    set 1 legacy_boot on \
-#    name 1 ${target}-${device}-atf \
-#    name 2 fip \
-#    name 3 ${target}-${device}-root \
-
 function resolv {
   cp /etc/resolv.conf $rootfsdir/etc/
   if [ -z "$(cat $rootfsdir/etc/resolv.conf | grep -oP '^nameserver')" ]; then
@@ -200,12 +165,15 @@ function addmyrepo {
 }
 
 function rootcfg {
+  echo "${target}" | tee $rootfsdir/etc/hostname
+  if [[ -z $(grep "${target}" $rootfsdir/etc/hosts 2>/dev/null) ]]; then
+    echo -e "127.0.0.1\t${target}" | tee -a $rootfsdir/etc/hosts
+  fi
   mkdir -p $rootfsdir/etc/rootcfg
   rm -f "$rootfsdir/etc/rootcfg/"*
   echo -n "${target}" > "$rootfsdir/etc/rootcfg/target"
   echo -n "${device}" > "$rootfsdir/etc/rootcfg/device"
   mv -f "/tmp/bpir-rootfs/"* "$rootfsdir/etc/rootcfg"
-cat "$rootfsdir/etc/rootcfg/"*
 }
 
 function bootstrap {
@@ -222,13 +190,14 @@ function bootstrap {
         tee $rootfsdir/etc/apt/apt.conf.d/99onlyneeded
     echo "deb [arch=arm64] http://${WOUDSTRA}/apt-repo stable main" | \
         tee $rootfsdir/etc/apt/sources.list.d/ericwoud.list
+    rootcfg
+    procsysrun
     until schroot gpg --batch --yes --keyserver "${DEBIANKEYSERVER}" --recv-keys $REPOKEY
     do sleep 2; done
     schroot gpg --batch --yes --output /etc/apt/trusted.gpg.d/ericwoud.gpg --export $REPOKEY
     [ "$d" = true ] && cdir="-o Dir::Cache::Archives=/cachedir" || cdir="--yes"
     until schroot DEBIAN_FRONTEND=noninteractive apt-get update -q ${cdir} --yes
     do sleep 2; done
-    rootcfg
     until schroot DEBIAN_FRONTEND=noninteractive apt-get install -q ${cdir} --yes $PACKAGES
     do sleep 2; done
   elif [ "$distro" == "alarm" ]; then
@@ -262,6 +231,8 @@ function bootstrap {
     mv -vf $rootfsdir/etc/pacman.conf.pacnew         $rootfsdir/etc/pacman.conf
     mv -vf $rootfsdir/etc/pacman.d/mirrorlist.pacnew $rootfsdir/etc/pacman.d/mirrorlist
     addmyrepo
+    rootcfg
+    procsysrun
     schroot pacman-key --init
     schroot pacman-key --populate archlinuxarm
     until schroot pacman-key --recv-keys $REPOKEY
@@ -269,30 +240,12 @@ function bootstrap {
     schroot pacman-key --finger     $REPOKEY
     schroot pacman-key --lsign-key $REPOKEY
 #    schroot pacman-key --lsign-key 'Arch Linux ARM Build System <builder@archlinuxarm.org>'
-    rootcfg
     until schroot pacman -Syyu --needed --noconfirm "${cdir}" "${sb}" $PACKAGES
     do sleep 2; done
   else
     echo "Unknown distro!"
     exit 1
   fi
-  echo "${target}" | tee $rootfsdir/etc/hostname
-  if [[ -z $(grep "${target}" $rootfsdir/etc/hosts 2>/dev/null) ]]; then
-    echo -e "127.0.0.1\t${target}" | tee -a $rootfsdir/etc/hosts
-  fi
-  sync
-}
-
-function rootfs {
-  trap ctrl_c INT
-  if ! schroot command -v bpir-rootfs >/dev/null 2>&1; then
-    mkdir -p "$rootfsdir/usr/local/sbin"
-    cp -vf ./rootfs/bin/bpir-rootfs $rootfsdir/usr/local/sbin
-  fi
-  [ "$d" = true ] && cdir="--cachedir"      || cdir=""
-  [ "$S" = true ] && sb="--disable-sandbox" || sb=""
-  schroot xargs -a <(echo -n "--configonly ${cdir} ${sb} ${rootfsargs}") bpir-rootfs
-  rm -vf $rootfsdir/usr/local/sbin/bpir-rootfs 2>/dev/null
   sync
 }
 
@@ -374,6 +327,16 @@ function ctrl_c() {
   exit 1
 }
 
+function procsysrun() {
+  mount -t proc               /proc $rootfsdir/proc
+  [[ $? != 0 ]] && exit
+  mount --rbind --make-rslave /sys  $rootfsdir/sys
+  [[ $? != 0 ]] && exit
+  mount --rbind --make-rslave /run  $rootfsdir/run
+  [[ $? != 0 ]] && exit
+}
+
+
 function ask() {
   local a items count
   if [ -z "${!1}" ]; then
@@ -405,6 +368,7 @@ function usage {
 	  -u --uartboot            create uartboot image
 	  -d --cachedir            store packages in cachedir
 	  -R --clearrootfs         empty rootfs
+	  -S --disable-sandbox     disable sandbox for kernels not supporting landlock
 	  --imagefile [FILENAME]   image file name, default bpir.img
 	  --imagesize [FILESIZE]   image file size in Mib, default ${IMAGE_SIZE_MB}
 	  --rootstart [ROOTSTART]  sd/emmc: root partition start in MiB, default ${ROOT_START_MB}
@@ -585,9 +549,6 @@ if [ "$r" = true ]; then
     echo "bpir-rootfs no found!"
     exit 1
   fi
-  rootfsargs=$(cat "/tmp/bpir-rootfs.txt" 2>/dev/null)
-  [ -z "$rootfsargs" ] && exit 1
-  echo "rootfsargs: $rootfsargs"
 fi
 
 # Check if 'config.sh' exists.  If so, source that to override default values.
@@ -661,12 +622,7 @@ fi
 if [ "$r" = true ]; then bootstrap &
   mainPID=$! ; wait $mainPID ; unset mainPID
 fi
-mount -t proc               /proc $rootfsdir/proc
-[[ $? != 0 ]] && exit
-mount --rbind --make-rslave /sys  $rootfsdir/sys
-[[ $? != 0 ]] && exit
-mount --rbind --make-rslave /run  $rootfsdir/run
-[[ $? != 0 ]] && exit
+procsysrun
 if [ "$r" = true ]; then rootfs &
   mainPID=$! ; wait $mainPID ; unset mainPID
 fi
