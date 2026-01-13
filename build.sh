@@ -98,14 +98,14 @@ function parts {
   lsblk $1 -lnpo name
 }
 
-function formatimage_nvme {
+function formatimage {
   for part in $(parts "${dev}"); do umount "${part}" 2>/dev/null; done
-  if [ "$l" != true ]; then
+  if [ "$l" == true ] || [[ "${device}" == sdmmc ]] || [[ "${device}" == emmc ]] ; then
+    prompt="wipeall"
+  else
     parted -s "${dev}" unit MiB print
     echo -e "\nDo you want to wipe all partitions from "${dev}"???"
     read -p "Type <wipeall> to wipe all: " prompt
-  else
-    prompt="wipeall"
   fi
   if [[ $prompt == "wipeall" ]]; then
     wipefs --all --force "${dev}"
@@ -118,24 +118,22 @@ function formatimage_nvme {
   mountdev=$(blkid $(parts ${dev}) -t PARTLABEL=${target}-${device}-root -o device)
   if [ -z "$mountdev" ]; then
     parted -s -- "${dev}" unit GiB print
-    echo "To enter percentage: append the number with a '%' without space (e.g. 100%)."
-    read -p "Enter GiB or percentage of start of root partition: " rootstart_gb
-    read -p "Enter GiB or percentage of end of root partition: " rootend_gb
-    parted -s -- "${dev}" unit GiB \
-      mkpart ${target}-${device}-root btrfs $rootstart_gb $rootend_gb
+    rootstart="${ROOT_START_MB}"
+    rootend="${ROOT_END_MB}"
+    if [ "$l" != true ]; then
+      echo "Press enter to continue with default values."
+      echo "To enter MiB: Enter the number of MiB's."
+      echo "To enter GiB: Append the number with 'GiB' without space (e.g. 256GiB)."
+      echo "To enter %:   Append the number with a '%' without space (e.g. 100%)."
+      read -p "Enter the start of the root partition (default ${rootstart}): " rootstart
+      read -p "Enter the  end  of the root partition (default ${rootend}): "   rootend
+    fi
+    parted -s -- "${dev}" unit MiB mkpart ${target}-${device}-root btrfs $rootstart $rootend
     [[ $? != 0 ]] && exit 1
     partprobe "${dev}"; udevadm settle 2>/dev/null
     while
       mountdev=$(blkid $(parts ${dev}) -t PARTLABEL=${target}-${device}-root -o device)
       [ -z "$mountdev" ]
-    do sleep 0.1; done
-    waitdev "${mountdev}"
-    partnum=$(cat /sys/class/block/$(basename ${mountdev})/partition)
-    [ -z "$partnum" ] && exit 1
-    parted -s -- "${dev}" set "$partnum" boot on
-    partprobe "${dev}"; udevadm settle 2>/dev/null
-    while
-      [ -z "$(blkid $(parts ${dev}) -t PARTLABEL=${target}-${device}-root -o device)" ]
     do sleep 0.1; done
   elif [ "$l" != true ]; then
     parted -s "${dev}" unit MiB print
@@ -587,11 +585,7 @@ if [ "$initrd" != true ]; then
 fi
 
 if [ "$F" = true ]; then
-  if [ "${device}" == "nvme" ] || [ "${device}" == "sata" ]; then
-    formatimage_nvme
-  else
-    formatimage_mmc
-  fi
+  formatimage
 fi
 
 mountdev=$(blkid -s PARTLABEL $(parts ${dev}) | grep -E 'PARTLABEL="bpir' | grep -E -- '-root"' | cut -d' ' -f1 | tr -d :)
@@ -664,4 +658,6 @@ if [ "$x" = true ] || [ "$z" = true ]; then
 fi
 
 exit
+
+# gpg --export DD73724DCA27796790D33E98798137154FE1474C | gpg --dearmour -o /tmp/ericwoud.gpg
 
