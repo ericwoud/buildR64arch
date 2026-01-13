@@ -23,6 +23,7 @@ while [ "${1:-}" != '' ]; do
          '--target'=*)           target="${1#*=}"      ;;
   '-a' | '--device') shift;      device="${1}"         ;;
          '--device'=*)           device="${1#*=}"      ;;
+  '-n' | '--noask')              noask=1               ;;
   '-m' | '--menuonly')           menuonly=1            ;;
   '-c' | '--configonly')         configonly=1          ;;
   '-d' | '--cachedir')           cachedir=1            ;;
@@ -35,6 +36,7 @@ while [ "${1:-}" != '' ]; do
 	  -t --target [bpir64|bpir3|bpir3m|bpir4] specify target
 	     --device [sdmmc|emmc|nvme|sata]      specify device
 	  -S --disable-sandbox     disable pacman sandbox download
+	  -n --noask               Don't ask to alter rootfs
 	  -m --menuonly            menu only
 	  -c --configonly          setup the rootfs only
 	EOF
@@ -118,7 +120,7 @@ if [ -z "$configonly" ]; then
       echo -n "${ddrsize}" > /tmp/bpir-rootfs/ddrsize
       echo -n "${brlanip}" > /tmp/bpir-rootfs/brlanip
       echo -n "--setup '${setup}' --ddrsize '${ddrsize}' --brlanip '${brlanip}'" >/tmp/bpir-rootfs.txt
-    else
+    elif [ -z "$noask" ]; then
       read -p "Type <yes> to alter your rootfs! " prompt
       [[ $prompt != "yes" ]] && exit 1
     fi
@@ -150,7 +152,7 @@ function rootfs {
   wdir="/etc/hostapd";         rm -rf $wdir/*
   cp -rfvL "/usr/share/buildR64arch/hostapd/${target^^}/"* $wdir
   sed -i 's/\bdummy\b/PARTLABEL='${target}'-'${device}'-root/g' /etc/fstab
-  if [[ "${brlanip}" == "default" ]]; then
+  if [ -n "$brlanip" ] && [[ "${brlanip}" != "default" ]]; then
     sed -i 's/Address=.*/Address='$brlanip'\/24/' /etc/systemd/network/10-brlan.network
   fi
   mkdir -p /etc/modules-load.d
