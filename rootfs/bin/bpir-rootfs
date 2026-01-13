@@ -6,6 +6,11 @@ USERNAME="user"
 USERPWD="admin"
 ROOTPWD="admin"
 
+target=$(cat  /etc/rootcfg/target  | xargs)
+device=$(cat  /etc/rootcfg/device  | xargs)
+setup=$(cat   /etc/rootcfg/setup   | xargs)
+brlanip=$(cat /etc/rootcfg/brlanip | xargs)
+
 while [ "${1:-}" != '' ]; do
   case "$1" in
   '-i' | '--brlanip')   shift;   brlanip="${1}"        ;;
@@ -16,8 +21,8 @@ while [ "${1:-}" != '' ]; do
          '--setup'=*)            setup="${1#*=}"       ;;
   '-t' | '--target')    shift;   target="${1}"         ;;
          '--target'=*)           target="${1#*=}"      ;;
-  '-a' | '--device') shift;      device="${1}"      ;;
-         '--device'=*)           device="${1#*=}"   ;;
+  '-a' | '--device') shift;      device="${1}"         ;;
+         '--device'=*)           device="${1#*=}"      ;;
   '-m' | '--menuonly')           menuonly=1            ;;
   '-c' | '--configonly')         configonly=1          ;;
   '-d' | '--cachedir')           cachedir=1            ;;
@@ -182,6 +187,8 @@ function rootfs {
     echo -n "${ddrsize}" | tee /boot/bootcfg/ddrsize
   fi
   bpir-toolbox --create-parts --target=${target} --device=${device}
+  rm -f /etc/rootcfg/setup   2>/dev/null
+  rm -f /etc/rootcfg/brlanip 2>/dev/null
   sync
 }
 
