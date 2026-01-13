@@ -8,6 +8,7 @@ ROOTPWD="admin"
 
 target=$(cat  /etc/rootcfg/target  2>/dev/null | xargs)
 device=$(cat  /etc/rootcfg/device  2>/dev/null | xargs)
+ddrsize=$(cat /etc/rootcfg/ddrsize 2>/dev/null | xargs)
 setup=$(cat   /etc/rootcfg/setup   2>/dev/null | xargs)
 brlanip=$(cat /etc/rootcfg/brlanip 2>/dev/null | xargs)
 
