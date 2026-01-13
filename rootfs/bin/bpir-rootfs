@@ -36,7 +36,7 @@ while [ "${1:-}" != '' ]; do
 	  -t --target [bpir64|bpir3|bpir3m|bpir4] specify target
 	     --device [sdmmc|emmc|nvme|sata]      specify device
 	  -S --disable-sandbox     disable pacman sandbox download
-	  -n --noask               Don't ask to alter rootfs
+	  -n --noask               Don't ask to alter rootfs and reset passwords and root access
 	  -m --menuonly            menu only
 	  -c --configonly          setup the rootfs only
 	EOF
@@ -138,49 +138,55 @@ function rootfs {
     groups="audio,games,log,lp,optical,power,scanner,storage,video,$wheel"
   fi
   sync
-  useradd --create-home --user-group \
-               --groups ${groups} \
-               -s /bin/bash $USERNAME
-  echo "%${wheel} ALL=(ALL) ALL" | tee /etc/sudoers.d/wheel
-  ln -sf /usr/share/zoneinfo/${TIMEZONE} /etc/localtime
-  sed -i 's/.*PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
-  sed -i 's/.*UsePAM.*/UsePAM no/' /etc/ssh/sshd_config
-  cp -rfvL "/usr/share/buildR64arch/etc" /
-  wdir="/etc/systemd/network"; rm -rf $wdir/*
-  cp -rfvL "/usr/share/buildR64arch/network/${target^^}-${setup}/"* $wdir
-  wdir="/etc/hostapd";         rm -rf $wdir/*
-  cp -rfvL "/usr/share/buildR64arch/hostapd/${target^^}/"* $wdir
   sed -i 's/\bdummy\b/PARTLABEL='${target}'-'${device}'-root/g' /etc/fstab
-  if [ -n "$brlanip" ] && [[ "${brlanip}" != "default" ]]; then
-    sed -i 's/Address=.*/Address='$brlanip'\/24/' /etc/systemd/network/10-brlan.network
-  fi
-  mkdir -p /etc/modules-load.d
+  mkdir -p /etc/modules-load.d /etc/modprobe.d
   echo -e "# Load ${WIFIMODULE}.ko at boot\n${WIFIMODULE}" | \
            tee /etc/modules-load.d/${WIFIMODULE}.conf
 #  echo "options mt7915e wed_enable=Y" | \
 #           tee /etc/modprobe.d/mt7915e.conf
-  echo $USERNAME:$USERPWD | chpasswd
-  echo      root:$ROOTPWD | chpasswd
-  sudo systemctl --force --no-pager reenable ${sshd}.service
-  sudo systemctl --force --no-pager reenable systemd-timesyncd.service
-  sudo systemctl --force --no-pager reenable systemd-resolved.service
-  if [[ ${setup} == "RT"* ]]; then
-    sudo systemctl --force --no-pager reenable nftables.service
-  else
-    sudo systemctl --force --no-pager disable nftables.service
+
+  if [ -n "$noask" ]; then
+    useradd --create-home --user-group --groups ${groups} -s /bin/bash $USERNAME
+    echo "%${wheel} ALL=(ALL) ALL" | tee /etc/sudoers.d/wheel
+    sed -i 's/.*PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
+    sed -i 's/.*UsePAM.*/UsePAM no/' /etc/ssh/sshd_config
+    ln -sf /usr/share/zoneinfo/${TIMEZONE} /etc/localtime
+    echo $USERNAME:$USERPWD | chpasswd
+    echo      root:$ROOTPWD | chpasswd
   fi
-  sudo systemctl --force --no-pager reenable systemd-networkd.service
-  find -L "/etc/hostapd" -name "*.conf"| while read conf ; do
-    conf=$(basename $conf); conf=${conf/".conf"/""}
-    sudo systemctl --force --no-pager reenable hostapd@${conf}.service \
-                 2>&1 | grep -v "is added as a dependency to a non-existent unit"
-  done
-  setupMACconfig
-  if [[ "${ddrsize}" == "default" ]]; then
+
+  if [ -n "${setup}" ]; then
+    cp -rfvL "/usr/share/buildR64arch/etc" /
+    wdir="/etc/systemd/network"; rm -rf $wdir/*
+    cp -rfvL "/usr/share/buildR64arch/network/${target^^}-${setup}/"* $wdir
+    wdir="/etc/hostapd";         rm -rf $wdir/*
+    cp -rfvL "/usr/share/buildR64arch/hostapd/${target^^}/"* $wdir
+    if [ -n "$brlanip" ] && [[ "${brlanip}" != "default" ]]; then
+      sed -i 's/Address=.*/Address='$brlanip'\/24/' /etc/systemd/network/10-brlan.network
+    fi
+    sudo systemctl --force --no-pager reenable ${sshd}.service
+    sudo systemctl --force --no-pager reenable systemd-timesyncd.service
+    sudo systemctl --force --no-pager reenable systemd-resolved.service
+    if [[ ${setup} == "RT"* ]]; then
+      sudo systemctl --force --no-pager reenable nftables.service
+    else
+      sudo systemctl --force --no-pager disable nftables.service
+    fi
+    sudo systemctl --force --no-pager reenable systemd-networkd.service
+    find -L "/etc/hostapd" -name "*.conf"| while read conf ; do
+      conf=$(basename $conf); conf=${conf/".conf"/""}
+      sudo systemctl --force --no-pager reenable hostapd@${conf}.service \
+                   2>&1 | grep -v "is added as a dependency to a non-existent unit"
+    done
+    setupMACconfig
+  fi
+
+  if [[ "${ddrsize}" == "default" ]] || [ -z "${ddrsize}" ]; then
     rm -f /boot/bootcfg/ddrsize 2>/dev/null
   else
     echo -n "${ddrsize}" | tee /boot/bootcfg/ddrsize
   fi
+
   bpir-toolbox --create-parts --target=${target} --device=${device}
   rm -f /etc/rootcfg/setup   2>/dev/null
   rm -f /etc/rootcfg/brlanip 2>/dev/null
