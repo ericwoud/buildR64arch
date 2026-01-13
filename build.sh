@@ -100,7 +100,7 @@ function parts {
 
 function formatimage {
   for part in $(parts "${dev}"); do umount "${part}" 2>/dev/null; done
-  if [ "$l" == true ] || [[ "${device}" == sdmmc ]] || [[ "${device}" == emmc ]] ; then
+  if [ "$l" == true ]; then
     prompt="wipeall"
   else
     parted -s "${dev}" unit MiB print
@@ -117,18 +117,18 @@ function formatimage {
   fi
   mountdev=$(blkid $(parts ${dev}) -t PARTLABEL=${target}-${device}-root -o device)
   if [ -z "$mountdev" ]; then
-    parted -s -- "${dev}" unit GiB print
-    rootstart="${ROOT_START_MB}"
-    rootend="${ROOT_END_MB}"
+    parted -s -- "${dev}" unit MiB print
     if [ "$l" != true ]; then
       echo "Press enter to continue with default values."
       echo "To enter MiB: Enter the number of MiB's."
       echo "To enter GiB: Append the number with 'GiB' without space (e.g. 256GiB)."
       echo "To enter %:   Append the number with a '%' without space (e.g. 100%)."
-      read -p "Enter the start of the root partition (default ${rootstart}): " rootstart
-      read -p "Enter the  end  of the root partition (default ${rootend}): "   rootend
+      read -p "Enter the start of the root partition (default ${ROOT_START_MB}): " rootstart
+      read -p "Enter the  end  of the root partition (default ${ROOT_END_MB}): "   rootend
     fi
-    parted -s -- "${dev}" unit MiB mkpart ${target}-${device}-root btrfs $rootstart $rootend
+    [ -z ${rootstart} ] && rootstart="${ROOT_START_MB}"
+    [ -z ${rootend}   ] && rootend="${ROOT_END_MB}"
+    parted -s -- "${dev}" unit MiB mkpart "${target}-${device}-root" btrfs $rootstart $rootend
     [[ $? != 0 ]] && exit 1
     partprobe "${dev}"; udevadm settle 2>/dev/null
     while
