@@ -623,9 +623,6 @@ if [ "$r" = true ]; then bootstrap &
   mainPID=$! ; wait $mainPID ; unset mainPID
 fi
 procsysrun
-if [ "$r" = true ]; then rootfs &
-  mainPID=$! ; wait $mainPID ; unset mainPID
-fi
 if [ "$u" = true ]; then uartbootbuild &
   mainPID=$! ; wait $mainPID ; unset mainPID
 fi
