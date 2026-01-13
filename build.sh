@@ -204,7 +204,8 @@ function rootcfg {
   rm -f "$rootfsdir/etc/rootcfg/"*
   echo -n "${target}" > "$rootfsdir/etc/rootcfg/target"
   echo -n "${device}" > "$rootfsdir/etc/rootcfg/device"
-  cp -f "/tmp/bpir-rootfs/"* "$rootfsdir/etc/rootcfg"
+  mv -f "/tmp/bpir-rootfs/"* "$rootfsdir/etc/rootcfg"
+cat "$rootfsdir/etc/rootcfg/"*
 }
 
 function bootstrap {
@@ -225,10 +226,10 @@ function bootstrap {
     do sleep 2; done
     schroot gpg --batch --yes --output /etc/apt/trusted.gpg.d/ericwoud.gpg --export $REPOKEY
     [ "$d" = true ] && cdir="-o Dir::Cache::Archives=/cachedir" || cdir="--yes"
-    until DEBIAN_FRONTEND=noninteractive apt-get update -q ${cdir} --yes
+    until schroot DEBIAN_FRONTEND=noninteractive apt-get update -q ${cdir} --yes
     do sleep 2; done
     rootcfg
-    until DEBIAN_FRONTEND=noninteractive apt-get install -q ${cdir} --yes $PACKAGES
+    until schroot DEBIAN_FRONTEND=noninteractive apt-get install -q ${cdir} --yes $PACKAGES
     do sleep 2; done
   elif [ "$distro" == "alarm" ]; then
     eval repo=${ALARMREPOURL}
@@ -269,7 +270,7 @@ function bootstrap {
     schroot pacman-key --lsign-key $REPOKEY
 #    schroot pacman-key --lsign-key 'Arch Linux ARM Build System <builder@archlinuxarm.org>'
     rootcfg
-    until pacman -Syyu --needed --noconfirm "${cdir}" "${sb}" $PACKAGES
+    until schroot pacman -Syyu --needed --noconfirm "${cdir}" "${sb}" $PACKAGES
     do sleep 2; done
   else
     echo "Unknown distro!"

@@ -668,7 +668,7 @@ if [ -n $create_parts ]; then
 fi
 
 if [[ "${device}" != "sdmmc" ]] && [[ "${device}" != "emmc" ]]; then
-  if [ -n $create_parts ]l then
+  if [ -n $create_parts ]; then
     if mountpoint -q /boot/; then
       parted -s -- "/dev/${pkrootdev}" set ${nrrootdev} boot off
     else
