@@ -327,6 +327,15 @@ function ctrl_c() {
   exit 1
 }
 
+function devpts() {
+  [ ! -d "$rootfsdir/dev" ] && mkdir $rootfsdir/dev
+  mount --rbind --make-rslave /dev  $rootfsdir/dev # install gnupg needs it
+  [[ $? != 0 ]] && exit
+  [ ! -d "$rootfsdir/dev/pts" ] && mkdir $rootfsdir/dev/pts
+  mount --rbind --make-rslave /dev/pts  $rootfsdir/dev/pts
+  [[ $? != 0 ]] && exit
+}
+
 function procsysrun() {
   mount -t proc               /proc $rootfsdir/proc
   [[ $? != 0 ]] && exit
@@ -608,12 +617,7 @@ if [ "$R" = true ] ; then
   exit
 fi
 
-[ ! -d "$rootfsdir/dev" ] && mkdir $rootfsdir/dev
-mount --rbind --make-rslave /dev  $rootfsdir/dev # install gnupg needs it
-[[ $? != 0 ]] && exit
-[ ! -d "$rootfsdir/dev/pts" ] && mkdir $rootfsdir/dev/pts
-mount --rbind --make-rslave /dev/pts  $rootfsdir/dev/pts
-[[ $? != 0 ]] && exit
+devpts
 if [ "$d" = true ]; then
   mkdir -p ./cachedir $rootfsdir/cachedir
   mount --rbind --make-rslave ./cachedir  $rootfsdir/cachedir
