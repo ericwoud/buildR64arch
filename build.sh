@@ -10,6 +10,8 @@ fi
 # Set default configuration values
 # These can be overridden by entering them into config.sh
 
+PACKAGES="build-r64-arch-utils-git hostapd-launch ssh-fix-reboot bpir-initrd ethtool-static-git hostapd-static-git"
+
 ALARM_MIRROR="http://mirror.archlinuxarm.org"
 DEBIANKEYSERVER="hkps://keyserver.ubuntu.com:443"
 
@@ -197,9 +199,18 @@ function addmyrepo {
   fi
 }
 
+function rootcfg {
+  mkdir -p $rootfsdir/etc/rootcfg
+  rm -f "$rootfsdir/etc/rootcfg/"*
+  echo -n "${target}" > "$rootfsdir/etc/rootcfg/target"
+  echo -n "${device}" > "$rootfsdir/etc/rootcfg/device"
+  cp -f "/tmp/bpir-rootfs/"* "$rootfsdir/etc/rootcfg"
+}
+
 function bootstrap {
   trap ctrl_c INT
   [ -d "$rootfsdir/etc" ] && return
+  PACKAGES+=" packages-${target}"
   if [ "$distro" == "ubuntu" ]; then
     [ "$d" = true ] && cdir="--cache-dir=$(realpath ./cachedir)" || cdir="--no-check-gpg"
     until debootstrap "${cdir}" --arch=arm64 --no-check-gpg --components=$DEBOOTSTR_COMPNS \
@@ -213,6 +224,12 @@ function bootstrap {
     until schroot gpg --batch --yes --keyserver "${DEBIANKEYSERVER}" --recv-keys $REPOKEY
     do sleep 2; done
     schroot gpg --batch --yes --output /etc/apt/trusted.gpg.d/ericwoud.gpg --export $REPOKEY
+    [ "$d" = true ] && cdir="-o Dir::Cache::Archives=/cachedir" || cdir="--yes"
+    until DEBIAN_FRONTEND=noninteractive apt-get update -q ${cdir} --yes
+    do sleep 2; done
+    rootcfg
+    until DEBIAN_FRONTEND=noninteractive apt-get install -q ${cdir} --yes $PACKAGES
+    do sleep 2; done
   elif [ "$distro" == "alarm" ]; then
     eval repo=${ALARMREPOURL}
     until pacmanpkg=$(curl -L $repo'/ericwoud.db' | tar -xzO --wildcards "pacman-static*/desc" \
@@ -251,6 +268,9 @@ function bootstrap {
     schroot pacman-key --finger     $REPOKEY
     schroot pacman-key --lsign-key $REPOKEY
 #    schroot pacman-key --lsign-key 'Arch Linux ARM Build System <builder@archlinuxarm.org>'
+    rootcfg
+    until pacman -Syyu --needed --noconfirm "${cdir}" "${sb}" $PACKAGES
+    do sleep 2; done
   else
     echo "Unknown distro!"
     exit 1

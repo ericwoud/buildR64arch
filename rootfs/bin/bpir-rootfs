@@ -1,6 +1,5 @@
 #!/bin/bash
 
-PACKAGES="build-r64-arch-utils-git hostapd-launch ssh-fix-reboot bpir-initrd ethtool-static-git hostapd-static-git"
 TIMEZONE="Europe/Paris"
 USERNAME="user"
 USERPWD="admin"
@@ -114,6 +113,10 @@ if [ -z "$configonly" ]; then
       echo "IP="$brlanip
     fi
     if [ -n "$menuonly" ]; then
+      mkdir -p /tmp/bpir-rootfs
+      echo -n "${setup}"   > /tmp/bpir-rootfs/setup
+      echo -n "${ddrsize}" > /tmp/bpir-rootfs/ddrsize
+      echo -n "${brlanip}" > /tmp/bpir-rootfs/brlanip
       echo -n "--setup '${setup}' --ddrsize '${ddrsize}' --brlanip '${brlanip}'" >/tmp/bpir-rootfs.txt
     else
       read -p "Type <yes> to alter your rootfs! " prompt
@@ -124,24 +127,14 @@ fi
 [ -n "$menuonly" ] && exit 0
 
 function rootfs {
-  PACKAGES+=" packages-${target}"
   if [ ! -f "/etc/arch-release" ]; then ### Ubuntu / Debian
     sshd="ssh"
     wheel="sudo"
     groups="audio,games,lp,video,$wheel"
-    [ -n "$cachedir" ] && cdir="-o Dir::Cache::Archives=/cachedir" || cdir="--yes"
-    until DEBIAN_FRONTEND=noninteractive apt-get update -q ${cdir} --yes
-    do sleep 2; done
-    until DEBIAN_FRONTEND=noninteractive apt-get install -q ${cdir} --yes $PACKAGES
-    do sleep 2; done
   else # ArchLinuxArm
     sshd="sshd"
     wheel="wheel"
     groups="audio,games,log,lp,optical,power,scanner,storage,video,$wheel"
-    [ -n "$cachedir" ]       && cdir="--cachedir=/cachedir" || cdir="--noconfirm"
-    [ -n "$disablesandbox" ] && sb="--disable-sandbox"      || sb="--noconfirm"
-    until pacman -Syyu --needed --noconfirm "${cdir}" "${sb}" $PACKAGES
-    do sleep 2; done
   fi
   sync
   useradd --create-home --user-group \
