@@ -6,10 +6,10 @@ USERNAME="user"
 USERPWD="admin"
 ROOTPWD="admin"
 
-target=$(cat  /etc/rootcfg/target  | xargs)
-device=$(cat  /etc/rootcfg/device  | xargs)
-setup=$(cat   /etc/rootcfg/setup   | xargs)
-brlanip=$(cat /etc/rootcfg/brlanip | xargs)
+target=$(cat  /etc/rootcfg/target  2>/dev/null | xargs)
+device=$(cat  /etc/rootcfg/device  2>/dev/null | xargs)
+setup=$(cat   /etc/rootcfg/setup   2>/dev/null | xargs)
+brlanip=$(cat /etc/rootcfg/brlanip 2>/dev/null | xargs)
 
 while [ "${1:-}" != '' ]; do
   case "$1" in
