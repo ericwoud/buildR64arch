@@ -34,7 +34,7 @@ ROOT_END_MB=100%               # Size of root partition in MiB
 IMAGE_SIZE_MB=7456             # Size of image
 IMAGE_FILE="bpir.img"          # Name of image
 
-STRAP_PACKAGES_ALARM="pacman pacman-static archlinuxarm-keyring inetutils"
+STRAP_PACKAGES_ALARM="pacman archlinuxarm-keyring inetutils"
 STRAP_PACKAGES_DEBIAN="apt-utils ca-certificates gnupg hostname"
 
 SCRIPT_PACKAGES="curl ca-certificates parted gzip f2fs-tools btrfs-progs dosfstools debootstrap"
@@ -223,7 +223,6 @@ function bootstrap {
 	[community]
 	Include = /etc/pacman.d/mirrorlist
 	EOF
-    addmyrepo
     [ "$d" = true ] && cdir="--cachedir=/cachedir" || cdir="--noconfirm"
     [ "$S" = true ] && sb="--disable-sandbox"      || sb="--noconfirm"
     until schrootstrap pacman-static -Syu "${cdir}" "${sb}" --noconfirm --needed --overwrite="*" $STRAP_PACKAGES_ALARM
@@ -240,7 +239,7 @@ function bootstrap {
     schroot pacman-key --finger     $REPOKEY
     schroot pacman-key --lsign-key $REPOKEY
 #    schroot pacman-key --lsign-key 'Arch Linux ARM Build System <builder@archlinuxarm.org>'
-    until schroot pacman -Qqn | schroot pacman -Syyu --noconfirm "${cdir}" "${sb}" --overwrite="*" $PACKAGES -
+    until schroot pacman -Qqn | schroot pacman -Syyu --noconfirm "${cdir}" "${sb}" --overwrite="*" $PACKAGES pacman-static -
     do sleep 2; done
   else
     echo "Unknown distro!"
