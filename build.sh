@@ -232,12 +232,15 @@ function bootstrap {
     addmyrepo
     rootcfg
     procsysrun
+    mkdir -p $rootfsdir/usr/share/pacman/keyrings
+    cp -vf ./rootfs/keyring/* $rootfsdir/usr/share/pacman/keyrings
     schroot pacman-key --init
     schroot pacman-key --populate archlinuxarm
-    until schroot pacman-key --recv-keys $REPOKEY
-    do sleep 2; done
-    schroot pacman-key --finger     $REPOKEY
-    schroot pacman-key --lsign-key $REPOKEY
+    schroot pacman-key --populate ericwoud
+#    until schroot pacman-key --recv-keys $REPOKEY
+#    do sleep 2; done
+#    schroot pacman-key --finger     $REPOKEY
+#    schroot pacman-key --lsign-key $REPOKEY
 #    schroot pacman-key --lsign-key 'Arch Linux ARM Build System <builder@archlinuxarm.org>'
     until schroot pacman -Qqn | schroot pacman -Syyu --noconfirm "${cdir}" "${sb}" --overwrite="*" $PACKAGES pacman-static -
     do sleep 2; done
