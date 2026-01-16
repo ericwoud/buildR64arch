@@ -310,9 +310,7 @@ rootdev=$(lsblk -pilno name,type,mountpoint 2>/dev/null | grep -G 'part /$' | he
 [ -z "${target}" ] && target=$(getconf root r target)
 [ -z "${device}" ] && device=$(getconf root r device)
 
-if [ -f "/etc/bpir-is-initrd" ]; then
-  source /etc/bpir-is-initrd # declares target !!!!! CHANGE
-elif [ -z "${target}" ] || [ -z "${device}" ]; then
+if [ -z "${target}" ] || [ -z "${device}" ]; then
   partlabelroot=$(blkid ${rootdev} -s PARTLABEL -o value)
   [ -z "${partlabelroot}" ] && exit 1
   target=$(echo ${partlabelroot} | cut -d'-' -f1)
