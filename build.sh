@@ -232,8 +232,7 @@ function bootstrap {
     addmyrepo
     rootcfg
     procsysrun
-    mkdir -p $rootfsdir/usr/share/pacman/keyrings
-    cp -vf ./rootfs/keyrings/pacman/* $rootfsdir/usr/share/pacman/keyrings
+    cp -vrfL ./rootfs/skeleton/* $rootfsdir
     schroot pacman-key --init
     schroot pacman-key --populate archlinuxarm
     schroot pacman-key --populate ericwoud
