@@ -233,7 +233,7 @@ function bootstrap {
     rootcfg
     procsysrun
     mkdir -p $rootfsdir/usr/share/pacman/keyrings
-    cp -vf ./rootfs/keyring/* $rootfsdir/usr/share/pacman/keyrings
+    cp -vf ./rootfs/keyrings/pacman/* $rootfsdir/usr/share/pacman/keyrings
     schroot pacman-key --init
     schroot pacman-key --populate archlinuxarm
     schroot pacman-key --populate ericwoud
@@ -466,7 +466,7 @@ fi
 
 trap finish EXIT
 trap ctrl_c INT
-shopt -s extglob
+hshopt -s extglob
 
 echo "Current dir:" $(realpath .)
 
