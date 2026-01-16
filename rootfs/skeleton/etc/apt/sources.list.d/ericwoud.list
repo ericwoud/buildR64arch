@@ -1,0 +1,7 @@
+Enabled: yes
+Types: deb
+URIs: http://ftp.woudstra.mywire.org/apt-repo
+Architectures: arm64
+Suites: stable
+Components: main
+Signed-By: /usr/share/keyrings/ericwoud.gpg
