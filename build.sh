@@ -190,6 +190,7 @@ function bootstrap {
         tee $rootfsdir/etc/apt/apt.conf.d/99onlyneeded
     echo "deb [arch=arm64] http://${WOUDSTRA}/apt-repo stable main" | \
         tee $rootfsdir/etc/apt/sources.list.d/ericwoud.list
+    cp -vrfL ./rootfs/skeleton/* $rootfsdir
     rootcfg
     procsysrun
     until schroot gpg --batch --yes --keyserver "${DEBIANKEYSERVER}" --recv-keys $REPOKEY
@@ -232,7 +233,7 @@ function bootstrap {
     addmyrepo
     rootcfg
     procsysrun
-    cp -vrfL ./rootfs/skeleton/* $rootfsdir
+    cp -vrfL ./rootfs/skeleton/usr/* $rootfsdir/usr
     schroot pacman-key --init
     schroot pacman-key --populate archlinuxarm
     schroot pacman-key --populate ericwoud
