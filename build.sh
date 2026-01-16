@@ -188,9 +188,9 @@ function bootstrap {
     do sleep 2; done
     echo -e 'APT::Install-Suggests "0";'"\n"'APT::Install-Recommends "0";' | \
         tee $rootfsdir/etc/apt/apt.conf.d/99onlyneeded
+    cp -vrfL ./rootfs/skeleton/* $rootfsdir
     echo "deb [arch=arm64] http://${WOUDSTRA}/apt-repo stable main" | \
         tee $rootfsdir/etc/apt/sources.list.d/ericwoud.list
-    cp -vrfL ./rootfs/skeleton/* $rootfsdir
     rootcfg
     procsysrun
     until schroot gpg --batch --yes --keyserver "${DEBIANKEYSERVER}" --recv-keys $REPOKEY
