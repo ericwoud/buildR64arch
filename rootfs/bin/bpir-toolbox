@@ -427,7 +427,7 @@ atfdtb=$(  getconf boot w atfdtb   "${default_atfdtb}")
 ddrsize=$( getconf root r ddrsize  "${default_ddrsize}")
 
 extra=""
-[[ "${ddrsize}" != "${default_ddrsize}" ]] && extra+="-${ddrsize}gb"
+[[ "${ddrsize}" != "${default_ddrsize}" ]] && [[ ! "${ddrsize}" =~ "default" ]] && extra+="-${ddrsize}gb"
 [ -d "/usr/share/bpir-atf" ] && atfdir="/usr/share/bpir-atf" || atfdir="/boot"
 headerfile="${atfdir}/${target}-atf-${device}-header${extra}.bin"
 atffile="${atfdir}/${target}-atf-${device}-atf${extra}.bin"
