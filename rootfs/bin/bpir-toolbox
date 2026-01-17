@@ -652,7 +652,11 @@ fi
 # Functions below need fip/boot partition       #
 # When root is not mounted on blkdev, then exit #
 #################################################
-[ -z "${rootdev}" ] && [ ! -f "/etc/bpir-is-initrd" ] && exit 0
+if [ -z "${rootdev}" ] && [ ! -f "/etc/bpir-is-initrd" ]; then
+  echo "Saving atf file path for use by mkosi at /atffilepath"
+  echo "${atffile}" >/atffilepath
+  exit 0
+fi
 pkrootdev=$(lsblk -rno pkname "${rootdev}")
 [ -z "${pkrootdev}" ] && exit 1
 nrrootdev=$(cat "/sys/block/${pkrootdev}/$(basename ${rootdev})/partition" 2>/dev/null)
