@@ -15,11 +15,7 @@ PACKAGES="build-r64-arch-utils-git hostapd-launch ssh-fix-reboot bpir-initrd eth
 ALARM_MIRROR="http://mirror.archlinuxarm.org"
 DEBIANKEYSERVER="hkps://keyserver.ubuntu.com:443"
 
-WOUDSTRA='ftp.woudstra.mywire.org'
-REPOKEY="DD73724DCA27796790D33E98798137154FE1474C"
-ALARMREPOURL='ftp://'${WOUDSTRA}'/repo/$arch'
-DEBIANREPOURL="http://${WOUDSTRA}/apt-repo"
-BACKUPREPOURL='https://github.com/ericwoud/buildRKarch/releases/download/repo-$arch'
+ALARMREPOURL='ftp://ftp.woudstra.mywire.org/repo/$arch'
 
 DEBOOTSTR_RELEASE="noble"
 DEBOOTSTR_SOURCE="http://ports.ubuntu.com/ubuntu-ports"
@@ -151,25 +147,45 @@ function formatimage {
 }
 
 function resolv {
+  mkdir -p $rootfsdir/etc
   cp /etc/resolv.conf $rootfsdir/etc/
   if [ -z "$(cat $rootfsdir/etc/resolv.conf | grep -oP '^nameserver')" ]; then
     echo "nameserver 8.8.8.8" | tee -a $rootfsdir/etc/resolv.conf
   fi
 }
 
-function addmyrepo {
-  if [ -z "$(cat $rootfsdir/etc/pacman.conf | grep -oP '^\[ericwoud\]')" ]; then
-    local serv="[ericwoud]\nServer = $ALARMREPOURL\nServer = $BACKUPREPOURL\n"
-    sed -i '/^\[core\].*/i'" ${serv}"'' $rootfsdir/etc/pacman.conf
-  fi
+function downloadpkg {
+  eval local repo="$1"
+  until local pkg=$(curl -L $repo'/'"${2}.db" | tar -xzO --wildcards "${3}*/desc" \
+        | grep "%FILENAME%" -A1 | tail -n 1)
+  do sleep 2; done
+  until curl -L $repo'/'$pkg | xz -dc - | tar x -C $rootfsdir
+  do sleep 2; done
+}
+
+function setuppacman {
+  [ ! -d "$rootfsdir/usr" ] && exit 1
+  mkdir -p $rootfsdir/{etc/pacman.d,var/lib/pacman}
+  echo 'Server = '"${1}/${2}"'/$repo' > $rootfsdir/etc/pacman.d/mirrorlist
+  cat <<-EOF > $rootfsdir/etc/pacman.conf
+	[options]
+	Architecture = ${2}
+	SigLevel = Never
+	[core]
+	Include = /etc/pacman.d/mirrorlist
+	[extra]
+	Include = /etc/pacman.d/mirrorlist
+	[community]
+	Include = /etc/pacman.d/mirrorlist
+	EOF
 }
 
 function rootcfg {
+  mkdir -p $rootfsdir/etc/rootcfg
   echo "${target}" | tee $rootfsdir/etc/hostname
   if [[ -z $(grep "${target}" $rootfsdir/etc/hosts 2>/dev/null) ]]; then
     echo -e "127.0.0.1\t${target}" | tee -a $rootfsdir/etc/hosts
   fi
-  mkdir -p $rootfsdir/etc/rootcfg
   rm -f "$rootfsdir/etc/rootcfg/"*
   echo -n "${target}" > "$rootfsdir/etc/rootcfg/target"
   echo -n "${device}" > "$rootfsdir/etc/rootcfg/device"
@@ -180,62 +196,39 @@ function bootstrap {
   trap ctrl_c INT
   [ -d "$rootfsdir/etc" ] && return
   PACKAGES+=" packages-${target}"
+  [ -d "/usr/share/buildR64arch" ] && rootfs="/usr/share/buildR64arch" || rootfs="./rootfs"
   if [ "$distro" == "ubuntu" ]; then
     [ "$d" = true ] && cdir="--cache-dir=$(realpath ./cachedir)" || cdir="--no-check-gpg"
     until debootstrap "${cdir}" --arch=arm64 --no-check-gpg --components=$DEBOOTSTR_COMPNS \
                      --variant=minbase --include="${STRAP_PACKAGES_DEBIAN// /,}" \
                      $DEBOOTSTR_RELEASE $rootfsdir $DEBOOTSTR_SOURCE
     do sleep 2; done
-    cp -vrfL ./rootfs/keyring/*      $rootfsdir
-    cp -vrfL ./rootfs/skeleton-apt/* $rootfsdir
+    cp -vrfL "${rootfs}/keyring/"*      $rootfsdir
+    cp -vrfL "${rootfs}/skeleton-apt/"* $rootfsdir
     rootcfg
     procsysrun
-    until schroot gpg --batch --yes --keyserver "${DEBIANKEYSERVER}" --recv-keys $REPOKEY
-    do sleep 2; done
-    schroot gpg --batch --yes --output /etc/apt/trusted.gpg.d/ericwoud.gpg --export $REPOKEY
     [ "$d" = true ] && cdir="-o Dir::Cache::Archives=/cachedir" || cdir="--yes"
     until schroot DEBIAN_FRONTEND=noninteractive apt-get update -q ${cdir} --yes
     do sleep 2; done
     until schroot DEBIAN_FRONTEND=noninteractive apt-get install -q ${cdir} --yes $PACKAGES
     do sleep 2; done
   elif [ "$distro" == "alarm" ]; then
-    eval repo=${ALARMREPOURL}
-    until pacmanpkg=$(curl -L $repo'/ericwoud.db' | tar -xzO --wildcards "pacman-static*/desc" \
-          | grep "%FILENAME%" -A1 | tail -n 1)
-    do sleep 2; done
-    until curl -L $repo'/'$pacmanpkg | xz -dc - | tar x -C $rootfsdir
-    do sleep 2; done
-    [ ! -d "$rootfsdir/usr" ] && return
-    mkdir -p $rootfsdir/{etc/pacman.d,var/lib/pacman}
+    downloadpkg "${ALARMREPOURL}" "ericwoud" "pacman-static"
+    setuppacman "${ALARM_MIRROR}" "${arch}"
     resolv
-    echo 'Server = '"$ALARM_MIRROR/$arch"'/$repo' | \
-      tee $rootfsdir/etc/pacman.d/mirrorlist
-    cat <<-EOF | tee $rootfsdir/etc/pacman.conf
-	[options]
-	Architecture = ${arch}
-	SigLevel = Never
-	[core]
-	Include = /etc/pacman.d/mirrorlist
-	[extra]
-	Include = /etc/pacman.d/mirrorlist
-	[community]
-	Include = /etc/pacman.d/mirrorlist
-	EOF
     [ "$d" = true ] && cdir="--cachedir=/cachedir" || cdir="--noconfirm"
     [ "$S" = true ] && sb="--disable-sandbox"      || sb="--noconfirm"
-    until schrootstrap pacman-static -Syu "${cdir}" "${sb}" --noconfirm --needed --overwrite="*" $STRAP_PACKAGES_ALARM
+    until schroot pacman-static -Syu "${cdir}" "${sb}" --noconfirm --needed --overwrite="*" $STRAP_PACKAGES_ALARM
     do sleep 2; done
-    mv -vf $rootfsdir/etc/pacman.conf.pacnew         $rootfsdir/etc/pacman.conf
-    mv -vf $rootfsdir/etc/pacman.d/mirrorlist.pacnew $rootfsdir/etc/pacman.d/mirrorlist
-    addmyrepo
     rootcfg
     procsysrun
-    cp -vrfL ./rootfs/keyring/*         $rootfsdir
-    cp -vrfL ./rootfs/skeleton-pacman/* $rootfsdir
+    cp -vrfL "${rootfs}/keyring/"*         $rootfsdir
+    cp -vrfL "${rootfs}/skeleton-pacman/"* $rootfsdir
     schroot pacman-key --init
     schroot pacman-key --populate archlinuxarm
     schroot pacman-key --populate ericwoud
-    until schroot pacman -Qqn | schroot pacman -Syyu --noconfirm "${cdir}" "${sb}" --overwrite="*" $PACKAGES pacman-static -
+    until schroot pacman -Qqn | \
+          schroot pacman -Syyu --noconfirm "${cdir}" "${sb}" --overwrite="*" $PACKAGES pacman-static -
     do sleep 2; done
   else
     echo "Unknown distro!"
@@ -298,12 +291,10 @@ function add_children() {
   for ppp in $(pgrep -P $1 2>/dev/null) ; do add_children $ppp; done
 }
 
-function schrootstrap() {
-    unshare --fork --kill-child --pid --uts --root=$rootfsdir "${@}"
-}
-
 function schroot() {
-  if [[ -z "${*}" ]]; then
+  if [ ! -x "$rootfsdir/bin/hostname" ]; then
+    unshare --fork --kill-child --pid --uts --root=$rootfsdir "${@}"
+  elif [[ -z "${*}" ]]; then
     unshare --fork --kill-child --pid --uts --root=$rootfsdir su -c "hostname ${target};bash"
   else
     unshare --fork --kill-child --pid --uts --root=$rootfsdir su -c "hostname ${target};${*}"
@@ -459,7 +450,7 @@ fi
 
 trap finish EXIT
 trap ctrl_c INT
-hshopt -s extglob
+shopt -s extglob
 
 echo "Current dir:" $(realpath .)
 
