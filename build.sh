@@ -186,9 +186,8 @@ function bootstrap {
                      --variant=minbase --include="${STRAP_PACKAGES_DEBIAN// /,}" \
                      $DEBOOTSTR_RELEASE $rootfsdir $DEBOOTSTR_SOURCE
     do sleep 2; done
-    echo -e 'APT::Install-Suggests "0";'"\n"'APT::Install-Recommends "0";' | \
-        tee $rootfsdir/etc/apt/apt.conf.d/99onlyneeded
-    cp -vrfL ./rootfs/skeleton/* $rootfsdir
+    cp -vrfL ./rootfs/keyring/*      $rootfsdir
+    cp -vrfL ./rootfs/skeleton-apt/* $rootfsdir
     rootcfg
     procsysrun
     until schroot gpg --batch --yes --keyserver "${DEBIANKEYSERVER}" --recv-keys $REPOKEY
@@ -231,7 +230,8 @@ function bootstrap {
     addmyrepo
     rootcfg
     procsysrun
-    cp -vrfL ./rootfs/skeleton/usr/* $rootfsdir/usr
+    cp -vrfL ./rootfs/keyring/*         $rootfsdir
+    cp -vrfL ./rootfs/skeleton-pacman/* $rootfsdir
     schroot pacman-key --init
     schroot pacman-key --populate archlinuxarm
     schroot pacman-key --populate ericwoud
