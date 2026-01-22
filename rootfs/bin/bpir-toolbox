@@ -648,11 +648,11 @@ fi
 
 
 
-#################################################
-# Functions below need fip/boot partition       #
-# When root is not mounted on blkdev, then exit #
-#################################################
+###########################################
+# Functions below need fip/boot partition #
+###########################################
 if [ -z "${rootdev}" ] && [ ! -f "/etc/bpir-is-initrd" ]; then
+  # When root is not mounted on blkdev, then exit
   echo "Saving atf file path for use by mkosi at /atffilepath"
   echo "${atffile}" >/atffilepath
   exit 0
@@ -670,6 +670,9 @@ if [ -n $create_parts ]; then
 fi
 
 if [[ "${device}" != "sdmmc" ]] && [[ "${device}" != "emmc" ]]; then
+  # When root is mounted on blkdev, but target is nvme or sata,
+  #  then only set boot flag on rootdev and exit
+  #  for sdmmc and emmc boot flag on rootdev is set with --fip2boot
   if [ -n $create_parts ]; then
     if mountpoint -q /boot/; then
       parted -s -- "/dev/${pkrootdev}" set ${nrrootdev} boot off
