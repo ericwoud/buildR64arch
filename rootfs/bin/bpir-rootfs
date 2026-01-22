@@ -166,19 +166,19 @@ function rootfs {
     if [ -n "$brlanip" ] && [[ "${brlanip}" != "default" ]]; then
       sed -i 's/Address=.*/Address='$brlanip'\/24/' /etc/systemd/network/10-brlan.network
     fi
-    sudo systemctl --force --no-pager reenable ${sshd}.service
-    sudo systemctl --force --no-pager reenable systemd-timesyncd.service
-    sudo systemctl --force --no-pager reenable systemd-resolved.service
+    systemctl --force --no-pager reenable ${sshd}.service
+    systemctl --force --no-pager reenable systemd-timesyncd.service
+    systemctl --force --no-pager reenable systemd-resolved.service
     if [[ ${setup} == "RT"* ]]; then
-      sudo systemctl --force --no-pager reenable nftables.service
+      systemctl --force --no-pager reenable nftables.service
     else
-      sudo systemctl --force --no-pager disable nftables.service
+      systemctl --force --no-pager disable nftables.service
     fi
-    sudo systemctl --force --no-pager reenable systemd-networkd.service
+    systemctl --force --no-pager reenable systemd-networkd.service
     find -L "/etc/hostapd" -name "*.conf"| while read conf ; do
       conf=$(basename $conf); conf=${conf/".conf"/""}
-      sudo systemctl --force --no-pager reenable hostapd@${conf}.service \
-                   2>&1 | grep -v "is added as a dependency to a non-existent unit"
+      systemctl --force --no-pager reenable hostapd@${conf}.service 2>&1 \
+               | grep -v "is added as a dependency to a non-existent unit"
     done
     setupMACconfig
   fi
