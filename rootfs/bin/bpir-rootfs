@@ -11,6 +11,8 @@ ddrsize=$(cat /etc/rootcfg/ddrsize 2>/dev/null | xargs)
 setup=$(cat   /etc/rootcfg/setup   2>/dev/null | xargs)
 brlanip=$(cat /etc/rootcfg/brlanip 2>/dev/null | xargs)
 
+[ -z "${ddrsize}" ] && ddrsize="default"
+
 while [ "${1:-}" != '' ]; do
   case "$1" in
   '-i' | '--brlanip')   shift;   brlanip="${1}"        ;;
@@ -195,8 +197,8 @@ function rootfs {
 
 function setupMACconfig {
   file="/etc/systemd/network/mac.txt"
-  while [ ! -z "$(cat $file | grep 'aa:bb:cc:dd:ee:ff')" ]; do
-    mac_read="$(cat $file | grep -m1 'aa:bb:cc:dd:ee:ff' | cut -d ' ' -f1)"
+  while [ ! -z "$(cat $file 2>/dev/null | grep 'aa:bb:cc:dd:ee:ff')" ]; do
+    mac_read="$(cat $file 2>/dev/null | grep -m1 'aa:bb:cc:dd:ee:ff' | cut -d ' ' -f1)"
     mac=${mac_read::17}
     nr=${mac_read:18}
     [ -z "$nr" ] && nr=1
