@@ -10,4 +10,12 @@
 /*.tar*
 /*.bin
 /*.log
+/cachedir/
+/bpir*
+/bpir*/
+/mkosi/mkosi.cache/
+/mkosi/mkosi.tools/
+/mkosi/mkosi.tools.manifest
+/mkosi/.mkosi-private/
+/mkosi/.tmp/
 /config.sh
