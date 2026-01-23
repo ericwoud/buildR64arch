@@ -11,8 +11,6 @@ ddrsize=$(cat /etc/rootcfg/ddrsize 2>/dev/null | xargs)
 setup=$(cat   /etc/rootcfg/setup   2>/dev/null | xargs)
 brlanip=$(cat /etc/rootcfg/brlanip 2>/dev/null | xargs)
 
-[ -z "${ddrsize}" ] && ddrsize="default"
-
 while [ "${1:-}" != '' ]; do
   case "$1" in
   '-i' | '--brlanip')   shift;   brlanip="${1}"        ;;
@@ -27,7 +25,6 @@ while [ "${1:-}" != '' ]; do
          '--device'=*)           device="${1#*=}"      ;;
   '-n' | '--noask')              noask=1               ;;
   '-m' | '--menuonly')           menuonly=1            ;;
-  '-c' | '--configonly')         configonly=1          ;;
   '-d' | '--cachedir')           cachedir=1            ;;
   '-S' | '--disable-sandbox')    disablesandbox=1      ;;
   *) cat <<-EOF
@@ -40,7 +37,6 @@ while [ "${1:-}" != '' ]; do
 	  -S --disable-sandbox     disable pacman sandbox download
 	  -n --noask               Don't ask to alter rootfs and reset passwords and root access
 	  -m --menuonly            menu only
-	  -c --configonly          setup the rootfs only
 	EOF
     exit 1
     ;;
@@ -108,26 +104,25 @@ function ask() {
   fi
 }
 
-if [ -z "$configonly" ]; then
-    ask ddrsize DDRSIZES "Choose the size of ddr ram:"
-    ask setup SETUPS "Choose setup to create root for:"
-    if [ -z "$brlanip" ]; then
-      read -p "Enter ip address for local network (emtpy for default): " brlanip
-      [ -z "$brlanip" ] && brlanip="default"
-      echo "IP="$brlanip
-    fi
-    if [ -n "$menuonly" ]; then
-      mkdir -p /tmp/bpir-rootfs
-      echo -n "${setup}"   > /tmp/bpir-rootfs/setup
-      echo -n "${ddrsize}" > /tmp/bpir-rootfs/ddrsize
-      echo -n "${brlanip}" > /tmp/bpir-rootfs/brlanip
-    elif [ -z "$noask" ]; then
-      read -p "Type <yes> to alter your rootfs! " prompt
-      [[ $prompt != "yes" ]] && exit 1
-    fi
+ask ddrsize DDRSIZES "Choose the size of ddr ram:"
+ask setup SETUPS "Choose setup to create root for:"
+if [ -z "$brlanip" ]; then
+  read -p "Enter ip address for local network (emtpy for default): " brlanip
+  [ -z "$brlanip" ] && brlanip="default"
+  echo "IP="$brlanip
 fi
+[ -z "${ddrsize}" ] && ddrsize="default"
 
-[ -n "$menuonly" ] && exit 0
+if [ -n "$menuonly" ]; then
+  mkdir -p /tmp/bpir-rootfs
+  echo -n "${setup}"   > /tmp/bpir-rootfs/setup
+  echo -n "${ddrsize}" > /tmp/bpir-rootfs/ddrsize
+  echo -n "${brlanip}" > /tmp/bpir-rootfs/brlanip
+  exit 0
+elif [ -z "$noask" ]; then
+  read -p "Type <yes> to alter your rootfs! " prompt
+  [[ $prompt != "yes" ]] && exit 1
+fi
 
 function rootfs {
   if [ ! -f "/etc/arch-release" ]; then ### Ubuntu / Debian
@@ -186,7 +181,7 @@ function rootfs {
   if [[ "${ddrsize}" == "default" ]] || [ -z "${ddrsize}" ]; then
     rm -f /boot/bootcfg/ddrsize 2>/dev/null
   else
-    echo -n "${ddrsize}" | tee /boot/bootcfg/ddrsize
+    echo -n "${ddrsize}" >/boot/bootcfg/ddrsize
   fi
 
   bpir-toolbox --create-parts --target=${target} --device=${device}
