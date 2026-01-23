@@ -11,8 +11,8 @@
 /*.bin
 /*.log
 /cachedir/
-/bpir*
-/bpir*/
+/mkosi/bpir*.img*
+/mkosi/bpir*/
 /mkosi/mkosi.cache/
 /mkosi/mkosi.tools/
 /mkosi/mkosi.tools.manifest
