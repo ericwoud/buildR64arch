@@ -398,7 +398,7 @@ Boot the board in NAND mode with UART connected. Boot to Openwrt Busybox command
 ```text
 echo 0 > /sys/block/mmcblk0boot0/force_ro
 gunzip -c /mnt/sda1/bpir.img.gz | dd of=/dev/mmcblk0 bs=4M conv=fsync
-dd if=/dev/mmcblk0 of=/dev/mmcblk0boot0 bs=17K skip=1 count=32 conv=fsync
+dd if=/dev/mmcblk0 of=/dev/mmcblk0boot0 bs=17K seek=1 count=32 conv=fsync
 mmc bootpart enable 1 1 /dev/mmcblk0
 ```
 
