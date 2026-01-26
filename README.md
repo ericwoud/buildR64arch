@@ -2,7 +2,7 @@
 
 Install a minimal ArchLinux-ARM or Ubuntu on Banana Pi R64, R3, R3mini and R4 from scratch.
 
-Downloadable images for quick test located [HERE](https://www.woudstra.mywire.org/images/)
+Downloadable images for quick test located [HERE](https://ftp.woudstra.mywire.org/images/)
 
 R64 Notes:
 Now includes a patch so that temperature is regulated at 87 instead of 47 degrees!
