@@ -105,14 +105,18 @@ function ask() {
   fi
 }
 
-ask ddrsize DDRSIZES "Choose the size of ddr ram:"
+if [ -n "$menuonly" ]; then
+  ask ddrsize DDRSIZES "Choose the size of ddr ram:"
+else
+  [ -z "${ddrsize}" ] && ddrsize="default"
+fi
 ask setup SETUPS "Choose setup to create root for:"
 if [ -z "$brlanip" ]; then
   read -p "Enter ip address for local network (emtpy for default): " brlanip
   [ -z "$brlanip" ] && brlanip="default"
   echo "IP="$brlanip
 fi
-[ -z "${ddrsize}" ] && ddrsize="default"
+
 
 if [ -n "$menuonly" ]; then
   mkdir -p /tmp/bpir-rootfs
