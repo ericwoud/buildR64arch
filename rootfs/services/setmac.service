@@ -13,6 +13,7 @@ ExecStart=:bash -c " \
   d=/run/systemd/network ; mkdir -p $d ;\
   while read -r mac_read intfs ;\
   do \
+    [[ -z ${intfs} ]] && continue ;\
     i=0 ;\
     case $mac_read in \
       ??:??:??:??:??:??*) nr=1 ; mac=${mac_read::17} ;;& \
