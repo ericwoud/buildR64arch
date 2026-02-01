@@ -516,7 +516,7 @@ if [ -n "$nand_update" ]; then
     mkdir -p "${tmp}/mnt/boot/extlinux" "${tmp}/mnt/boot/dtbs" "$(dirname "${tmp}/mnt${atfdtb}")"
     cp -vf "${tmp}/atf.dtb" "${tmp}/mnt${atfdtb}"
     cp -vf "${tmp}/extlinux.conf" "${tmp}/mnt/boot/extlinux/extlinux.conf"
-    cp -vf "${ubootlinux}" "${tmp}/mnt${ubo	otlinux}"
+    cp -vf "${ubootlinux}" "${tmp}/mnt${ubootlinux}"
     cp -vf "${initrd}" "${tmp}/mnt${initrd}"
     mkfs.ubifs -m 2048 -e 124KiB -c 800 -r "${tmp}/mnt" "${tmp}/rootfs.bin"
     echo > "${tmp}/ubootenv.bin"
