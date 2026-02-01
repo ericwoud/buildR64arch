@@ -513,10 +513,10 @@ if [ -n "$nand_update" ]; then
                  "${atfdtb}"
   mkdir -p ${tmp}/mnt
   if [ -n "$nand_image" ]; then
-    mkdir -p ${tmp}/mnt/boot/extlinux ${tmp}/mnt/boot/dtbs
+    mkdir -p "${tmp}/mnt/boot/extlinux" "${tmp}/mnt/boot/dtbs" "$(dirname "${tmp}/mnt${atfdtb}")"
     cp -vf "${tmp}/atf.dtb" "${tmp}/mnt${atfdtb}"
     cp -vf "${tmp}/extlinux.conf" "${tmp}/mnt/boot/extlinux/extlinux.conf"
-    cp -vf "${ubootlinux}" "${tmp}/mnt${ubootlinux}"
+    cp -vf "${ubootlinux}" "${tmp}/mnt${ubo	otlinux}"
     cp -vf "${initrd}" "${tmp}/mnt${initrd}"
     mkfs.ubifs -m 2048 -e 124KiB -c 800 -r "${tmp}/mnt" "${tmp}/rootfs.bin"
     echo > "${tmp}/ubootenv.bin"
@@ -686,11 +686,11 @@ if [[ "${device}" != "sdmmc" ]] && [[ "${device}" != "emmc" ]]; then
   exit 1
 fi
 
-ATF_END=1024kiB
+ATF_END_MB=1
 atfdevice=$(getdev atf)
 if [ -z "${atfdevice}" ]; then
   if [ -n $create_parts ]; then
-    parted -s -- "/dev/${pkrootdev}" mkpart ${target}-${device}-atf 34s $ATF_END
+    parted -s -- "/dev/${pkrootdev}" unit MiB mkpart ${target}-${device}-atf 34s "${ATF_END_MB}"
     sync
     atfdevice=$(getdev atf)
   fi
@@ -709,7 +709,7 @@ fipbootdevice=$(getdev fip)
 [ -z "${fipbootdevice}" ] && fipbootdevice=$(getdev boot)
 if [ -z "${fipbootdevice}" ]; then
   if [ -n $create_parts ]; then
-    parted -s -- "/dev/${pkrootdev}" mkpart fip "${ATF_END}" "$((strootdev-1))s"
+    parted -s -- "/dev/${pkrootdev}" unit MiB mkpart fip "${ATF_END_MB}" "$((strootdev-1))s"
     sync
     fipbootdevice=$(getdev fip)
   fi
