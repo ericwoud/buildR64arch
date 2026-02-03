@@ -122,7 +122,6 @@ fi
 
 if [ -n "$menuonly" ]; then
   mkdir -p /tmp/bpir-rootfs
-  chmod 777 /tmp/bpir-rootfs
   echo -n "${setup}"   > /tmp/bpir-rootfs/setup
   echo -n "${ddrsize}" > /tmp/bpir-rootfs/ddrsize
   echo -n "${brlanip}" > /tmp/bpir-rootfs/brlanip
