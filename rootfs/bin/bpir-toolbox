@@ -231,18 +231,23 @@ function _ubimkvol {
 }
 
 function write_extlinux {
+  local pkgb
   mkdir -p $(dirname "$1")
   cat <<-EOF | tee "$1"
-	DEFAULT linux-bpir-git
+	DEFAULT ${linuxpkg}
 	  MENU title U-Boot menu
 	  PROMPT 0
 	  TIMEOUT 50
-	LABEL linux-bpir-git
-	  MENU LABEL Archlinux ARM for BananaPi Routers
-	  LINUX ${2}
-	  INITRD ${3}
-	  FDT ${4}
 	EOF
+  for pkgb in $(shopt -s nullglob; for f in /lib/modules/*/pkgbase ; do cat $f; echo; done | xargs); do
+    cat <<-EOF | tee "$1"
+	LABEL ${pkgb}
+	  MENU LABEL Archlinux ARM for BananaPi Routers
+	  LINUX ${2/${linuxpkg}/${pkgb}}
+	  INITRD ${3/${linuxpkg}/${pkgb}}
+	  FDT ${4/${linuxpkg}/${pkgb}}
+	EOF
+  done
 }
 
 function write_dtb {
@@ -655,7 +660,9 @@ fi
 # Functions below need fip/boot partition #
 ###########################################
 if [ -z "${rootdev}" ] && [ ! -f "/etc/bpir-is-initrd" ]; then
-  echo "Root filesystem not mounted on block device."
+  if [ -n "$create_parts" ]; then
+    echo "Root filesystem not mounted on block device."
+  fi
   exit 0
 fi
 pkrootdev=$(lsblk -rno pkname "${rootdev}")
@@ -665,7 +672,7 @@ nrrootdev=$(cat "/sys/block/${pkrootdev}/$(basename ${rootdev})/partition" 2>/de
 strootdev=$(cat "/sys/block/${pkrootdev}/$(basename ${rootdev})/start" 2>/dev/null)
 [ -z "${strootdev}" ] && exit 1
 
-if [ -n $create_parts ]; then
+if [ -n "$create_parts" ]; then
   parted -s -- "/dev/${pkrootdev}" name ${nrrootdev} ${target}-${device}-root
   sync
 fi
@@ -674,7 +681,7 @@ if [[ "${device}" != "sdmmc" ]] && [[ "${device}" != "emmc" ]]; then
   # When root is mounted on blkdev, but target is nvme or sata,
   #  then only set boot flag on rootdev and exit
   #  for sdmmc and emmc boot flag on rootdev is set with --fip2boot
-  if [ -n $create_parts ]; then
+  if [ -n "$create_parts" ]; then
     if mountpoint -q /boot/; then
       parted -s -- "/dev/${pkrootdev}" set ${nrrootdev} boot off
     else
@@ -689,7 +696,7 @@ fi
 ATF_END_MB=1
 atfdevice=$(getdev atf)
 if [ -z "${atfdevice}" ]; then
-  if [ -n $create_parts ]; then
+  if [ -n "$create_parts" ]; then
     parted -s -- "/dev/${pkrootdev}" unit MiB mkpart ${target}-${device}-atf 34s "${ATF_END_MB}"
     sync
     atfdevice=$(getdev atf)
@@ -700,7 +707,7 @@ pkatfdevice=$(lsblk -rno pkname ${atfdevice} 2>/dev/null)
 [ -z "${pkatfdevice}" ] && exit 1
 nratfdevice=$(cat "/sys/block/${pkatfdevice}/$(basename ${atfdevice})/partition" 2>/dev/null)
 [ -z "${nratfdevice}" ] && exit 1
-if [ -n $create_parts ]; then
+if [ -n "$create_parts" ]; then
     parted -s -- "/dev/${pkatfdevice}" set ${nratfdevice} legacy_boot on
     sync
 fi
@@ -708,7 +715,7 @@ fi
 fipbootdevice=$(getdev fip)
 [ -z "${fipbootdevice}" ] && fipbootdevice=$(getdev boot)
 if [ -z "${fipbootdevice}" ]; then
-  if [ -n $create_parts ]; then
+  if [ -n "$create_parts" ]; then
     parted -s -- "/dev/${pkrootdev}" unit MiB mkpart fip "${ATF_END_MB}" "$((strootdev-1))s"
     sync
     fipbootdevice=$(getdev fip)
@@ -811,6 +818,6 @@ if [ -n "$write2atf" ]; then
 fi
 
 sync
-[ -n $create_parts ] && parted -s -- "/dev/${pkrootdev}" print
+[ -n "$create_parts" ] && parted -s -- "/dev/${pkrootdev}" print
 
 exit 0
