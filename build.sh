@@ -573,7 +573,10 @@ while getopts ":rlcbxzudniRFBISN-:" opt $args; do
   ((argcnt++))
 done
 
-[[ "$optn_N" = true ]] && export optn_n=true
+if [[ "$optn_N" = true ]]; then
+  export optn_n=true
+  ((argcnt++))
+fi
 if [[ "$optn_n" != true ]]; then
   if [[ $USER != "root" ]] && [[ "$initrd" != true ]]; then
     echo "Running as root user!"
@@ -676,6 +679,7 @@ else
   else
     readarray -t dirs < <(ls -1a -d bpir*-*-*-root)
     ask rootfsdir dirs "Choose directory to work on:"
+    [[ -z "${rootfsdir}" ]] && exit
     rootfsdir="$(realpath "$rootfsdir")"
     target=$(cat "$rootfsdir/etc/rootcfg/target" 2>/dev/null)
     device=$(cat "$rootfsdir/etc/rootcfg/device" 2>/dev/null)
