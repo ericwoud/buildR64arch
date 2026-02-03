@@ -235,7 +235,7 @@ function write_extlinux {
   mkdir -p $(dirname "$1")
   cat <<-EOF | tee "$1"
 	DEFAULT ${linuxpkg}
-	  MENU title U-Boot menu
+	  MENU TITLE U-Boot menu
 	  PROMPT 0
 	  TIMEOUT 50
 	EOF
