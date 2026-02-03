@@ -397,7 +397,7 @@ Boot the board in NAND mode with UART connected. Boot to Openwrt Busybox command
 
 ```text
 echo 0 > /sys/block/mmcblk0boot0/force_ro
-gunzip -c /mnt/sda1/bpir.img.gz | dd of=/dev/mmcblk0 bs=4M conv=fsync
+gunzip -c /mnt/sda1/bpir.img.gz | dd of=/dev/mmcblk0 bs=4M conv=fsync,sparse
 dd if=/dev/mmcblk0 of=/dev/mmcblk0boot0 bs=17K seek=1 count=32 conv=fsync
 mmc bootpart enable 1 1 /dev/mmcblk0
 ```
@@ -412,7 +412,7 @@ https://ftp.woudstra.mywire.org/images/
 
 Write the image file for sd-card to the appropriate device, MAKE SURE YOU HAVE THE CORRECT DEVICE!
 ```text
-gunzip -c ~/Downloads/bpir64-sdmmc.img.gz | sudo dd of=/dev/sda bs=4M conv=fsync
+gunzip -c ~/Downloads/bpir64-sdmmc.img.gz | sudo dd of=/dev/sda bs=4M conv=fsync,sparse
 ```
 
 ## TODO:

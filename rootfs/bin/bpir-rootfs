@@ -110,16 +110,19 @@ if [ -n "$menuonly" ]; then
 else
   [ -z "${ddrsize}" ] && ddrsize="default"
 fi
+echo "DDRsize=$ddrsize"
 ask setup SETUPS "Choose setup to create root for:"
+echo "Setup=$setup"
 if [ -z "$brlanip" ]; then
   read -p "Enter ip address for local network (emtpy for default): " brlanip
   [ -z "$brlanip" ] && brlanip="default"
-  echo "IP="$brlanip
+  echo "IP=$brlanip"
 fi
 
 
 if [ -n "$menuonly" ]; then
   mkdir -p /tmp/bpir-rootfs
+  chmod 777 /tmp/bpir-rootfs
   echo -n "${setup}"   > /tmp/bpir-rootfs/setup
   echo -n "${ddrsize}" > /tmp/bpir-rootfs/ddrsize
   echo -n "${brlanip}" > /tmp/bpir-rootfs/brlanip

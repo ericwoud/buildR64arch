@@ -1,41 +1,39 @@
 #!/bin/bash
 
-[ -f "/etc/bpir-is-initrd" ] && initrd=true
-if [ $USER != "root" ] && [ "$initrd" != true ]; then
-  sudo $0 ${@:1}
-  exit
-fi
-[ -z "$SUDO_USER" ] && SUDO_USER="$USER"
+[[ -f "/etc/bpir-is-initrd" ]] && initrd=true
+[[ -z "$SUDO_USER" ]] && SUDO_USER="$USER"
 
 # Set default configuration values
 # These can be overridden by entering them into config.sh
 
-PACKAGES="build-r64-arch-utils-git hostapd-launch ssh-fix-reboot bpir-initrd ethtool-static-git hostapd-static-git"
+export PACKAGES="build-r64-arch-utils-git hostapd-launch ssh-fix-reboot bpir-initrd ethtool-static-git hostapd-static-git"
 
-ALARM_MIRROR="http://mirror.archlinuxarm.org"
-DEBIANKEYSERVER="hkps://keyserver.ubuntu.com:443"
+export ALARM_MIRROR="http://mirror.archlinuxarm.org"
+export DEBIANKEYSERVER="hkps://keyserver.ubuntu.com:443"
 
-ALARMREPOURL='ftp://ftp.woudstra.mywire.org/repo/$arch'
+export ALARMREPOURL='ftp://ftp.woudstra.mywire.org/repo/$arch'
 
-DEBOOTSTR_RELEASE="noble"
-DEBOOTSTR_SOURCE="http://ports.ubuntu.com/ubuntu-ports"
-DEBOOTSTR_COMPNS="main,restricted,universe,multiverse"
-#DEBOOTSTR_RELEASE="bullseye"
-#DEBOOTSTR_SOURCE="http://ftp.debian.org/debian/"
-#DEBOOTSTR_COMPNS="main,contrib,non-free"
+export DEBOOTSTR_RELEASE="noble"
+#export DEBOOTSTR_SOURCE="https://ports.ubuntu.com/ubuntu-ports"
+export DEBOOTSTR_SOURCE="https://mirror.gofoss.xyz/ubuntu-ports"
+export DEBOOTSTR_COMPNS="main,restricted,universe,multiverse"
+#export DEBOOTSTR_RELEASE="bullseye"
+#export DEBOOTSTR_SOURCE="http://ftp.debian.org/debian/"
+#export DEBOOTSTR_COMPNS="main,contrib,non-free"
 
-ROOT_START_MB=256MiB           # Size of root partition in MiB
-ROOT_END_MB=100%               # Size of root partition in MiB
-#ROOT_END_MB=$(( 4*1024  ))    # Size 4GiB
-IMAGE_SIZE_MB=7456             # Size of image
-IMAGE_FILE="bpir.img"          # Name of image
+export ROOT_START_MB=256              # Start of root partition in MiB
+export ROOT_END_MB=100%               # End of root partition in MiB or %
+#export ROOT_END_MB=4GiB              # Size 4GiB
+export IMAGE_SIZE_MB=7456             # Size of image
+export IMAGE_FILE="bpir.img"          # Name of image
 
-STRAP_PACKAGES_ALARM="pacman archlinuxarm-keyring inetutils"
-STRAP_PACKAGES_DEBIAN="apt-utils ca-certificates gnupg hostname"
+export STRAP_PACKAGES_ALARM="pacman archlinuxarm-keyring"
+export STRAP_PACKAGES_DEBIAN="apt-utils ca-certificates gnupg"
+export STRAP_PACKAGES_EXCLUDE_DEBIAN="procps"
 
-SCRIPT_PACKAGES="curl ca-certificates parted gzip f2fs-tools btrfs-progs dosfstools debootstrap"
-SCRIPT_PACKAGES_ALARM="qemu-user-static qemu-user-static-binfmt"
-SCRIPT_PACKAGES_DEBIAN="qemu-user qemu-user-binfmt"
+SCRIPT_PACKAGES="curl ca-certificates parted gzip f2fs-tools btrfs-progs dosfstools debootstrap zstd"
+SCRIPT_PACKAGES_ALARM=" qemu-user-static qemu-user-static-binfmt inetutils"
+SCRIPT_PACKAGES_DEBIAN="qemu-user        qemu-user-binfmt        hostname"
 
 TARGETS=("bpir64 Bananapi-R64"
          "bpir3  Bananapi-R3"
@@ -47,8 +45,9 @@ DISTROS=("alarm    ArchLinuxARM"
 
 function setupenv {
 arch='aarch64'
-#BACKUPFILE="/run/media/$USER/DATA/${target}-${device}-rootfs.tar"
-BACKUPFILE="./${target}-${device}-rootfs.tar"
+export PACKAGES+=" packages-${target}"
+#export BACKUPFILE="/run/media/$USER/DATA/${target}-${device}-rootfs.tar"
+export BACKUPFILE="./${target}-${device}-rootfs.tar"
 devices=()
 [[ $target != "bpir3m" ]] && devices+=("sdmmc SD Card")
                              devices+=("emmc  EMMC onboard")
@@ -58,85 +57,100 @@ devices=()
 
 # End of default configuration values
 
-function finish {
-  trap 'echo got SIGINT' INT
-  trap 'echo got SIGEXIT' EXIT
-  [ -v noautomountrule ] && rm -vf $noautomountrule
-  if [ -v rootfsdir ] && [ ! -z "$rootfsdir" ]; then
-    sync
-    echo Running exit function to clean up...
-    while mountpoint -q $rootfsdir/cachedir; do
-      echo "Unmounting...DO NOT REMOVE!"
-      sync; umount -R $rootfsdir/cachedir; sleep 0.1
-    done
-    rm -rf $rootfsdir/cachedir
-    while mountpoint -q $rootfsdir; do
-      echo "Unmounting...DO NOT REMOVE!"
-      sync; umount -R $rootfsdir; sleep 0.1
-    done
-    rm -rf $rootfsdir
-    sync
-    echo -e "Done. You can remove the card now.\n"
-  fi
-  unset rootfsdir
-  if [ -v loopdev ] && [ ! -z "$loopdev" ]; then
-    losetup -d $loopdev
-  fi
-  unset loopdev
-}
-
-function waitdev {
-  while [ ! -b $(realpath "$1") ]; do
+function waitdev() {
+  while [[ ! -b $(realpath "$1") ]]; do
     echo "WAIT!"
     sleep 0.1
   done
 }
 
-function parts {
+function parts() {
   lsblk $1 -lnpo name
 }
 
-function formatimage {
+function checknumber() {
+  [[ "${!1}" -eq "${!1}" ]] 2>/dev/null
+  [[ $? -eq 0 ]] && return
+  echo "$1=\""${!1}"\" is not number"
+  exit 1
+}
+
+function createimage() {
+  echo "Creating image from noroot directories..."
+  ATF_END_MB=1
+  atf_end_s="$((ATF_END_MB*1024*1024/512))"
+  checknumber ROOT_START_MB
+  checknumber IMAGE_SIZE_MB
+  atffile=$(cat "${rootfsdir}/etc/rootcfg/atffile" | xargs)
+  [[ ! -f "${rootfsdir}${atffile}" ]] && return
+  rm ${IMAGE_FILE} ${IMAGE_FILE}.root 2>/dev/null
+  dd if=/dev/zero of=${IMAGE_FILE} bs=1 count=0 seek=$((ROOT_START_MB))M 2>/dev/null
+  dd if=/dev/zero of=${IMAGE_FILE}.root bs=1 count=0 seek=$((IMAGE_SIZE_MB - ROOT_START_MB - 1))M 2>/dev/null
+  dd if="${rootfsdir}${atffile}" of=${IMAGE_FILE} bs=17K seek=1 count=32 conv=notrunc
+  mkfs.vfat --offset "${atf_end_s}" -v -F 32 -S 512 -s 16 -n "${target^^}-BOOT" ${IMAGE_FILE}
+  mcopy -soi "${IMAGE_FILE}@@${atf_end_s}s" "${rootfsdir/-root/-boot}"/* ::
+  mkfs.btrfs -f -L "${target^^}-ROOT" ${IMAGE_FILE}.root --rootdir="$rootfsdir"
+  dd if=${IMAGE_FILE}.root of=${IMAGE_FILE} bs=1M seek=${ROOT_START_MB} conv=sparse
+  dd if=/dev/zero of=${IMAGE_FILE} bs=1 count=0 seek=${IMAGE_SIZE_MB}M 2>/dev/null
+  rm ${IMAGE_FILE}.root
+  parted -s -- "${IMAGE_FILE}" unit MiB                                             \
+      mklabel gpt                                                                   \
+      mkpart ${target}-${device}-root btrfs $ROOT_START_MB   $((IMAGE_SIZE_MB - 1)) \
+      mkpart ${target}-${device}-atf        34s              ${ATF_END_MB}MiB       \
+      mkpart boot                     fat32 ${ATF_END_MB}MiB $ROOT_START_MB         \
+      set 2 legacy_boot on                                                          \
+      set 3        boot on                                                          \
+      print
+  echo "Imagesize: $(du -h --apparent-size ${IMAGE_FILE}|cut -d$'\t' -f1)," \
+      "disk usage: $(du -h                 ${IMAGE_FILE}|cut -d$'\t' -f1)"
+}
+
+function formatimage() {
+  if [[ "$optn_n" = true ]]; then
+    removeallnoroot
+    return
+  fi
   for part in $(parts "${dev}"); do umount "${part}" 2>/dev/null; done
-  if [ "$l" == true ]; then
+  if [[ "$optn_l" == true ]]; then
     prompt="wipeall"
   else
     parted -s "${dev}" unit MiB print
     echo -e "\nDo you want to wipe all partitions from "${dev}"???"
-    read -p "Type <wipeall> to wipe all: " prompt
+    read -p "Type <wipeall> to wipe all: " prompt <&1
   fi
   if [[ $prompt == "wipeall" ]]; then
     wipefs --all --force "${dev}"
     sync
     partprobe "${dev}"; udevadm settle 2>/dev/null
     parted -s -- "${dev}" mklabel gpt
-    [[ $? != 0 ]] && exit
+    [[ $? != 0 ]] && exit 1
     partprobe "${dev}"; udevadm settle 2>/dev/null
   fi
   mountdev=$(blkid $(parts ${dev}) -t PARTLABEL=${target}-${device}-root -o device)
-  if [ -z "$mountdev" ]; then
+  if [[ -z "$mountdev" ]]; then
     parted -s -- "${dev}" unit MiB print
-    if [ "$l" != true ]; then
+    if [[ "$optn_l" != true ]]; then
       echo "Press enter to continue with default values."
-      echo "To enter MiB: Enter the number of MiB's."
+      echo "To enter KiB: Append the number with 'KiB' without space (e.g. 17KiB)."
+      echo "To enter MiB: Enter the number of MiB's, no appending needed."
       echo "To enter GiB: Append the number with 'GiB' without space (e.g. 256GiB)."
       echo "To enter %:   Append the number with a '%' without space (e.g. 100%)."
-      read -p "Enter the start of the root partition (default ${ROOT_START_MB}): " rootstart
-      read -p "Enter the  end  of the root partition (default ${ROOT_END_MB}): "   rootend
+      read -p "Enter the start of the root partition (default ${ROOT_START_MB}): " rootstart <&1
+      read -p "Enter the  end  of the root partition (default ${ROOT_END_MB}): "   rootend <&1
     fi
-    [ -z ${rootstart} ] && rootstart="${ROOT_START_MB}"
-    [ -z ${rootend}   ] && rootend="${ROOT_END_MB}"
+    [[ -z ${rootstart} ]] && rootstart="${ROOT_START_MB}"
+    [[ -z ${rootend}   ]] && rootend="${ROOT_END_MB}"
     parted -s -- "${dev}" unit MiB mkpart "${target}-${device}-root" btrfs $rootstart $rootend
     [[ $? != 0 ]] && exit 1
     partprobe "${dev}"; udevadm settle 2>/dev/null
     while
       mountdev=$(blkid $(parts ${dev}) -t PARTLABEL=${target}-${device}-root -o device)
-      [ -z "$mountdev" ]
+      [[ -z "$mountdev" ]]
     do sleep 0.1; done
-  elif [ "$l" != true ]; then
+  elif [[ "$optn_l" != true ]]; then
     parted -s "${dev}" unit MiB print
     echo -e "\nAre you sure you want to format "${mountdev}"???"
-    read -p "Type <format> to format: " prompt
+    read -p "Type <format> to format: " prompt <&1
     [[ $prompt != "format" ]] && exit
   fi
   waitdev "${mountdev}"
@@ -146,15 +160,7 @@ function formatimage {
   sync
 }
 
-function resolv {
-  mkdir -p $rootfsdir/etc
-  cp /etc/resolv.conf $rootfsdir/etc/
-  if [ -z "$(cat $rootfsdir/etc/resolv.conf | grep -oP '^nameserver')" ]; then
-    echo "nameserver 8.8.8.8" | tee -a $rootfsdir/etc/resolv.conf
-  fi
-}
-
-function downloadpkg {
+function downloadpkg() {
   eval local repo="$1"
   until local pkg=$(curl -L $repo'/'"${2}.db" | tar -xzO --wildcards "${3}*/desc" \
         | grep "%FILENAME%" -A1 | tail -n 1)
@@ -163,8 +169,8 @@ function downloadpkg {
   do sleep 2; done
 }
 
-function setuppacman {
-  [ ! -d "$rootfsdir/usr" ] && exit 1
+function setuppacman() {
+  [[ ! -d "$rootfsdir/usr" ]] && exit 1
   mkdir -p $rootfsdir/{etc/pacman.d,var/lib/pacman}
   echo 'Server = '"${1}/${2}"'/$repo' > $rootfsdir/etc/pacman.d/mirrorlist
   cat <<-EOF > $rootfsdir/etc/pacman.conf
@@ -180,104 +186,140 @@ function setuppacman {
 	EOF
 }
 
-function rootcfg {
+function rootcfg() {
   mkdir -p $rootfsdir/etc/rootcfg
-  echo "${target}" | tee $rootfsdir/etc/hostname
+  echo "${target}" > $rootfsdir/etc/hostname
   if [[ -z $(grep "${target}" $rootfsdir/etc/hosts 2>/dev/null) ]]; then
-    echo -e "127.0.0.1\t${target}" | tee -a $rootfsdir/etc/hosts
+    echo -e "127.0.0.1\t${target}" >> $rootfsdir/etc/hosts
   fi
   rm -f "$rootfsdir/etc/rootcfg/"*
   echo -n "${target}" > "$rootfsdir/etc/rootcfg/target"
   echo -n "${device}" > "$rootfsdir/etc/rootcfg/device"
   mv -f "/tmp/bpir-rootfs/"* "$rootfsdir/etc/rootcfg"
+  [[ -d "/usr/share/buildR64arch" ]] && rootfs="/usr/share/buildR64arch" || rootfs="./rootfs"
+  cp   -vrfL "${rootfs}/keyring/"*          $rootfsdir
+  if   chroot "$rootfsdir" bash -c "command -v apt"    >/dev/null 2>&1; then
+    cp -vrfL "${rootfs}/skeleton-apt/"*     $rootfsdir
+  elif chroot "$rootfsdir" bash -c "command -v pacman" >/dev/null 2>&1; then
+    cp -vrfL "${rootfs}/skeleton-pacman/"* "$rootfsdir"
+  fi
 }
 
-function bootstrap {
-  trap ctrl_c INT
-  [ -d "$rootfsdir/etc" ] && return
-  PACKAGES+=" packages-${target}"
-  [ -d "/usr/share/buildR64arch" ] && rootfs="/usr/share/buildR64arch" || rootfs="./rootfs"
-  if [ "$distro" == "ubuntu" ]; then
-    [ "$d" = true ] && cdir="--cache-dir=$(realpath ./cachedir)" || cdir="--no-check-gpg"
-    until debootstrap "${cdir}" --arch=arm64 --no-check-gpg --components=$DEBOOTSTR_COMPNS \
+function setupresolv() {
+  [[ "$(realpath -q "${rootfsdir}/etc/resolv.conf")" == "/run/bpir-resolv.conf" ]] && return
+  rm -vf "$rootfsdir/etc/resolv.conf.backup" 2>/dev/null
+  mv -vf "$rootfsdir/etc/resolv.conf" "$rootfsdir/etc/resolv.conf.backup" 2>/dev/null
+  cp -vfLT "/etc/resolv.conf" "${rootfsdir}/run/bpir-resolv.conf"
+  ln -sT "/run/bpir-resolv.conf" "${rootfsdir}/etc/resolv.conf"
+  if [[ -z "$(cat "${rootfsdir}/run/bpir-resolv.conf" | grep -oP '^nameserver')" ]]; then
+    echo "nameserver 8.8.8.8" >> "${rootfsdir}/run/bpir-resolv.conf"
+  fi
+}
+
+function restoreresolv() {
+  [[ "$(realpath -q "${rootfsdir}/etc/resolv.conf")" != "/run/bpir-resolv.conf" ]] && return
+  rm -vf "$rootfsdir/etc/resolv.conf"
+  mv -vf "$rootfsdir/etc/resolv.conf.backup" "$rootfsdir/etc/resolv.conf" 2>/dev/null
+}
+
+function bootstrap() {
+  mountcachedir
+  if [[ "$distro" == "ubuntu" ]]; then
+    [[ "$optn_d" = true ]] && cdir="--cache-dir=$(realpath ./cachedir)" || cdir="--no-check-gpg"
+    until debootstrap "${cdir}" --arch=arm64 --no-check-gpg --components="${DEBOOTSTR_COMPNS}" \
                      --variant=minbase --include="${STRAP_PACKAGES_DEBIAN// /,}" \
-                     $DEBOOTSTR_RELEASE $rootfsdir $DEBOOTSTR_SOURCE
+                     --exclude="${STRAP_PACKAGES_EXCLUDE_DEBIAN// /,}" \
+                     "${DEBOOTSTR_RELEASE}" "${rootfsdir}" "${DEBOOTSTR_SOURCE}"
     do sleep 2; done
-    cp -vrfL "${rootfs}/keyring/"*      $rootfsdir
-    cp -vrfL "${rootfs}/skeleton-apt/"* $rootfsdir
     rootcfg
-    procsysrun
-    [ "$d" = true ] && cdir="-o Dir::Cache::Archives=/cachedir" || cdir="--yes"
-    until schroot DEBIAN_FRONTEND=noninteractive apt-get update -q ${cdir} --yes
+    mountdevrunprocsys # again, proc and sys get unmounted by debootstrap
+    [[ "$optn_d" = true ]] && cdir="-o Dir::Cache::Archives=/cachedir" || cdir="--yes"
+    until DEBIAN_FRONTEND=noninteractive chroot "$rootfsdir" apt-get update -q ${cdir} --yes
     do sleep 2; done
-    until schroot DEBIAN_FRONTEND=noninteractive apt-get install -q ${cdir} --yes $PACKAGES
+    if ! DEBIAN_FRONTEND=noninteractive chroot "$rootfsdir" apt-get reinstall --no-act --yes '~i'; then
+      echo "Check of packages has failed! Maybe gpg error?"
+      exit 1
+    fi
+    until DEBIAN_FRONTEND=noninteractive chroot "$rootfsdir" apt-get install -q ${cdir} --yes $PACKAGES
     do sleep 2; done
-  elif [ "$distro" == "alarm" ]; then
+    setupresolv
+    rm -vrf "$rootfsdir/var/lib/apt/lists/partial"
+  elif [[ "$distro" == "alarm" ]]; then
     downloadpkg "${ALARMREPOURL}" "ericwoud" "pacman-static"
     setuppacman "${ALARM_MIRROR}" "${arch}"
-    resolv
-    [ "$d" = true ] && cdir="--cachedir=/cachedir" || cdir="--noconfirm"
-    [ "$S" = true ] && sb="--disable-sandbox"      || sb="--noconfirm"
-    until schroot pacman-static -Syu "${cdir}" "${sb}" --noconfirm --needed --overwrite="*" $STRAP_PACKAGES_ALARM
+    setupresolv
+    [[ "$optn_d" = true ]] && cdir="--cachedir=/cachedir" || cdir="--noconfirm"
+    [[ "$optn_S" = true ]] && sb="--disable-sandbox"      || sb="--noconfirm"
+    until chroot "$rootfsdir" pacman-static -Syu "${cdir}" "${sb}" \
+                               --noconfirm --needed --overwrite="*" $STRAP_PACKAGES_ALARM
     do sleep 2; done
     rootcfg
-    procsysrun
-    cp -vrfL "${rootfs}/keyring/"*         $rootfsdir
-    cp -vrfL "${rootfs}/skeleton-pacman/"* $rootfsdir
-    schroot pacman-key --init
-    schroot pacman-key --populate archlinuxarm
-    schroot pacman-key --populate ericwoud
-    until schroot pacman -Qqn | \
-          schroot pacman -Syyu --noconfirm "${cdir}" "${sb}" --overwrite="*" $PACKAGES pacman-static -
+    [[ "$optn_d" = true ]] && cdir="--cachedir=/cachedir" || cdir="--noconfirm"
+    chroot "$rootfsdir" pacman-key --init
+    chroot "$rootfsdir" pacman-key --populate archlinuxarm
+    chroot "$rootfsdir" pacman-key --populate ericwoud
+    if !  chroot "$rootfsdir" pacman -Qqn | \
+          chroot "$rootfsdir" pacman -Syyu --noconfirm "${cdir}" "${sb}" --downloadonly -; then
+      echo "Check of packages has failed! Maybe gpg error?"
+      exit 1
+    fi
+    until chroot "$rootfsdir" pacman -Su --noconfirm "${cdir}" "${sb}" --overwrite="*" $PACKAGES pacman-static
     do sleep 2; done
   else
     echo "Unknown distro!"
     exit 1
   fi
+  restoreresolv
   sync
 }
 
-function uartbootbuild {
-  trap ctrl_c INT
-  schroot bpir-toolbox --uartboot
+function uartbootbuild() {
+  chroot "$rootfsdir" bpir-toolbox --uartboot
   mkdir -p ./uartboot
-  cp -vf "$rootfsdir/tmp/uartboot/"*".bin"  ./uartboot/
-  chown -R $SUDO_USER:nobody                ./uartboot/
-  schroot bpir-toolbox --nand-image
+  cp -vf "$rootfsdir/tmp/uartboot/"*".bin"            ./uartboot/
+  [[ "$optn_n" != true ]] && chown -R $SUDO_USER:nobody ./uartboot/
+  chroot "$rootfsdir" bpir-toolbox --nand-image
   mkdir -p ./nandimage
-  cp -vf "$rootfsdir/tmp/nandimage/"*".bin" ./nandimage/
-  chown -R $SUDO_USER:nobody                ./nandimage/
+  cp -vf "$rootfsdir/tmp/nandimage/"*".bin"           ./nandimage/
+  [[ "$optn_n" != true ]] && chown -R $SUDO_USER:nobody ./nandimage/
 }
 
-function chrootfs {
+function chrootfs() {
   echo "Entering chroot on image. Enter commands as if running on the target:"
   echo "Type <exit> to exit from the chroot environment."
-  schroot
+  mountcachedir
+  setupresolv
+  chroot "$rootfsdir" bash <&1
+  rm -vrf "$rootfsdir/var/lib/apt/lists/partial"
+  restoreresolv
 }
 
-function compressimage {
+function cleanupimage() {
   rm -f $IMAGE_FILE".xz" $IMAGE_FILE".gz"
-  rm -vrf $rootfsdir/tmp/*
-  rm -vrf $rootfsdir/var/cache/pacman/pkg/*
-  rm -vrf $rootfsdir/var/cache/apt/archives/*.deb
-  finish
-  if [ "$x" = true ]; then
-    xz   --keep --force --verbose $IMAGE_FILE
-    chown $SUDO_USER:nobody "${IMAGE_FILE}.xz"
+  rm -vrf "$rootfsdir/tmp/"*
+  rm -vrf "$rootfsdir/var/cache/pacman/pkg/"*
+  rm -vrf "$rootfsdir/var/cache/apt/archives/"*.deb
+  rm -vrf "$rootfsdir/var/lib/apt/lists/partial"
+}
+
+function compressimage() {
+  if [[ "$optn_x" = true ]]; then
+    zstd -kf -5 --sparse --format=xz $IMAGE_FILE
+    [[ "$optn_n" != true ]] && chown $SUDO_USER:nobody "${IMAGE_FILE}.xz"
   fi
-  if [ "$z" = true ]; then
-    dd if=$IMAGE_FILE status=progress | gzip >$IMAGE_FILE".gz"
-    chown $SUDO_USER:nobody "${IMAGE_FILE}.gz"
+  if [[ "$optn_z" = true ]]; then
+    zstd -kf -5 --sparse --format=gzip $IMAGE_FILE
+    [[ "$optn_n" != true ]] && chown $SUDO_USER:nobody "${IMAGE_FILE}.gz"
   fi
 }
 
-function backuprootfs {
+function backuprootfs() {
   tar -vcf "${BACKUPFILE}" -C $rootfsdir .
-  chown $SUDO_USER:nobody "${BACKUPFILE}"
+  [[ "$optn_n" != true ]] && chown $SUDO_USER:nobody "${BACKUPFILE}"
 }
 
-function restorerootfs {
-  if [ -z "$(ls $rootfsdir)" ] || [ "$(ls $rootfsdir)" = "boot" ]; then
+function restorerootfs() {
+  if [[ -z "$(ls $rootfsdir)" ]] || [[ "$(ls $rootfsdir)" = "boot" ]]; then
     tar -vxf "${BACKUPFILE}" -C $rootfsdir
     echo "Run ./build.sh and execute 'bpir-toolbox --write2atf' to write the" \
          "new atf-boot! Then type 'exit'."
@@ -286,58 +328,72 @@ function restorerootfs {
   fi
 }
 
-function add_children() {
-  [ -z "$1" ] && return || echo $1
-  for ppp in $(pgrep -P $1 2>/dev/null) ; do add_children $ppp; done
+function mountcachedir() {
+  if [[ "$optn_d" = true ]]; then
+    mkdir -p $rootfsdir/cachedir
+    mount --rbind --make-rslave ./cachedir  $rootfsdir/cachedir
+    [[ $? != 0 ]] && exit 1
+  fi
 }
 
-function schroot() {
-  if [ ! -x "$rootfsdir/bin/hostname" ]; then
-    unshare --fork --kill-child --pid --uts --root=$rootfsdir "${@}"
-  elif [[ -z "${*}" ]]; then
-    unshare --fork --kill-child --pid --uts --root=$rootfsdir su -c "hostname ${target};bash"
+function mountdevrunprocsys() {
+  mkdir -p $rootfsdir/dev $rootfsdir/run $rootfsdir/proc $rootfsdir/sys
+  if ! mountpoint -q $rootfsdir/dev; then
+    mount --rbind --make-rslave /dev  $rootfsdir/dev # install gnupg needs it
+    [[ $? != 0 ]] && exit 1
+  fi
+  if ! mountpoint -q $rootfsdir/run; then
+    mount /run  $rootfsdir/run  -t tmpfs -o nosuid,nodev,mode=0755
+    [[ $? != 0 ]] && exit 1
+  fi
+  if ! mountpoint -q $rootfsdir/proc; then
+    mount /proc $rootfsdir/proc -t proc -o nosuid,noexec,nodev
+    [[ $? != 0 ]] && exit 1
+  fi
+  if ! mountpoint -q $rootfsdir/sys; then
+    mount /sys  $rootfsdir/sys  --rbind --make-rslave
+    [[ $? != 0 ]] && exit 1
+  fi
+}
+
+function mountrootboot() {
+  if [[ "$optn_n" = true ]]; then
+    bootfsdir="${rootfsdir/-root/-boot}"
+    mkdir -p "$rootfsdir/boot" "$bootfsdir"
+    mount --bind "$rootfsdir" "$rootfsdir"
+    mount --bind "$bootfsdir" "$rootfsdir/boot"
   else
-    unshare --fork --kill-child --pid --uts --root=$rootfsdir su -c "hostname ${target};${*}"
+    mountdev=$(blkid -s PARTLABEL $(parts ${dev}) | grep -E 'PARTLABEL="bpir' | grep -E -- '-root"' | cut -d' ' -f1 | tr -d :)
+    bootdev=$( blkid -s PARTLABEL $(parts ${dev}) | grep -E 'PARTLABEL="'     | grep -E -- 'boot"'  | cut -d' ' -f1 | tr -d :)
+    echo "Mountdev = $mountdev"
+    echo "Bootdev  = $bootdev"
+    [[ -z "$mountdev" ]] && exit 1
+    if [[ "$rootdev" == "$(realpath $mountdev)" ]]; then
+      echo "Target device == Root device, exiting!"
+      exit 1
+    fi
+    umount $mountdev 2>/dev/null
+    mkdir -p $rootfsdir
+    [[ "$optn_b" = true ]] && ro=",ro" || ro=""
+    mount --source $mountdev --target $rootfsdir -o exec,dev,noatime,nodiratime$ro
+    [[ $? != 0 ]] && exit 1
+    if [[ ! -z "$bootdev" ]]; then
+      umount $bootdev 2>/dev/null
+      mkdir -p $rootfsdir/boot
+      mountoptions="rw,nosuid,nodev,noexec,relatime,nosymfollow,fmask=0077,dmask=0077,codepage=437"
+      mountoptions+=",iocharset=ascii,shortname=mixed,utf8,errors=remount-ro"
+      mount -t vfat "$bootdev" $rootfsdir/boot -o "${mountoptions}"
+      [[ $? != 0 ]] && exit 1
+    fi
   fi
 }
-
-function ctrl_c() {
-  echo "** Trapped CTRL-C, PID=$mainPID **"
-  if [ ! -z "$mainPID" ]; then
-    for pp in $(add_children $mainPID | sort -nr); do
-      kill -s SIGKILL $pp &>/dev/null
-    done
-  fi
-  trap - EXIT
-  finish
-  exit 1
-}
-
-function devpts() {
-  [ ! -d "$rootfsdir/dev" ] && mkdir $rootfsdir/dev
-  mount --rbind --make-rslave /dev  $rootfsdir/dev # install gnupg needs it
-  [[ $? != 0 ]] && exit
-  [ ! -d "$rootfsdir/dev/pts" ] && mkdir $rootfsdir/dev/pts
-  mount --rbind --make-rslave /dev/pts  $rootfsdir/dev/pts
-  [[ $? != 0 ]] && exit
-}
-
-function procsysrun() {
-  mount -t proc               /proc $rootfsdir/proc
-  [[ $? != 0 ]] && exit
-  mount --rbind --make-rslave /sys  $rootfsdir/sys
-  [[ $? != 0 ]] && exit
-  mount --rbind --make-rslave /run  $rootfsdir/run
-  [[ $? != 0 ]] && exit
-}
-
 
 function ask() {
   local a items count
-  if [ -z "${!1}" ]; then
+  if [[ -z "${!1}" ]]; then
     eval 'items=("${'"${2}"'[@]}")'
     eval 'count=${#'"${2}"'[@]}'
-    if [ ${count} -gt 1 ]; then
+    if [[ ${count} -gt 1 ]]; then
       PS3="${3} "; COLUMNS=1; echo
       select a in "${items[@]}" "Quit"; do
         (( REPLY > 0 && REPLY <= ${count} )) && break || exit 1
@@ -349,26 +405,107 @@ function ask() {
   fi
 }
 
-function usage {
+function add_children() {
+  [[ -z "$1" ]] && return
+  local p; echo $1; for p in $(pgrep -P $1 2>/dev/null) ; do add_children $p; done
+}
+
+function kill_children() {
+  if [[ ! -z "$1" ]]; then
+    local p pp=$(add_children $1 | sort -nr)
+    for p in $pp; do kill -s SIGKILL $p &>/dev/null; done
+    for p in $pp; do
+      wait -f $p 2>/dev/null
+      tail --pid=$p -f /dev/null # wait for all, even not a child
+    done
+  fi
+}
+
+function ctrl_c() {
+  echo "** Trapped CTRL-C, unshare PID=$unsharedpid **"
+  kill_children "$unsharedpid"
+  exit
+}
+
+function unsharefunction() {
+  [[ "$optn_n" = true ]] && local becomeroot="--map-root-user --map-auto" || local becomeroot=""
+  unshare $becomeroot --mount --fork --kill-child --pid --uts <<< "$(echo '#!/bin/bash'; type $1)" &
+  unsharedpid=$! ; wait -f $unsharedpid ; kill_children $unsharedpid; unset unsharedpid
+}
+
+function removeallnoroot() {
+  [[ -z "$rootfsdir" ]] && return
+  bootfsdir="${rootfsdir/-root/-boot}"
+  [[ -d "$rootfsdir" ]] && rm -rf "$rootfsdir"
+  [[ -d "$bootfsdir" ]] && rm -rf "$bootfsdir"
+}
+
+function removeallroot() {
+  read -p "Type <remove> to delete everything from the card: " prompt <&1
+  [[ $prompt != "remove" ]] && exit
+  (shopt -s dotglob; rm -rf $rootfsdir/*)
+}
+
+function setuproot() {
+  hostname ${target}
+  mountrootboot
+  if [[ "$optn_b" = true ]] ; then backuprootfs ; exit; fi
+  if [[ "$optn_B" = true ]] ; then restorerootfs; exit; fi
+  [[ "$optn_R" = true ]] && removeallroot
+  mountdevrunprocsys
+  [[ ! -d "$rootfsdir/etc" ]] && bootstrap
+  [[ "$optn_u" = true ]] && uartbootbuild
+  [[ "$optn_c" = true ]] && chrootfs
+  if [[ "$optn_i" = true ]] || [[ "$optn_x" = true ]] || [[ "$optn_z" = true ]]; then
+    cleanupimage
+  fi
+}
+
+function finish() {
+  trap 'true' INT
+  trap 'true' EXIT
+  echo Cleaning up...
+  rm -rf /tmp/bpir-rootfs 2>/dev/null
+  if [[ -v rootfsdir ]] && [[ -n "$rootfsdir" ]] && [[ -d "$rootfsdir" ]]; then
+    restoreresolv
+    rm -vrf "$rootfsdir/var/lib/apt/lists/partial"
+    [[ -d "$rootfsdir/cachedir" ]] && rm -rf "$rootfsdir/cachedir"
+    if [[ "$optn_n" != true ]]; then
+      [[ -d "./cachedir" ]] && chown -R $SUDO_USER:$SUDO_USER ./cachedir
+      rm -rf $rootfsdir
+    fi
+    sync
+    echo -e "Done. You can remove the card now.\n"
+  fi
+  if [[ -v loopdev ]] && [[ -n "$loopdev" ]]; then
+    losetup -d $loopdev
+  fi
+  unset loopdev
+  [[ -v noautomountrule ]] && rm -f $noautomountrule
+}
+
+function usage() {
  cat <<-EOF
 	Usage: $(basename "$0") [OPTION]...
 	  -F --format              format sd/emmc or image-file
-	  -l --loopdev             use image-file instead of sd-card
+	  -l --loopdev             create file using loopdev instead of sd-card
+	  -n --noroot              create file without root acces instead of sd-card
 	  -r --rootfs              setup rootfs on image
 	  -c --chroot              enter chroot on image
 	  -b --backup              backup rootfs
 	  -B --restore             restore rootfs
+	  -i --createimage         create bpir.img, when using --noroot
 	  -x --createxz            create bpir.img.xz
 	  -z --creategz            create bpir.img.gz
 	  -u --uartboot            create uartboot image
 	  -d --cachedir            store packages in cachedir
 	  -R --clearrootfs         empty rootfs
+	  -N --removenoroot        remove directories created with --noroot
 	  -S --disable-sandbox     disable sandbox for kernels not supporting landlock
 	  --imagefile [FILENAME]   image file name, default bpir.img
 	  --imagesize [FILESIZE]   image file size in Mib, default ${IMAGE_SIZE_MB}
 	  --rootstart [ROOTSTART]  sd/emmc: root partition start in MiB, default ${ROOT_START_MB}
 	  --rootend [ROOTEND]      sd/emmc: root partition end in MiB or %, default ${ROOT_END_MB}
-	  --erasesize [SIZE]       sd/emmc: erasesize in MiB, default ${SD_ERASE_SIZE_MB}
 	  --brlanip [default|IP]   ip for brlan
 	  --ddrsize [default|8]    ddr size in GB
 	  --setup [AP|RT|...]      setup for network
@@ -386,7 +523,7 @@ export LANGUAGE=C
 
 cd "$(dirname -- "$(realpath -- "${BASH_SOURCE[0]}")")"
 
-while getopts ":rlcbxzudRFBIS-:" opt $args; do
+while getopts ":rlcbxzudniRFBISN-:" opt $args; do
   if [[ "${opt}" == "?" ]]; then
     echo "Unknown option -$OPTARG"
     usage
@@ -394,9 +531,11 @@ while getopts ":rlcbxzudRFBIS-:" opt $args; do
     case "$OPTARG" in
       chroot) opt=c ;;
       loopdev) opt=l ;;
+      noroot) opt=n ;;
       rootfs) opt=r ;;
       backup) opt=b ;;
       restore) opt=B ;;
+      createimage) opt=i ;;
       createxz) opt=x ;;
       creategz) opt=z ;;
       uartboot) opt=u ;;
@@ -416,37 +555,45 @@ while getopts ":rlcbxzudRFBIS-:" opt $args; do
       target=*)           target="${OPTARG#*=}";;
       device)             device="${!OPTIND}"; ((OPTIND++));;
       device=*)           device="${OPTARG#*=}";;
-      imagefile)          IMAGE_FILE="${!OPTIND}"; ((OPTIND++));;
-      imagefile=*)        IMAGE_FILE="${OPTARG#*=}";;
-      imagesize)          IMAGE_SIZE_MB="${!OPTIND}"; ((OPTIND++));;
-      imagesize=*)        IMAGE_SIZE_MB="${OPTARG#*=}";;
-      rootstart)          ROOT_START_MB="${!OPTIND}"; ((OPTIND++));;
-      rootstart=*)        ROOT_START_MB="${OPTARG#*=}";;
-      rootend)            ROOT_END_MB="${!OPTIND}"; ((OPTIND++));;
-      rootend=*)          ROOT_END_MB="${OPTARG#*=}";;
-      erasesize)          SD_ERASE_SIZE_MB="${!OPTIND}"; ((OPTIND++));;
-      erasesize=*)        SD_ERASE_SIZE_MB="${OPTARG#*=}";;
+      imagefile)          export IMAGE_FILE="${!OPTIND}"; ((OPTIND++));;
+      imagefile=*)        export IMAGE_FILE="${OPTARG#*=}";;
+      imagesize)          export IMAGE_SIZE_MB="${!OPTIND}"; ((OPTIND++));;
+      imagesize=*)        export IMAGE_SIZE_MB="${OPTARG#*=}";;
+      rootstart)          export ROOT_START_MB="${!OPTIND}"; ((OPTIND++));;
+      rootstart=*)        export ROOT_START_MB="${OPTARG#*=}";;
+      rootend)            export ROOT_END_MB="${!OPTIND}"; ((OPTIND++));;
+      rootend=*)          export ROOT_END_MB="${OPTARG#*=}";;
       *)
         echo "Unknown option --$OPTARG"
         usage
         ;;
     esac
   fi
-  [[ "${opt}" != "-" ]] && declare "${opt}=true"
+  [[ "${opt}" != "-" ]] && declare "optn_${opt}=true" && export "optn_${opt}"
   ((argcnt++))
 done
 
-[ "$l" = true ] && ((argcnt--))
-[ "$d" = true ] && ((argcnt--))
-[ $argcnt -eq 0 ] && c=true
-if [ "$l" = true ]; then
-  if [ "$initrd" = true ]; then
+[[ "$optn_N" = true ]] && export optn_n=true
+if [[ "$optn_n" != true ]]; then
+  if [[ $USER != "root" ]] && [[ "$initrd" != true ]]; then
+    echo "Running as root user!"
+    sudo $0 ${@:1}
+    exit
+  fi
+fi
+
+[[ "$optn_l" = true ]] && ((argcnt--))
+[[ "$optn_n" = true ]] && ((argcnt--))
+[[ "$optn_d" = true ]] && ((argcnt--))
+[ $argcnt -eq 0 ] && export optn_c=true
+if [[ "$optn_l" = true ]]; then
+  if [[ "$initrd" = true ]]; then
     echo "Loopdev not supported in initrd!"
     exit 1
   fi
-  [ $argcnt -eq 0 ] && [ ! -f $IMAGE_FILE ] && F=true
+  [[ $argcnt -eq 0 ]] && [[ ! -f $IMAGE_FILE ]] && export optn_F=true
 fi
-[ "$F" = true ] && r=true
+[[ "$optn_F" = true ]] && export optn_r=true
 
 trap finish EXIT
 trap ctrl_c INT
@@ -460,8 +607,8 @@ echo "Compatible:" $compatible
 hostarch=$(uname -m)
 echo "Host Arch:" $hostarch
 
-if [ "$initrd" != true ]; then
-  if [ ! -f "/etc/arch-release" ]; then ### Ubuntu / Debian
+if [[ "$initrd" != true ]]; then
+  if [[ ! -f "/etc/arch-release" ]]; then ### Ubuntu / Debian
     for package in $SCRIPT_PACKAGES $SCRIPT_PACKAGES_DEBIAN; do
       [[ "$hostarch" == "aarch64" ]] && [[ "$package" =~ "qemu-user" ]] && continue
       if ! dpkg -l $package >/dev/null; then missing+=" $package"; fi
@@ -474,17 +621,17 @@ if [ "$initrd" != true ]; then
     done
     instcmd="sudo pacman -Syu $missing"
   fi
-  if [ ! -z "$missing" ]; then
+  if [[ ! -z "$missing" ]]; then
     echo -e "\nInstall these packages with command:\n${instcmd}\n"
-    exit
+    exit 1
   fi
   rootdevice=$(mount | grep -E '\s+on\s+/\s+' | cut -d' ' -f1)
   rootdev=$(lsblk -sprno name ${rootdevice} | tail -2 | head -1)
   echo "rootdev=$rootdev , do not use."
-  [ -z $rootdev ] && exit
+  [[ -z $rootdev ]] && exit 1
   pkroot=$(lsblk -srno name ${rootdevice} | tail -1)
   echo "pkroot=$pkroot , do not use."
-  [ -z $pkroot ] && exit
+  [[ -z $pkroot ]] && exit 1
 else
  rootdev="undefined"
  pkroot="undefined"
@@ -492,132 +639,117 @@ fi
 
 [ -f "config.sh" ] && source config.sh
 
-if [ "$F" = true ]; then
+if [[ "$optn_F" = true ]]; then
   ask target TARGETS "Choose target to format image for:"
   setupenv # Now that target is known.
   ask device devices "Choose device to format image for:"
-  if [ "$l" = true ]; then
-    [ ! -f $IMAGE_FILE ] && touch $IMAGE_FILE
+  if [[ "$optn_l" = true ]]; then
+    [[ ! -f $IMAGE_FILE ]] && touch $IMAGE_FILE
     loopdev=$(losetup --show --find $IMAGE_FILE 2>/dev/null)
     echo "Loop device = $loopdev"
     dev=$loopdev
+  elif [[ "$optn_n" = true ]]; then
+    dev="none"
   else
     readarray -t devs < <(lsblk -dprno name,size \
        | grep -v "^/dev/"${pkroot} | grep -v 'boot0 \|boot1 \|boot2 ')
     ask dev devs "Choose device to format:"
   fi
 else
-  if [ "$l" = true ]; then
+  if [[ "$optn_l" = true ]]; then
     loopdev=$(losetup --show --find $IMAGE_FILE)
     echo "Loop device = $loopdev"
     partprobe $loopdev; udevadm settle
     dev=$loopdev
+  elif [[ "$optn_n" = true ]]; then
+    dev="none"
   else
     readarray -t devs < <(blkid -s PARTLABEL | \
         grep -E 'PARTLABEL="bpir' | grep -E -- '-root"' | grep -v ${pkroot} | grep -v 'boot0$\|boot1$\|boot2$')
     ask dev devs "Choose device to work on:"
     dev=$(lsblk -npo pkname ${dev/:/})
   fi
-  pr=$(blkid -s PARTLABEL $(parts ${dev})| grep -E 'PARTLABEL="bpir' | grep -E -- '-root"' | cut -d'"' -f2)
-  target=$(echo $pr | cut -d'-' -f1)
-  device=$(echo $pr | cut -d'-' -f2)
+  if [[ "$dev" != "none" ]]; then
+    pr=$(blkid -s PARTLABEL $(parts ${dev})| grep -E 'PARTLABEL="bpir' | grep -E -- '-root"' | cut -d'"' -f2)
+    target=$(echo $pr | cut -d'-' -f1)
+    device=$(echo $pr | cut -d'-' -f2)
+  else
+    readarray -t dirs < <(ls -1a -d bpir*-*-*-root)
+    ask rootfsdir dirs "Choose directory to work on:"
+    rootfsdir="$(realpath "$rootfsdir")"
+    target=$(cat "$rootfsdir/etc/rootcfg/target" 2>/dev/null)
+    device=$(cat "$rootfsdir/etc/rootcfg/device" 2>/dev/null)
+  fi
 fi
 echo -e "Dev=${dev}\nTarget=${target}\ndevice="${device}
-[ -z "${dev}" ] && exit
-[ -z "${target}" ] && exit
-[ -z "${device}" ] && exit
+[ -z "${dev}" ] && exit 1
 
-setupenv # Now that target and device are known.
+export -f $(typeset -F | cut -d' ' -f 3)
+export arch target device dev
 
-if [ "$r" = true ]; then
-  if [ "$F" = true ]; then
-    ask distro DISTROS "Choose distro to create root for:"
-    echo "Distro="${distro}
+if [[ -n "${target}" ]] && [[ -n "${device}" ]]; then
+  setupenv # Now that target and device are known.
+  if [[ "$optn_r" = true ]]; then
+    if [[ "$optn_F" = true ]]; then
+      ask distro DISTROS "Choose distro to create root for:"
+      echo "Distro="${distro}
+    fi
+    rm -f "/tmp/bpir-rootfs.txt"
+    rootfsargs=(--menuonly --target "${target}"   --device "${device}"
+                           --ddrsize "${ddrsize}" --setup "${setup}" --brlanip "${brlanip}")
+    if command -v bpir-rootfs >/dev/null 2>&1 ; then
+      bpir-rootfs "${rootfsargs[@]}"
+    elif [[ -f "./rootfs/bin/bpir-rootfs" ]]; then
+      ./rootfs/bin/bpir-rootfs "${rootfsargs[@]}"
+    else echo "bpir-rootfs no found!"; exit 1
+    fi
   fi
-  rm -f "/tmp/bpir-rootfs.txt"
-  rootfsargs="--menuonly --target '${target}' --device '${device}' --ddrsize '${ddrsize}' --setup '${setup}' --brlanip '${brlanip}'"
-  if command -v bpir-rootfs >/dev/null 2>&1 ; then
-    xargs -a <(echo -n "${rootfsargs}") bpir-rootfs
-  elif [ -f "./rootfs/bin/bpir-rootfs" ]; then
-    xargs -a <(echo -n "${rootfsargs}") ./rootfs/bin/bpir-rootfs
-  else
-    echo "bpir-rootfs no found!"
-    exit 1
+  # Check if 'config.sh' exists.  If so, source that to override default values.
+  [[ -f "config.sh" ]] && source config.sh
+  if [[ "$optn_l" = true ]] && [[ $(stat --printf="%s" $IMAGE_FILE) -eq 0 ]]; then
+    dd if=/dev/zero of=${IMAGE_FILE} bs=1 count=0 seek=${IMAGE_SIZE_MB}M
+    losetup --set-capacity ${dev}
   fi
+  if [[ "$initrd" != true ]] && [[ "$optn_n" != true ]]; then
+    mkdir -p "/run/udev/rules.d"
+    noautomountrule="/run/udev/rules.d/10-no-automount-bpir.rules"
+    echo 'KERNELS=="'${dev/"/dev/"/""}'", ENV{UDISKS_IGNORE}="1"' > $noautomountrule
+  fi
+  if [[ -z "$rootfsdir" ]]; then
+    if [[ "$optn_n" = true ]]; then
+      rootfsdir="$(realpath ${target}-${device}-${distro}-root)"
+    else
+      rootfsdir="/tmp/bpirootfs.$$"
+    fi
+  fi
+  echo "Rootfsdir="$rootfsdir
+  export rootfsdir distro
+  if [[ "$optn_d" = true ]]; then
+    mkdir -p ./cachedir
+    if [[ "$optn_n" != true ]]; then
+      chmod -R 755                   ./cachedir
+      chown -R $SUDO_USER:$SUDO_USER ./cachedir
+    fi
+  fi
+
+  [[ "$optn_F" = true ]] && unsharefunction formatimage
+
+  unsharefunction setuproot
+  rm -rf "$rootfsdir/cachedir"
 fi
 
-# Check if 'config.sh' exists.  If so, source that to override default values.
-[ -f "config.sh" ] && source config.sh
+finish
 
-if [ "$l" = true ] && [ $(stat --printf="%s" $IMAGE_FILE) -eq 0 ]; then
-  echo -e "\nCreating image file..."
-  dd if=/dev/zero of=$IMAGE_FILE bs=1M count=$IMAGE_SIZE_MB status=progress conv=notrunc,fsync
-  losetup --set-capacity ${dev}
+if [[ "$optn_n" = true ]] && [[ "$optn_i" = true ]]; then
+  unsharefunction createimage
 fi
 
-if [ "$initrd" != true ]; then
-  mkdir -p "/run/udev/rules.d"
-  noautomountrule="/run/udev/rules.d/10-no-automount-bpir.rules"
-  echo 'KERNELS=="'${dev/"/dev/"/""}'", ENV{UDISKS_IGNORE}="1"' | tee $noautomountrule
+if [[ "$optn_N" = true ]] ; then
+  echo "Removing noroot directories..."
+  unsharefunction removeallnoroot
 fi
 
-if [ "$F" = true ]; then
-  formatimage
-fi
-
-mountdev=$(blkid -s PARTLABEL $(parts ${dev}) | grep -E 'PARTLABEL="bpir' | grep -E -- '-root"' | cut -d' ' -f1 | tr -d :)
-bootdev=$( blkid -s PARTLABEL $(parts ${dev}) | grep -E 'PARTLABEL="'     | grep -E -- 'boot"'  | cut -d' ' -f1 | tr -d :)
-echo "Mountdev = $mountdev"
-echo "Bootdev  = $bootdev"
-[ -z "$mountdev" ] && exit
-
-if [ "$rootdev" == "$(realpath $mountdev)" ]; then
-  echo "Target device == Root device, exiting!"
-  exit
-fi
-
-rootfsdir="/tmp/bpirootfs.$$"
-echo "Rootfsdir="$rootfsdir
-
-umount $mountdev
-mkdir -p $rootfsdir
-[ "$b" = true ] && ro=",ro" || ro=""
-mount --source $mountdev --target $rootfsdir \
-            -o exec,dev,noatime,nodiratime$ro
-[[ $? != 0 ]] && exit
-if [ ! -z "$bootdev" ]; then
-  umount $bootdev
-  mkdir -p $rootfsdir/boot
-  mountoptions="rw,nosuid,nodev,noexec,relatime,nosymfollow,fmask=0077,dmask=0077,codepage=437,iocharset=ascii,shortname=mixed,utf8,errors=remount-ro"
-  mount -t vfat "$bootdev" $rootfsdir/boot -o "${mountoptions}"
-  [[ $? != 0 ]] && exit
-fi
-
-if [ "$b" = true ] ; then backuprootfs ; exit; fi
-if [ "$B" = true ] ; then restorerootfs; exit; fi
-
-if [ "$R" = true ] ; then
-  read -p "Type <remove> to delete everything from the card: " prompt
-  [[ $prompt != "remove" ]] && exit
-  (shopt -s dotglob; rm -rf $rootfsdir/*)
-  exit
-fi
-
-devpts
-if [ "$d" = true ]; then
-  mkdir -p ./cachedir $rootfsdir/cachedir
-  mount --rbind --make-rslave ./cachedir  $rootfsdir/cachedir
-  [[ $? != 0 ]] && exit
-fi
-if [ "$r" = true ]; then bootstrap &
-  mainPID=$! ; wait $mainPID ; unset mainPID
-fi
-procsysrun
-if [ "$u" = true ]; then uartbootbuild &
-  mainPID=$! ; wait $mainPID ; unset mainPID
-fi
-[ "$c" = true ] && chrootfs
-if [ "$x" = true ] || [ "$z" = true ]; then
+if [[ "$optn_x" = true ]] || [[ "$optn_z" = true ]]; then
   compressimage
 fi
 
