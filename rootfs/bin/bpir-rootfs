@@ -32,9 +32,8 @@ while [ "${1:-}" != '' ]; do
 	  -s --setup [AP|RT|...]                  specify setup for network
 	  -t --target [bpir64|bpir3|bpir3m|bpir4] specify target
 	     --device [sdmmc|emmc|nvme|sata]      specify device
-	  -S --disable-sandbox     disable pacman sandbox download
-	  -n --noask               don't ask to alter rootfs and reset passwords and root access
 	  -u --adduser [USER]      add user named USER
+	  -n --noask               don't ask to alter rootfs and reset passwords and root access
 	  -m --menuonly            menu only
 	EOF
     exit 1
@@ -146,7 +145,7 @@ function setupMACconfig {
   done
 }
 
- if [ ! -f "/etc/arch-release" ]; then ### Ubuntu / Debian
+if [ ! -f "/etc/arch-release" ]; then ### Ubuntu / Debian
   sshd="ssh"
   wheel="sudo"
   groups="audio,games,lp,video,$wheel"
