@@ -284,6 +284,19 @@ function uartbootbuild() {
   [[ "$optn_n" != true ]] && chown -R $SUDO_USER:nobody ./nandimage/
 }
 
+function bpirrootfs() {
+  [[ "$optn_r" != true ]] && return
+  rm -f "/tmp/bpir-rootfs.txt"
+  rootfsargs=("$@" --target "${target}"   --device "${device}"
+                   --ddrsize "${ddrsize}" --setup "${setup}" --brlanip "${brlanip}")
+  if [[ -f "$rootfsdir/bin/bpir-rootfs" ]]; then
+    chroot "$rootfsdir" bpir-rootfs "${rootfsargs[@]}"
+  elif [[ -f "./rootfs/bin/bpir-rootfs" ]]; then
+    ./rootfs/bin/bpir-rootfs "${rootfsargs[@]}"
+  else echo "bpir-rootfs no found!"; exit 1
+  fi
+}
+
 function chrootfs() {
   echo "Entering chroot on image. Enter commands as if running on the target:"
   echo "Type <exit> to exit from the chroot environment."
@@ -453,7 +466,7 @@ function setuproot() {
   if [[ "$optn_B" = true ]] ; then restorerootfs; exit; fi
   [[ "$optn_R" = true ]] && removeallroot
   mountdevrunprocsys
-  [[ ! -d "$rootfsdir/etc" ]] && bootstrap
+  [[ ! -d "$rootfsdir/etc" ]] && bootstrap || bpirrootfs "--noask"
   [[ "$optn_u" = true ]] && uartbootbuild
   [[ "$optn_c" = true ]] && chrootfs
   if [[ "$optn_i" = true ]] || [[ "$optn_x" = true ]] || [[ "$optn_z" = true ]]; then
@@ -698,15 +711,7 @@ if [[ -n "${target}" ]] && [[ -n "${device}" ]]; then
       ask distro DISTROS "Choose distro to create root for:"
       echo "Distro="${distro}
     fi
-    rm -f "/tmp/bpir-rootfs.txt"
-    rootfsargs=(--menuonly --target "${target}"   --device "${device}"
-                           --ddrsize "${ddrsize}" --setup "${setup}" --brlanip "${brlanip}")
-    if command -v bpir-rootfs >/dev/null 2>&1 ; then
-      bpir-rootfs "${rootfsargs[@]}"
-    elif [[ -f "./rootfs/bin/bpir-rootfs" ]]; then
-      ./rootfs/bin/bpir-rootfs "${rootfsargs[@]}"
-    else echo "bpir-rootfs no found!"; exit 1
-    fi
+    bpirrootfs "--menuonly"
   fi
   # Check if 'config.sh' exists.  If so, source that to override default values.
   [[ -f "config.sh" ]] && source config.sh
@@ -727,7 +732,7 @@ if [[ -n "${target}" ]] && [[ -n "${device}" ]]; then
     fi
   fi
   echo "Rootfsdir="$rootfsdir
-  export rootfsdir distro
+  export rootfsdir distro ddrsize setup brlanip
   if [[ "$optn_d" = true ]]; then
     mkdir -p ./cachedir
     if [[ "$optn_n" != true ]]; then
