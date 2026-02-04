@@ -304,26 +304,31 @@ After building use `--chroot` (with --loopdev) to enter the image and do some mo
 
 ## Custom commands available from board in linux and initramfs or chroot (and uartboot):
 ```text
-Usage: bpir-toolbox [OPTION]...
-  --default-bootcfg        Restore default bootcfg, adds --write2fip
-  --fip2boot               Convert fip partition to boot partition bootchain (sd/emmc)
-  --boot2fip               Convert boot partition to fip partition bootchain (sd/emmc)
-  --download2root          Download files needed for nand-image (when started from initrd)
-  --nand-force-erase       Force erase nand, including bad blocks and wear history
-  --nand-format            Format the nand, also runs update
-  --nand-image             Create nand image, also runs update
-  --nand-update            Updates all files on nand, only writes when needed
-  --write2dtb              Combine dtbos with dtb and create one dtb file
-  --write2atf              Write arm-trusted-firmware
-  --write2fip              Create all files needed for fip and write it, adds --write2dtb
-  --write2extlinux         Create a new /boot/extlinux/extlinux.conf
-  --uboot-install          Copies U-Boot to /boot/u-boot.bin (writes to fip if necessary),
-                             also creates /boot/extlinux/extlinux.conf if not present
-  --uboot-remove           Removes /boot/u-boot.bin
-  --uartboot               Create a uartboot image
-  --pkgbase ...            Specify linuxpkg to create files for
-  --set-atf-linuxpkg       Set linuxpkg atf will directly boot, specified in pkgbase
-  --remove-dtb             Remove dtb file
+Usage: bpir-build [OPTION]...
+  -F --format              format sd/emmc or image-file
+  -l --loopdev             create file using loopdev instead of sd-card
+  -n --noroot              create file without root acces instead of sd-card
+  -r --rootfs              setup rootfs on image
+  -c --chroot              enter chroot on image
+  -b --backup              backup rootfs
+  -B --restore             restore rootfs
+  -i --createimage         create bpir.img, when using --noroot
+  -x --createxz            create bpir.img.xz
+  -z --creategz            create bpir.img.gz
+  -u --uartboot            create uartboot image
+  -d --cachedir            store packages in cachedir
+  -R --clearrootfs         empty rootfs
+  -N --removenoroot        remove directories created with --noroot
+  -S --disable-sandbox     disable sandbox for kernels not supporting landlock
+  --imagefile [FILENAME]   image file name, default bpir.img
+  --imagesize [FILESIZE]   image file size in Mib, default 7456
+  --rootstart [ROOTSTART]  sd/emmc: root partition start in MiB, default 256
+  --rootend [ROOTEND]      sd/emmc: root partition end in MiB or %, default 100%
+  --brlanip [default|IP]   ip for brlan
+  --ddrsize [default|8]    ddr size in GB
+  --setup [AP|RT|...]      setup for network
+  --target [bpir64|bpir3|bpir3m|bpir4]   specify target
+  --device [sdmmc|emmc|nvme|sata]        specify device
 ```
 ```text
 Usage: bpir-rootfs [OPTION]...
