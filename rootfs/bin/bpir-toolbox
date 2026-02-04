@@ -300,6 +300,15 @@ function download {
   return 0
 }
 
+function finddtbfile {
+  local                 file="/boot/dtbs/${1}/mediatek/${2}"
+  [ ! -f "${file}" ] && file="/boot/dtbs/${1}/${2}"
+  [ ! -f "${file}" ] && file="/boot/dtbs/mediatek/${2}"
+  [ ! -f "${file}" ] && file="/boot/dtbs/${2}"
+  [ ! -f "${file}" ] && return
+  echo "$file"
+}
+
 #################
 # Set variables #
 #################
@@ -417,9 +426,7 @@ checkbootconf initrd
 checkbootconf atfdtb
 
 dtb=$(getconf root r dtb "${default_dtb}")
-dtbfile="/boot/dtbs/${pkgbase}/${dtb}.dtb"
-[ ! -f "${dtbfile}" ] && dtbfile="/boot/dtbs/mediatek/${dtb}.dtb"
-[ ! -f "${dtbfile}" ] && dtbfile="/boot/dtbs/${dtb}.dtb"
+dtbfile=$(finddtbfile "${pkgbase}" "${dtb}.dtb")
 [ ! -f "${dtbfile}" ] && exit 1
 default_atfdtb="${dtbfile%.dtb}-atf.dtb"
 
@@ -629,7 +636,7 @@ fi
 #####################
 if [ -n "$write2dtb" ]; then
   rm -v /boot/dtbos/*.dtbo /boot/dtbs/*-fixed.dtb 2>/dev/null # not used anymore
-  write_dtb "${atfdtb}" \
+  write_dtb "${atfdtb/${linuxpkg}/${pkgbase}}" \
             "root=PARTLABEL=${target}-${device}-root" \
             "${dtbfile}" \
             /boot/dtbos/*.dts
