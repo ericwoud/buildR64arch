@@ -373,15 +373,15 @@ Usage: bpir-toolbox [OPTION]...
 ```
 ```text
 Usage: bpir-rootfs [OPTION]...
-  -b --bpirtoolbox [ARGS]                 specify arguments for bpir-toolbox
   -i --brlanip [IP]                       specify ip for brlan
   -d --ddrsize [default|8]                specify ddr size
   -s --setup [AP|RT|...]                  specify setup for network
   -t --target [bpir64|bpir3|bpir3m|bpir4] specify target
-  -a --atfdevice [sdmmc|emmc|nvme|sata]   specify device
+     --device [sdmmc|emmc|nvme|sata]      specify device
   -S --disable-sandbox     disable pacman sandbox download
+  -n --noask               don't ask to alter rootfs and reset passwords and root access
+  -u --adduser [USER]      add user named USER
   -m --menuonly            menu only
-  -c --configonly          setup the rootfs only
 ```
 `bpir-rootfs` is menu-driven, arguments can be used instead.
 ```text
