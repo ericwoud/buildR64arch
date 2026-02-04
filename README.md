@@ -20,7 +20,7 @@ It is also possible to build/alter a package yourself using `makepkg` (and `make
 Basic settings are prompted for, when running the script. Other tweaks can be written to config.sh in the
 same directory as the script. There the environment variables can be set, that will override the default settings.
 
-The script is in development and uses sudo. Any bug may possibly delete everything permanently!
+The script is in development and uses sudo. Any bug may possibly delete everything permanently! Only using the `--noroot` option, an image can be build without root access.
 
 USE AT YOUR OWN RISK!!!
 
