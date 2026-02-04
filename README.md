@@ -87,6 +87,53 @@ For standard access point setup.
 
 After this, you are on your own. It is supposed to be a minimal installation of Arch Linux.
 
+## Building image file instead of building directly on device
+
+Using the `-l | --loopdev` option uses a loopdevice instead of the real device, but this still needs root access.
+
+Now with the -n | --noroot option, the script builds root and boot directories, no root access is needed. The user is mapped to the root user in a namespace.
+
+Adding `-F | --format` the image is formatted, or the directories cleared.
+
+Adding `-i | --createimage` an image is created from them.
+
+Adding `-z | --creategz` the image file is compressed.
+
+So:
+
+```p
+./build.sh --noroot --format --createimage --creategz
+```
+Or in short:
+```p
+./build.sh -nFiz
+```
+You can use the menu to choose the rest of the options.
+Or choose all options from commandline:
+```p
+./build.sh -nFiz --target=bpir3 --device=sdmmc --ddrsize=default --setup=RT --distro=alarm --brlanip=default --cachedir --disable-sandbox
+```
+Deleting the special root and boot directories, without using sudo, may run into permission issues. Use:
+```p
+./build.sh -N
+```
+To remove them.
+
+Also you can first create:
+```p
+./build.sh -nF
+```
+Then:
+```p
+./build.sh -n --chroot
+```
+To enter it with chroot and mapped to the root user, make some changes, exit with `exit` command.
+
+Then create bpir.img.gz
+```p
+./build.sh -niz
+```
+
 ## Ubuntu instead of ArchLinuxARM (EXPERIMENTAL)
 
 It is possible to build an image with Ubuntu instead. Any executables within my custom packages are build as static binaries, so they can be executed independantly of os.
