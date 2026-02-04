@@ -653,12 +653,13 @@ fi
 # Remove boot files #
 #####################
 if [ -n "$clean_boot" ]; then
-  rm -vf  "/boot/Image-${pkgbase}"    2>/dev/null
-  rm -vf  "/boot/Image-${pkgbase}.gz" 2>/dev/null
-  rm -vf  "/boot/config-${unamer}"      2>/dev/null
-  rm -vf  "/boot/System.map-${unamer}"  2>/dev/null
-  rm -vf  "/boot/"*"${unamer}.itb"      2>/dev/null
-  rm -vfr "/boot/dtbs/${pkgbase}"     2>/dev/null
+  rm -vf  "/boot/Image-${pkgbase}"         2>/dev/null
+  rm -vf  "/boot/Image-${pkgbase}.gz"      2>/dev/null
+  rm -vf  "/boot/config-${unamer}"         2>/dev/null
+  rm -vf  "/boot/System.map-${unamer}"     2>/dev/null
+  rm -vf  "/boot/"*"${unamer}.itb"         2>/dev/null
+  rm -vfr "/boot/dtbs/${pkgbase}"          2>/dev/null
+  rm -vfr "/boot/dtbs/mediatek/${pkgbase}" 2>/dev/null
 fi
 
 
