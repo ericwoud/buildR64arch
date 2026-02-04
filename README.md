@@ -101,36 +101,38 @@ Adding `-z | --creategz` the image file is compressed.
 
 So:
 
-```p
+```text
 ./build.sh --noroot --format --createimage --creategz
 ```
 Or in short:
-```p
+```text
 ./build.sh -nFiz
 ```
 You can use the menu to choose the rest of the options.
 Or choose all options from commandline:
-```p
+```text
 ./build.sh -nFiz --target=bpir3 --device=sdmmc --ddrsize=default --setup=RT --distro=alarm --brlanip=default --cachedir --disable-sandbox
 ```
 Deleting the special root and boot directories, without using sudo, may run into permission issues. Use:
-```p
+```text
 ./build.sh -N
 ```
 To remove them.
 
-Also you can first create:
-```p
+## Using chroot to change image before final creation
+
+First create root filesystem:
+```text
 ./build.sh -nF
 ```
 Then:
-```p
+```text
 ./build.sh -n --chroot
 ```
 To enter it with chroot and mapped to the root user, make some changes, exit with `exit` command.
 
 Then create bpir.img.gz
-```p
+```text
 ./build.sh -niz
 ```
 
