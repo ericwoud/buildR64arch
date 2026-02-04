@@ -396,6 +396,7 @@ if [ -n "$default_bootcfg" ]; then
 fi
 
 if [ -n "$set_atf_linuxpkg" ] && [ -n "$pkgbase" ]; then
+  # bootcfg already cleared
   default_linuxpkg="${pkgbase}"
 fi
 
