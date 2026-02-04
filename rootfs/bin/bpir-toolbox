@@ -237,7 +237,7 @@ function write_extlinux {
 	DEFAULT ${linuxpkg}
 	  MENU TITLE U-Boot menu
 	  PROMPT 0
-	  TIMEOUT 50
+	  TIMEOUT 30
 	EOF
   for pkgb in $(shopt -s nullglob; for f in /lib/modules/*/pkgbase ; do cat $f; echo; done | xargs); do
     cat <<-EOF | tee "$1"
