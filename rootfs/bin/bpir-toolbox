@@ -58,6 +58,7 @@ done
 
 extlinux="/boot/extlinux/extlinux.conf"
 
+[ -n "$set_atf_linuxpkg" ] && [ -n "$pkgbase" ] && default_bootcfg=1
 [ -n "$uboot_install" ]    && write2fip=1
 [ -n "$uboot_remove" ]     && write2fip=1
 [ -n "$default_bootcfg" ]  && write2fip=1
@@ -395,7 +396,6 @@ if [ -n "$default_bootcfg" ]; then
 fi
 
 if [ -n "$set_atf_linuxpkg" ] && [ -n "$pkgbase" ]; then
-  rm -vf /boot/bootcfg/linuxpkg /boot/bootcfg/linux /boot/bootcfg/initrd /boot/bootcfg/atfdtb
   default_linuxpkg="${pkgbase}"
 fi
 
