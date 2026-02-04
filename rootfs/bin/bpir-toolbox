@@ -647,7 +647,7 @@ fi
 # Remove single dtb #
 #####################
 if [ -n "$remove_dtb" ]; then
-  rm -vf "${dtbfile}"
+  rm -vf "${atfdtb/${linuxpkg}/${pkgbase}}"
 fi
 
 #####################
