@@ -9,6 +9,15 @@ ddrsize=$(cat /etc/rootcfg/ddrsize 2>/dev/null | xargs)
 setup=$(cat   /etc/rootcfg/setup   2>/dev/null | xargs)
 brlanip=$(cat /etc/rootcfg/brlanip 2>/dev/null | xargs)
 
+if [ -z "${target}" ] || [ -z "${device}" ]; then
+  rootdev=$(lsblk -pilno name,type,mountpoint | grep -G 'part /$' | head -n1 | cut -d " " -f1)
+  [ -z "$rootdev" ] && exit 1
+  partlabelroot=$(blkid $rootdev -s PARTLABEL -o value)
+  [ -z "$partlabelroot" ] && exit 1
+  target=$(echo $partlabelroot    | cut -d'-' -f1)
+  device=$(echo $partlabelroot | cut -d'-' -f2)
+fi
+
 while [ "${1:-}" != '' ]; do
   case "$1" in
   '-i' | '--brlanip')   shift;   brlanip="${1}"        ;;
@@ -42,14 +51,8 @@ while [ "${1:-}" != '' ]; do
   shift
 done
 
-if [ -z "${target}" ] || [ -z "${device}" ]; then
-  rootdev=$(lsblk -pilno name,type,mountpoint | grep -G 'part /$' | head -n1 | cut -d " " -f1)
-  [ -z "$rootdev" ] && exit 1
-  partlabelroot=$(blkid $rootdev -s PARTLABEL -o value)
-  [ -z "$partlabelroot" ] && exit 1
-  target=$(echo $partlabelroot    | cut -d'-' -f1)
-  device=$(echo $partlabelroot | cut -d'-' -f2)
-fi
+[ -z "${target}" ] && exit 1
+[ -z "${device}" ] && exit 1
 
 case ${target} in
   bpir64)
