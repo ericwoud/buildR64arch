@@ -20,6 +20,14 @@ if [ -z "${target}" ] || [ -z "${device}" ]; then
   fi
 fi
 
+function cannotchange() {
+  if   [[ -z "$1" ]]; then echo "$2"
+  elif [[ -z "$2" ]]; then echo "$1"
+  elif [[ "$1" == "$2" ]]; then echo "$1"
+  else echo "Cannot change $1 to $2" >&2
+  fi
+}
+
 while [ "${1:-}" != '' ]; do
   case "$1" in
   '-i' | '--brlanip')   shift;   brlanip="${1}"        ;;
@@ -28,10 +36,10 @@ while [ "${1:-}" != '' ]; do
          '--ddrsize'=*)          ddrsize="${1#*=}"     ;;
   '-s' | '--setup')     shift;   setup="${1}"          ;;
          '--setup'=*)            setup="${1#*=}"       ;;
-  '-t' | '--target')    shift;   target="${1}"         ;;
-         '--target'=*)           target="${1#*=}"      ;;
-  '-a' | '--device') shift;      device="${1}"         ;;
-         '--device'=*)           device="${1#*=}"      ;;
+  '-t' | '--target')    shift;   target="$(cannotchange "$target" "${1}")"    ;;
+         '--target'=*)           target="$(cannotchange "$target" "${1#*=}")" ;;
+  '-a' | '--device') shift;      device="$(cannotchange "$device" "${1}")"    ;;
+         '--device'=*)           device="$(cannotchange "$device" "${1#*=}")" ;;
   '-u' | '--adduser') shift;     adduser="${1}"        ;;
          '--adduser'=*)          adduser="${1#*=}"     ;;
   '-n' | '--noask')              noask=1               ;;
