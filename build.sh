@@ -649,8 +649,8 @@ if [[ "$initrd" != true ]]; then
   echo "pkroot=$pkroot , do not use."
   [[ -z $pkroot ]] && exit 1
 else
- rootdev="undefined"
- pkroot="undefined"
+  rootdev="undefined"
+  pkroot="undefined"
 fi
 
 [ -f "config.sh" ] && source config.sh
@@ -744,7 +744,6 @@ if [[ -n "${target}" ]] && [[ -n "${device}" ]]; then
   [[ "$optn_F" = true ]] && unsharefunction formatimage
 
   unsharefunction setuproot
-  rm -rf "$rootfsdir/cachedir"
 fi
 
 finish
