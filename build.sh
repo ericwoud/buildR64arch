@@ -420,16 +420,19 @@ function ask() {
 
 function add_children() {
   [[ -z "$1" ]] && return
-  local p; echo $1; for p in $(pgrep -P $1 2>/dev/null) ; do add_children $p; done
+  echo $1
+  local p; for p in $(pgrep -P $1 2>/dev/null) ; do add_children $p; done
 }
 
 function kill_children() {
   if [[ ! -z "$1" ]]; then
-    local p pp=$(add_children $1 | sort -nr)
-    for p in $pp; do kill -s SIGKILL $p &>/dev/null; done
-    for p in $pp; do
-      wait -f $p 2>/dev/null
-      tail --pid=$p -f /dev/null # wait for all, even not a child
+    local p q
+    for q in 1 2; do
+      for p in $(add_children $1); do
+        kill -s SIGKILL $p &>/dev/null
+        wait -f $p 2>/dev/null
+        tail --pid=$p -f /dev/null # wait for all, even not a child
+      done
     done
   fi
 }
