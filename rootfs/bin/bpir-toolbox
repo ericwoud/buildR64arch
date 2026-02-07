@@ -519,8 +519,8 @@ if [ -n "$nand_update" ]; then
   write_dtb "${tmp}/atf.dtb" \
             "root=" \
             "${dtbfile}" \
-	    "/usr/share/buildR64arch/boot/${target^^}/"*".dts" \
-	    "/usr/share/buildR64arch/boot/${target^^}-NAND/"*".dts"
+            "/usr/share/buildR64arch/boot/${target^^}/"*".dts" \
+            "/usr/share/buildR64arch/boot/${target^^}-NAND/"*".dts"
   write_extlinux "${tmp}/extlinux.conf" \
                  "${ubootlinux}" \
                  "${initrd}" \
@@ -593,8 +593,8 @@ if [ -n "$uartboot" ]; then
   write_dtb "${tmp}/atf.dtb" \
             "root=" \
             "${dtbfile}" \
-	    "/usr/share/buildR64arch/boot/${target^^}/"*".dts" \
-	    "/usr/share/buildR64arch/boot/${target^^}-EMMC/"*".dts"
+            "/usr/share/buildR64arch/boot/${target^^}/"*".dts" \
+            "/usr/share/buildR64arch/boot/${target^^}-EMMC/"*".dts"
   cp -vf "${atfdir}/${target}-atf-ram-atf${extra}.bin" \
           "/tmp/uartboot/uart-${target}-atf${extra}.bin" 2>/dev/null
   fipfile="/tmp/uartboot/uart-${target}-fip${extra}.bin"
