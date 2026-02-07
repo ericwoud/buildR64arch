@@ -492,12 +492,9 @@ fi
 if [ -n "${ubidev}" ]; then
   rm -f "${tmp}/ubinize.conf"
   i=0
-  _ubimkvol "${ubidev}" -n ${i} -N fip       -s 2MiB   -t static
-  ((i++))
-  _ubimkvol "${ubidev}" -n ${i} -N ubootenv  -s 128KiB
-  ((i++))
-  _ubimkvol "${ubidev}" -n ${i} -N ubootenv2 -s 128KiB
-  ((i++))
+  _ubimkvol "${ubidev}" -n ${i} -N fip       -s 2MiB   -t static ;((i++))
+  _ubimkvol "${ubidev}" -n ${i} -N ubootenv  -s 128KiB           ;((i++))
+  _ubimkvol "${ubidev}" -n ${i} -N ubootenv2 -s 128KiB           ;((i++))
   _ubimkvol "${ubidev}" -n ${i} -N rootfs    -m
   if [ "${ubidev}" != "image" ]; then
     while [ ! -e "${ubidev}_${i}" ]; do sleep 0.1; done
@@ -514,10 +511,10 @@ if [ -n "$nand_update" ]; then
   [ -f "${linux}.gz" ] && ubootlinux="${linux}.gz" || ubootlinux="${linux}"
   ubootfile="/usr/share/bpir-uboot/u-boot-${target}.bin"
   [ ! -f "${ubootfile}" ] && exit 1
-  fipfiles=""
-  [ -f "${nandbl31file}" ] && fipfiles+=" --soc-fw ${nandbl31file}"
-  fipfiles+=" --nt-fw ${ubootfile}"
-  fiptool --verbose create "${tmp}/fip.bin" ${fipfiles}
+  fipfiles=()
+  [ -f "${nandbl31file}" ] && fipfiles+=(--soc-fw "${nandbl31file}")
+  fipfiles+=(--nt-fw "${ubootfile}")
+  fiptool --verbose create "${tmp}/fip.bin" "${fipfiles[@]}"
   fiptool info "${tmp}/fip.bin"
   write_dtb "${tmp}/atf.dtb" \
             "root=" \
@@ -601,13 +598,13 @@ if [ -n "$uartboot" ]; then
   cp -vf "${atfdir}/${target}-atf-ram-atf${extra}.bin" \
           "/tmp/uartboot/uart-${target}-atf${extra}.bin" 2>/dev/null
   fipfile="/tmp/uartboot/uart-${target}-fip${extra}.bin"
-  fipfiles=""
+  fipfiles=()
   uartbl31file="${atfdir}/${target}-atf-ram-bl31${extra}.bin"
-  [ -f "${uartbl31file}" ] && fipfiles+=" --soc-fw ${uartbl31file}"
-  fipfiles+=" --nt-fw ${linux}"
-  fipfiles+=" --nt-fw-config ${tmp}/atf.dtb"
-  fipfiles+=" --tos-fw-extra2 ${initrd}"
-  fiptool --verbose create "${fipfile}" ${fipfiles}
+  [ -f "${uartbl31file}" ] && fipfiles+=(--soc-fw "${uartbl31file}")
+  fipfiles+=(--nt-fw "${linux}")
+  fipfiles+=(--nt-fw-config "${tmp}/atf.dtb")
+  fipfiles+=(--tos-fw-extra2 "${initrd}")
+  fiptool --verbose create "${fipfile}" "${fipfiles[@]}"
   fiptool info "${fipfile}"
   ls -l "/tmp/uartboot"
 fi
@@ -789,18 +786,18 @@ fi
 ##########################################
 if [ -n "$write2fip" ] && [[ "${pkgbase}" == "${linuxpkg}" ]]; then
   if [[ "${typefipboot}" == "fip" ]]; then
-    fipfiles=""
-    [ -f "${bl31file}" ] && fipfiles+=" --soc-fw ${bl31file}"
+    fipfiles=()
+    [ -f "${bl31file}" ] && fipfiles+=(--soc-fw "${bl31file}")
     if [ -f "/boot/u-boot.bin" ]; then 
-      fipfiles+=" --nt-fw /boot/u-boot.bin"
+      fipfiles+=(--nt-fw "/boot/u-boot.bin")
     elif [ -f "${linux}" ]; then
-      fipfiles+=" --nt-fw ${linux}"
+      fipfiles+=(--nt-fw "${linux}")
       if [[ "$(imageid ${linux})" == "5241644d" ]]; then # We have a linux kernel image
-        [ -f "${atfdtb}" ] && fipfiles+=" --nt-fw-config ${atfdtb}"
-        [ -f "${initrd}" ] && fipfiles+=" --tos-fw-extra2 ${initrd}"
+        [ -f "${atfdtb}" ] && fipfiles+=(--nt-fw-config "${atfdtb}")
+        [ -f "${initrd}" ] && fipfiles+=(--tos-fw-extra2 "${initrd}")
       fi
     fi
-    fiptool --verbose create "${tmp}/fip.bin" ${fipfiles}
+    fiptool --verbose create "${tmp}/fip.bin" "${fipfiles[@]}"
     fiptool info "${tmp}/fip.bin"
     echo "Writing FIP to: ${fipbootdevice}"
     dd bs=4M of="${fipbootdevice}" if="${tmp}/fip.bin" conv=fsync
