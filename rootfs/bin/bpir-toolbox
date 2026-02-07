@@ -274,8 +274,12 @@ function write_dtb {
     dtc -@ -q -I dts -O dtb -o "${tmp}/dtbos/${dtsname/.dts/.dtbo}" \
         "${tmp}/dtbos/${dtsname}"
   done
-  fdtoverlay -vi "${tmp}/fixed.dtb" -o "$1" \
-                  ${tmp}/dtbos/*.dtbo
+  overlays=$(shopt -s nullglob; cd "${tmp}"; echo "dtbos/"*".dtbo")
+  if [ -n "${overlays}" ]; then
+    (cd "${tmp}"; fdtoverlay -vi "fixed.dtb" -o "$1" ${overlays})
+  else
+    cp -vf "${tmp}/fixed.dtb" "$1"
+  fi
   origargs="$(fdtget -ts "$1" "/chosen" "bootargs")"
   bootargs="$2 ${origargs} ${cmdline}"
   echo BOOTARGS = "${bootargs}"
