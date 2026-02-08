@@ -757,7 +757,7 @@ if [[ -n "${target}" ]] && [[ -n "${device}" ]]; then
   if [[ "$optn_d" = true ]]; then
     mkdir -p ./cachedir
     if [[ "$optn_n" != true ]]; then
-      chmod -R 755                   ./cachedir
+      chmod -R 755               ./cachedir
       chown -R $SUDO_USER:nobody ./cachedir
     fi
   fi
