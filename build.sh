@@ -117,7 +117,7 @@ function formatimage() {
     prompt="wipeall"
   else
     parted -s "${dev}" unit MiB print
-    echo -e "\nDo you want to wipe all partitions from ${dev}???"
+    echo -e "\nDo you want to wipe all partitions from ${dev} and create GPT???"
     echo -e "This may require a reboot..."
     read -p "Type <wipeall> to wipe all: " prompt <&1
   fi
@@ -125,17 +125,13 @@ function formatimage() {
     wipefs --all --force "${dev}"
     sync
     partprobe "${dev}"; udevadm settle 2>/dev/null
-  fi
-  if [[ -z $(parted -s -- "${dev}" print 2>/dev/null | grep "^Partition Table: gpt$") ]]; then
-    echo -e "\nDevice has no GPT, creating it."
-    if [[ "$optn_l" != true ]]; then
-      echo "This may require a reboot..."
-      read -p "Type <gpt> to create gpt: " prompt <&1
-      [[ "${prompt}" != "gpt" ]] && exit 1
-    fi
     parted -s -- "${dev}" mklabel gpt
     [[ $? != 0 ]] && exit 1
     partprobe "${dev}"; udevadm settle 2>/dev/null
+  fi
+  if [[ -z $(parted -s -- "${dev}" print 2>/dev/null | grep "^Partition Table: gpt$") ]]; then
+    echo -e "\nDevice ${dev} does not contain a usable GPT!"
+    exit 1
   fi
   mountdev="$(blkid $(parts "${dev}") -t PARTLABEL="${target}-${device}-root" -o device)"
   if [[ -z "${mountdev}" ]]; then
@@ -377,7 +373,7 @@ function domount() {
 function mountdevrunprocsys() {
   mkdir -p              "${rootfsdir}/dev"
   touch                 "${rootfsdir}/dev/ptmx"
-  ln -sf  /proc/self/fd "${rootfsdir}/dev/fd"
+  ln -sfT /proc/self/fd "${rootfsdir}/dev/fd"
   domount /sys          "${rootfsdir}/sys"         --rbind --make-rslave
   domount /dev/full     "${rootfsdir}/dev/full"    --rbind --make-rslave
   domount /dev/null     "${rootfsdir}/dev/null"    --rbind --make-rslave
@@ -386,9 +382,9 @@ function mountdevrunprocsys() {
   domount /dev/urandom  "${rootfsdir}/dev/urandom" --rbind --make-rslave
   domount /dev/zero     "${rootfsdir}/dev/zero"    --rbind --make-rslave
   domount /dev/pts      "${rootfsdir}/dev/pts"     -t devpts -o newinstance,ptmxmode=0666,mode=0620,gid=5 
-  domount /run          "${rootfsdir}/run"         -t tmpfs -o nosuid,nodev,mode=0755
-  domount /proc         "${rootfsdir}/proc"        -t proc  -o nosuid,noexec,nodev
-#  domount /dev  "${rootfsdir}/dev"  --rbind --make-rslave  # install gnupg needs it
+  domount /run          "${rootfsdir}/run"         -t tmpfs  -o nosuid,nodev,mode=0755
+  domount /proc         "${rootfsdir}/proc"        -t proc   -o nosuid,noexec,nodev
+#  domount /dev  "${rootfsdir}/dev"  --rbind --make-rslave
 }
 
 function mountrootboot() {
@@ -560,6 +556,7 @@ export LANGUAGE=C
 
 cd "$(dirname -- "$(realpath -- "${BASH_SOURCE[0]}")")"
 
+argcnt=0
 while getopts ":rlcbxzudniRFBISN-:" opt $args; do
   if [[ "${opt}" == "?" ]]; then
     echo "Unknown option -$OPTARG"
