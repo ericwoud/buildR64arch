@@ -76,7 +76,7 @@ function checknumber() {
 }
 
 function createimage() {
-  echo "Creating image from noroot directories..."
+  echo "Creating image from noroot directory..."
   ATF_END_MB=1
   atf_end_s="$((ATF_END_MB*1024*1024/512))"
   checknumber ROOT_START_MB
@@ -525,7 +525,7 @@ function usage() {
 	Usage: $(basename "$0") [OPTION]...
 	  -F --format              format sd/emmc or image-file
 	  -l --loopdev             create file using loopdev instead of sd-card
-	  -n --noroot              create file without root acces instead of sd-card
+	  -n --noroot              create file without root access instead of sd-card
 	  -r --rootfs              setup rootfs on image
 	  -c --chroot              enter chroot on image
 	  -b --backup              backup rootfs
