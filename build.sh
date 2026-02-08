@@ -31,7 +31,7 @@ export STRAP_PACKAGES_ALARM="pacman archlinuxarm-keyring"
 export STRAP_PACKAGES_DEBIAN="apt-utils ca-certificates gnupg"
 export STRAP_PACKAGES_EXCLUDE_DEBIAN="procps"
 
-SCRIPT_PACKAGES="curl ca-certificates parted gzip f2fs-tools btrfs-progs dosfstools debootstrap zstd"
+SCRIPT_PACKAGES="curl ca-certificates parted gzip btrfs-progs dosfstools debootstrap zstd"
 SCRIPT_PACKAGES_ALARM=" qemu-user-static qemu-user-static-binfmt inetutils"
 SCRIPT_PACKAGES_DEBIAN="qemu-user        qemu-user-binfmt        hostname"
 
