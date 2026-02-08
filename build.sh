@@ -117,13 +117,22 @@ function formatimage() {
     prompt="wipeall"
   else
     parted -s "${dev}" unit MiB print
-    echo -e "\nDo you want to wipe all partitions from "${dev}"???"
+    echo -e "\nDo you want to wipe all partitions from ${dev}???"
+    echo -e "This may require a reboot..."
     read -p "Type <wipeall> to wipe all: " prompt <&1
   fi
   if [[ "${prompt}" == "wipeall" ]]; then
     wipefs --all --force "${dev}"
     sync
     partprobe "${dev}"; udevadm settle 2>/dev/null
+  fi
+  if [[ -z $(parted -s -- "${dev}" print 2>/dev/null | grep "^Partition Table: gpt$") ]]; then
+    echo -e "\nDevice has no GPT, creating it."
+    if [[ "$optn_l" != true ]]; then
+      echo "This may require a reboot..."
+      read -p "Type <gpt> to create gpt: " prompt <&1
+      [[ "${prompt}" != "gpt" ]] && exit 1
+    fi
     parted -s -- "${dev}" mklabel gpt
     [[ $? != 0 ]] && exit 1
     partprobe "${dev}"; udevadm settle 2>/dev/null
