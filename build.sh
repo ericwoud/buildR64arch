@@ -153,7 +153,7 @@ function formatimage() {
     parted -s "${dev}" unit MiB print
     echo -e "\nAre you sure you want to format "${mountdev}"???"
     read -p "Type <format> to format: " prompt <&1
-    [[ "${prompt}" != "format" ]] && exit
+    [[ "${prompt}" != "format" ]] && exit 1
   fi
   waitdev "${mountdev}"
   blkdiscard -fv "${mountdev}"
@@ -457,7 +457,8 @@ function ctrl_c() {
 function unsharefunction() {
   [[ "$optn_n" = true ]] && local becomeroot="--map-root-user --map-auto" || local becomeroot=""
   unshare $becomeroot --mount --fork --kill-child --pid --uts <<< "$(echo '#!/bin/bash'; type $1)" &
-  unsharedpid=$! ; wait -f $unsharedpid ; kill_children $unsharedpid; unset unsharedpid
+  unsharedpid=$! ; wait -f $unsharedpid ; local rc=$?; kill_children $unsharedpid; unset unsharedpid
+  [[ $rc != 0 ]] && exit 1
 }
 
 function removeallnoroot() {
@@ -467,15 +468,15 @@ function removeallnoroot() {
 
 function removeallroot() {
   read -p "Type <remove> to delete everything from the card: " prompt <&1
-  [[ "${prompt}" != "remove" ]] && exit
+  [[ "${prompt}" != "remove" ]] && exit 1
   (shopt -s dotglob; rm -rf "${rootfsdir}/"*)
 }
 
 function setuproot() {
   hostname "${target}"
   mountrootboot
-  if [[ "$optn_b" = true ]] ; then backuprootfs ; exit; fi
-  if [[ "$optn_B" = true ]] ; then restorerootfs; exit; fi
+  if [[ "$optn_b" = true ]] ; then backuprootfs ; exit 1; fi
+  if [[ "$optn_B" = true ]] ; then restorerootfs; exit 1; fi
   [[ "$optn_R" = true ]] && removeallroot
   mountdevrunprocsys
   [[ ! -d "${rootfsdir}/etc" ]] && bootstrap || bpirrootfs "--noask"
@@ -498,7 +499,7 @@ function finish() {
     if [[ "$optn_n" = true ]]; then
       [[ -d "${rootfsdir}-boot" ]] && mv -vf "${rootfsdir}-boot" "${rootfsdir}/boot"
     else
-      [[ -d "./cachedir" ]] && chown -R $SUDO_USER:$SUDO_USER ./cachedir
+      [[ -d "./cachedir" ]] && chown -R $SUDO_USER:nobody ./cachedir
       rm -rf "${rootfsdir}"
     fi
     sync
@@ -703,7 +704,7 @@ else
   else
     readarray -t dirs < <(ls -1a -d image-*-*-*)
     ask rootfsdir dirs "Choose directory to work on:"
-    [[ -z "${rootfsdir}" ]] && exit
+    [[ -z "${rootfsdir}" ]] && exit 1
     rootfsdir="$(realpath "${rootfsdir}")"
     target=$(cat "${rootfsdir}/etc/rootcfg/target" 2>/dev/null)
     device=$(cat "${rootfsdir}/etc/rootcfg/device" 2>/dev/null)
@@ -748,7 +749,7 @@ if [[ -n "${target}" ]] && [[ -n "${device}" ]]; then
     mkdir -p ./cachedir
     if [[ "$optn_n" != true ]]; then
       chmod -R 755                   ./cachedir
-      chown -R $SUDO_USER:$SUDO_USER ./cachedir
+      chown -R $SUDO_USER:nobody ./cachedir
     fi
   fi
   [[ "$optn_F" = true ]] && unsharefunction formatimage
