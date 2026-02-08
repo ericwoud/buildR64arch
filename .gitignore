@@ -2,6 +2,7 @@
 /images/
 /uartboot/
 /nandimage/
+/image-*-*-*/
 /tools/arch-*.sh
 /override.sh
 /*.diff
@@ -11,11 +12,4 @@
 /*.bin
 /*.log
 /cachedir/
-/mkosi/bpir*.img*
-/mkosi/bpir*/
-/mkosi/mkosi.cache/
-/mkosi/mkosi.tools/
-/mkosi/mkosi.tools.manifest
-/mkosi/.mkosi-private/
-/mkosi/.tmp/
 /config.sh

@@ -88,8 +88,10 @@ function createimage() {
   dd if=/dev/zero of="${IMAGE_FILE}.root" bs=1 count=0 seek=$((IMAGE_SIZE_MB - ROOT_START_MB - 1))M 2>/dev/null
   dd if="${rootfsdir}${atffile}" of="${IMAGE_FILE}" bs=17K seek=1 count=32 conv=notrunc
   mkfs.vfat --offset "${atf_end_s}" -v -F 32 -S 512 -s 16 -n "${target^^}-BOOT" "${IMAGE_FILE}"
-  mcopy -soi "${IMAGE_FILE}@@${atf_end_s}s" "${rootfsdir/-root/-boot}"/* ::
+  mcopy -soi "${IMAGE_FILE}@@${atf_end_s}s" "${rootfsdir}/boot"/* ::
+  mv -vf "${rootfsdir}/boot" "${rootfsdir}-boot"
   mkfs.btrfs -f -L "${target^^}-ROOT" "${IMAGE_FILE}.root" --rootdir="${rootfsdir}"
+  mv -vf "${rootfsdir}-boot" "${rootfsdir}/boot"
   dd if="${IMAGE_FILE}.root" of="${IMAGE_FILE}" bs=1M seek="${ROOT_START_MB}" conv=sparse
   dd if=/dev/zero of="${IMAGE_FILE}" bs=1 count=0 seek="${IMAGE_SIZE_MB}M" 2>/dev/null
   rm "${IMAGE_FILE}.root"
@@ -350,32 +352,40 @@ function mountcachedir() {
   fi
 }
 
-function mountdevrunprocsys() {
-  mkdir -p "${rootfsdir}/dev" "${rootfsdir}/run" "${rootfsdir}/proc" "${rootfsdir}/sys"
-  if ! mountpoint -q "${rootfsdir}/dev"; then
-    mount --rbind --make-rslave /dev  "${rootfsdir}/dev" # install gnupg needs it
-    [[ $? != 0 ]] && exit 1
-  fi
-  if ! mountpoint -q "${rootfsdir}/run"; then
-    mount /run  "${rootfsdir}/run"  -t tmpfs -o nosuid,nodev,mode=0755
-    [[ $? != 0 ]] && exit 1
-  fi
-  if ! mountpoint -q "${rootfsdir}/proc"; then
-    mount /proc "${rootfsdir}/proc" -t proc -o nosuid,noexec,nodev
-    [[ $? != 0 ]] && exit 1
-  fi
-  if ! mountpoint -q "${rootfsdir}/sys"; then
-    mount /sys  "${rootfsdir}/sys"  --rbind --make-rslave
+
+function domount() {
+  if ! mountpoint -q "${2}"; then
+    if [[ "${1}" == "/dev"* ]] && [[ "${1}" != "/dev/pts" ]]; then
+      touch "${rootfsdir}${1}"
+    else
+      mkdir -p "${rootfsdir}${1}"
+    fi
+    mount "$@"
     [[ $? != 0 ]] && exit 1
   fi
 }
 
+function mountdevrunprocsys() {
+  mkdir -p              "${rootfsdir}/dev"
+  touch                 "${rootfsdir}/dev/ptmx"
+  ln -sf  /proc/self/fd "${rootfsdir}/dev/fd"
+  domount /sys          "${rootfsdir}/sys"         --rbind --make-rslave
+  domount /dev/full     "${rootfsdir}/dev/full"    --rbind --make-rslave
+  domount /dev/null     "${rootfsdir}/dev/null"    --rbind --make-rslave
+  domount /dev/random   "${rootfsdir}/dev/random"  --rbind --make-rslave
+  domount /dev/tty      "${rootfsdir}/dev/tty"     --rbind --make-rslave
+  domount /dev/urandom  "${rootfsdir}/dev/urandom" --rbind --make-rslave
+  domount /dev/zero     "${rootfsdir}/dev/zero"    --rbind --make-rslave
+  domount /dev/pts      "${rootfsdir}/dev/pts"     -t devpts -o newinstance,ptmxmode=0666,mode=0620,gid=5 
+  domount /run          "${rootfsdir}/run"         -t tmpfs -o nosuid,nodev,mode=0755
+  domount /proc         "${rootfsdir}/proc"        -t proc  -o nosuid,noexec,nodev
+#  domount /dev  "${rootfsdir}/dev"  --rbind --make-rslave  # install gnupg needs it
+}
+
 function mountrootboot() {
   if [[ "$optn_n" = true ]]; then
-    bootfsdir="${rootfsdir/-root/-boot}"
-    mkdir -p "${rootfsdir}/boot" "${bootfsdir}"
+    mkdir -p "${rootfsdir}"
     mount --bind "${rootfsdir}"  "${rootfsdir}"
-    mount --bind "${bootfsdir}"  "${rootfsdir}/boot"
   else
     mountdev="$(blkid -s PARTLABEL $(parts "${dev}") | grep -E 'PARTLABEL="bpir' | grep -E -- '-root"' | cut -d' ' -f1 | tr -d :)"
     bootdev="$( blkid -s PARTLABEL $(parts "${dev}") | grep -E 'PARTLABEL="'     | grep -E -- 'boot"'  | cut -d' ' -f1 | tr -d :)"
@@ -452,9 +462,7 @@ function unsharefunction() {
 
 function removeallnoroot() {
   [[ -z "${rootfsdir}" ]] && return
-  bootfsdir="${rootfsdir/-root/-boot}"
   [[ -d "${rootfsdir}" ]] && rm -rf "${rootfsdir}"
-  [[ -d "${bootfsdir}" ]] && rm -rf "${bootfsdir}"
 }
 
 function removeallroot() {
@@ -485,9 +493,11 @@ function finish() {
   rm -rf /tmp/bpir-rootfs 2>/dev/null
   if [[ -v rootfsdir ]] && [[ -n "${rootfsdir}" ]] && [[ -d "${rootfsdir}" ]]; then
     restoreresolv
-    rm -vrf "${rootfsdir}/var/lib/apt/lists/partial"
+###    rm -vrf "${rootfsdir}/var/lib/apt/lists/partial"
     [[ -d "${rootfsdir}/cachedir" ]] && rm -rf "${rootfsdir}/cachedir"
-    if [[ "$optn_n" != true ]]; then
+    if [[ "$optn_n" = true ]]; then
+      [[ -d "${rootfsdir}-boot" ]] && mv -vf "${rootfsdir}-boot" "${rootfsdir}/boot"
+    else
       [[ -d "./cachedir" ]] && chown -R $SUDO_USER:$SUDO_USER ./cachedir
       rm -rf "${rootfsdir}"
     fi
@@ -691,7 +701,7 @@ else
     target=$(echo "${pr}" | cut -d'-' -f1)
     device=$(echo "${pr}" | cut -d'-' -f2)
   else
-    readarray -t dirs < <(ls -1a -d bpir*-*-*-root)
+    readarray -t dirs < <(ls -1a -d image-*-*-*)
     ask rootfsdir dirs "Choose directory to work on:"
     [[ -z "${rootfsdir}" ]] && exit
     rootfsdir="$(realpath "${rootfsdir}")"
@@ -723,11 +733,11 @@ if [[ -n "${target}" ]] && [[ -n "${device}" ]]; then
   if [[ "$initrd" != true ]] && [[ "$optn_n" != true ]]; then
     mkdir -p "/run/udev/rules.d"
     noautomountrule="/run/udev/rules.d/10-no-automount-bpir.rules"
-    echo 'KERNELS=="'${dev/"/dev/"/""}'", ENV{UDISKS_IGNORE}="1"' > "${noautomountrule}"
+    echo 'KERNELS=="'${dev/'/dev/'/}'", ENV{UDISKS_IGNORE}="1"' > "${noautomountrule}"
   fi
   if [[ -z "${rootfsdir}" ]]; then
     if [[ "$optn_n" = true ]]; then
-      rootfsdir="$(realpath "${target}-${device}-${distro}-root")"
+      rootfsdir="$(realpath "image-${target}-${device}-${distro}")"
     else
       rootfsdir="/tmp/bpirootfs.$$"
     fi
@@ -741,7 +751,6 @@ if [[ -n "${target}" ]] && [[ -n "${device}" ]]; then
       chown -R $SUDO_USER:$SUDO_USER ./cachedir
     fi
   fi
-
   [[ "$optn_F" = true ]] && unsharefunction formatimage
 
   unsharefunction setuproot
@@ -754,7 +763,7 @@ if [[ "$optn_n" = true ]] && [[ "$optn_i" = true ]]; then
 fi
 
 if [[ "$optn_N" = true ]] ; then
-  echo "Removing noroot directories..."
+  echo "Removing noroot directory..."
   unsharefunction removeallnoroot
 fi
 

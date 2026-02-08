@@ -91,7 +91,7 @@ After this, you are on your own. It is supposed to be a minimal installation of 
 
 Using the `-l | --loopdev` option uses a loopdevice instead of the real device, but this still needs root access.
 
-Now with the -n | --noroot option, the script builds root and boot directories, no root access is needed. The user is mapped to the root user in a namespace.
+Now with the `-n | --noroot` option, the script builds an image- root directory, no root access is needed. The user is mapped to the root user in a namespace.
 
 Adding `-F | --format` the image is formatted, or the directories cleared.
 
@@ -113,7 +113,7 @@ Or choose all options from commandline:
 ```text
 ./build.sh -nFiz --target=bpir3 --device=sdmmc --ddrsize=default --setup=RT --distro=alarm --brlanip=default --cachedir --disable-sandbox
 ```
-Deleting the special root and boot directories, without using sudo, may run into permission issues. Use:
+Deleting the image- root directory, without using sudo, may run into permission issues. Use:
 ```text
 ./build.sh -N
 ```
