@@ -29,7 +29,6 @@ export IMAGE_FILE="bpir.img"          # Name of image
 
 export STRAP_PACKAGES_ALARM="pacman archlinuxarm-keyring"
 export STRAP_PACKAGES_DEBIAN="apt-utils ca-certificates gnupg"
-export STRAP_PACKAGES_EXCLUDE_DEBIAN="procps"
 
 SCRIPT_PACKAGES="curl ca-certificates parted gzip btrfs-progs dosfstools debootstrap zstd"
 SCRIPT_PACKAGES_ALARM=" qemu-user-static qemu-user-static-binfmt inetutils"
@@ -234,8 +233,7 @@ function bootstrap() {
   if [[ "$distro" == "ubuntu" ]]; then
     local opts=(--arch=arm64 --no-check-gpg --variant=minbase
                 --components="${DEBOOTSTR_COMPNS}"
-                --include="${STRAP_PACKAGES_DEBIAN// /,}"
-                --exclude="${STRAP_PACKAGES_EXCLUDE_DEBIAN// /,}")
+                --include="${STRAP_PACKAGES_DEBIAN// /,}")
     [[ "$optn_d" = true ]] && opts+=(--cache-dir="$(realpath ./cachedir)")
     until debootstrap "${opts[@]}" "${DEBOOTSTR_RELEASE}" "${rootfsdir}" "${DEBOOTSTR_SOURCE}"
     do sleep 2; done
