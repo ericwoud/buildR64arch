@@ -195,7 +195,7 @@ function setuppacman() {
 
 function rootcfg() {
   mkdir -p "${rootfsdir}/etc/rootcfg"
-  echo "${target}" > ${rootfsdir}/etc/hostname
+  echo -n "${target}" > ${rootfsdir}/etc/hostname
   if [[ -z $(grep "${target}" ${rootfsdir}/etc/hosts 2>/dev/null) ]]; then
     echo -e "127.0.0.1\t${target}" >> "${rootfsdir}/etc/hosts"
   fi
@@ -319,7 +319,7 @@ function cleanupimage() {
   rm -f $IMAGE_FILE".xz" $IMAGE_FILE".gz"
   rm -vrf "${rootfsdir}/tmp/"*
   rm -vrf "${rootfsdir}/var/cache/pacman/pkg/"*
-  rm -vrf "${rootfsdir}/var/cache/apt/archives/"*.deb
+  rm -vrf "${rootfsdir}/var/cache/apt/archives/"*".deb"
   rm -vrf "${rootfsdir}/var/lib/apt/lists/partial"
 }
 
@@ -352,7 +352,7 @@ function restorerootfs() {
 function mountcachedir() {
   if [[ "$optn_d" = true ]]; then
     mkdir -p "${rootfsdir}/cachedir"
-    mount --rbind --make-rslave ./cachedir  "${rootfsdir}/cachedir"
+    mount --rbind --make-rslave ./cachedir "${rootfsdir}/cachedir"
     [[ $? != 0 ]] && exit 1
   fi
 }
@@ -360,7 +360,7 @@ function mountcachedir() {
 
 function domount() {
   if ! mountpoint -q "${2}"; then
-    if [[ "${1}" == "/dev"* ]] && [[ "${1}" != "/dev/pts" ]]; then
+    if [[ "${1}" == "/dev/"* ]] && [[ "${1}" != "/dev/pts" ]]; then
       touch "${rootfsdir}${1}"
     else
       mkdir -p "${rootfsdir}${1}"
@@ -371,20 +371,23 @@ function domount() {
 }
 
 function mountdevrunprocsys() {
-  mkdir -p              "${rootfsdir}/dev"
-  touch                 "${rootfsdir}/dev/ptmx"
-  ln -sfT /proc/self/fd "${rootfsdir}/dev/fd"
-  domount /sys          "${rootfsdir}/sys"         --rbind --make-rslave
-  domount /dev/full     "${rootfsdir}/dev/full"    --rbind --make-rslave
-  domount /dev/null     "${rootfsdir}/dev/null"    --rbind --make-rslave
-  domount /dev/random   "${rootfsdir}/dev/random"  --rbind --make-rslave
-  domount /dev/tty      "${rootfsdir}/dev/tty"     --rbind --make-rslave
-  domount /dev/urandom  "${rootfsdir}/dev/urandom" --rbind --make-rslave
-  domount /dev/zero     "${rootfsdir}/dev/zero"    --rbind --make-rslave
-  domount /dev/pts      "${rootfsdir}/dev/pts"     -t devpts -o newinstance,ptmxmode=0666,mode=0620,gid=5 
-  domount /run          "${rootfsdir}/run"         -t tmpfs  -o nosuid,nodev,mode=0755
-  domount /proc         "${rootfsdir}/proc"        -t proc   -o nosuid,noexec,nodev
-#  domount /dev  "${rootfsdir}/dev"  --rbind --make-rslave
+  domount /sys            "${rootfsdir}/sys"         --rbind --make-rslave
+  domount /run            "${rootfsdir}/run"         -t tmpfs  -o nosuid,nodev,mode=0755
+  domount /proc           "${rootfsdir}/proc"        -t proc   -o nosuid,noexec,nodev
+  if [[ "$optn_n" = true ]]; then
+    mkdir -p              "${rootfsdir}/dev"
+    touch                 "${rootfsdir}/dev/ptmx"
+    ln -sfT /proc/self/fd "${rootfsdir}/dev/fd"
+    domount /dev/full     "${rootfsdir}/dev/full"    --rbind --make-rslave
+    domount /dev/null     "${rootfsdir}/dev/null"    --rbind --make-rslave
+    domount /dev/random   "${rootfsdir}/dev/random"  --rbind --make-rslave
+    domount /dev/tty      "${rootfsdir}/dev/tty"     --rbind --make-rslave
+    domount /dev/urandom  "${rootfsdir}/dev/urandom" --rbind --make-rslave
+    domount /dev/zero     "${rootfsdir}/dev/zero"    --rbind --make-rslave
+    domount /dev/pts      "${rootfsdir}/dev/pts"     -t devpts -o newinstance,ptmxmode=0666,mode=0620,gid=5
+  else
+    domount /dev          "${rootfsdir}/dev"         --rbind --make-rslave
+  fi
 }
 
 function mountrootboot() {
