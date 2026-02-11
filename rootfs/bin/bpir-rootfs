@@ -211,9 +211,9 @@ if [ -n "${setup}" ]; then
 fi
 
 if [[ "${ddrsize}" == "default" ]] || [ -z "${ddrsize}" ]; then
-  rm -f /boot/bootcfg/ddrsize 2>/dev/null
+  rm -f /etc/rootcfg/ddrsize 2>/dev/null
 else
-  echo -n "${ddrsize}" >/boot/bootcfg/ddrsize
+  echo -n "${ddrsize}" >/etc/rootcfg/ddrsize
 fi
 
 if [ -n "${adduser}" ]; then
