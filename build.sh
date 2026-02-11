@@ -204,9 +204,9 @@ function rootcfg() {
   mv -f "/tmp/bpir-rootfs/"* "${rootfsdir}/etc/rootcfg"
   [[ -d "/usr/share/buildR64arch" ]] && rootfs="/usr/share/buildR64arch" || rootfs="./rootfs"
   cp   -vrfL "${rootfs}/keyring/"*         "${rootfsdir}"
-  if   chroot "${rootfsdir}" bash -c "command -v apt"    >/dev/null 2>&1; then
+  if   dochroot bash -c "command -v apt"    >/dev/null 2>&1; then
     cp -vrfL "${rootfs}/skeleton-apt/"*    "${rootfsdir}"
-  elif chroot "${rootfsdir}" bash -c "command -v pacman" >/dev/null 2>&1; then
+  elif dochroot bash -c "command -v pacman" >/dev/null 2>&1; then
     cp -vrfL "${rootfs}/skeleton-pacman/"* "${rootfsdir}"
   fi
 }
@@ -241,13 +241,13 @@ function bootstrap() {
     mountdevrunprocsys # again, proc and sys get unmounted by debootstrap
     opts=(--yes --quiet)
     [[ "$optn_d" = true ]] && opts+=(-o "Dir::Cache::Archives=/cachedir")
-    until DEBIAN_FRONTEND=noninteractive chroot "${rootfsdir}" apt-get update "${opts[@]}"
+    until DEBIAN_FRONTEND=noninteractive dochroot apt-get update "${opts[@]}"
     do sleep 2; done
-    if ! DEBIAN_FRONTEND=noninteractive chroot "${rootfsdir}" apt-get reinstall "${opts[@]}" --no-act '~i'; then
+    if ! DEBIAN_FRONTEND=noninteractive dochroot apt-get reinstall "${opts[@]}" --no-act '~i'; then
       echo "Check of packages has failed! Maybe gpg error?"
       exit 1
     fi
-    until DEBIAN_FRONTEND=noninteractive chroot "${rootfsdir}" apt-get install "${opts[@]}" $PACKAGES
+    until DEBIAN_FRONTEND=noninteractive dochroot apt-get install "${opts[@]}" $PACKAGES
     do sleep 2; done
     setupresolv
     rm -vrf "${rootfsdir}/var/lib/apt/lists/partial"
@@ -258,18 +258,18 @@ function bootstrap() {
     local opts=(--noconfirm --overwrite="*")
     [[ "$optn_d" = true ]] && opts+=(--cachedir=/cachedir)
     [[ "$optn_S" = true ]] && opts+=(--disable-sandbox)
-    until chroot "${rootfsdir}" pacman-static -Syu "${opts[@]}" $STRAP_PACKAGES_ALARM
+    until dochroot pacman-static -Syu "${opts[@]}" $STRAP_PACKAGES_ALARM
     do sleep 2; done
     rootcfg
-    chroot "${rootfsdir}" pacman-key --init
-    chroot "${rootfsdir}" pacman-key --populate archlinuxarm
-    chroot "${rootfsdir}" pacman-key --populate ericwoud
-    if !  chroot "${rootfsdir}" pacman -Qqn | \
-          chroot "${rootfsdir}" pacman -Syyu "${opts[@]}" --downloadonly -; then
+    dochroot pacman-key --init
+    dochroot pacman-key --populate archlinuxarm
+    dochroot pacman-key --populate ericwoud
+    if !  dochroot pacman -Qqn | \
+          dochroot pacman -Syyu "${opts[@]}" --downloadonly -; then
       echo "Check of packages has failed! Maybe gpg error?"
       exit 1
     fi
-    until chroot "${rootfsdir}" pacman -Su "${opts[@]}" $PACKAGES pacman-static
+    until dochroot pacman -Su "${opts[@]}" $PACKAGES pacman-static
     do sleep 2; done
   else
     echo "Unknown distro!"
@@ -280,11 +280,11 @@ function bootstrap() {
 }
 
 function uartbootbuild() {
-  chroot "${rootfsdir}" bpir-toolbox --uartboot
+  dochroot bpir-toolbox --uartboot
   mkdir -p ./uartboot
   cp -vf "${rootfsdir}/tmp/uartboot/"*".bin"            ./uartboot/
   [[ "$optn_n" != true ]] && chown -R $SUDO_USER:nobody ./uartboot/
-  chroot "${rootfsdir}" bpir-toolbox --nand-image
+  dochroot bpir-toolbox --nand-image
   mkdir -p ./nandimage
   cp -vf "${rootfsdir}/tmp/nandimage/"*".bin"           ./nandimage/
   [[ "$optn_n" != true ]] && chown -R $SUDO_USER:nobody ./nandimage/
@@ -296,7 +296,7 @@ function bpirrootfs() {
   rootfsargs=("$@" --target "${target}"   --device "${device}"
                    --ddrsize "${ddrsize}" --setup "${setup}" --brlanip "${brlanip}")
   if [[ -f "${rootfsdir}/bin/bpir-rootfs" ]]; then
-    chroot "${rootfsdir}" bpir-rootfs "${rootfsargs[@]}"
+    dochroot bpir-rootfs "${rootfsargs[@]}"
   elif [[ -f "./rootfs/bin/bpir-rootfs" ]]; then
     ./rootfs/bin/bpir-rootfs "${rootfsargs[@]}"
   else echo "bpir-rootfs no found!"; exit 1
@@ -308,7 +308,7 @@ function chrootfs() {
   echo "Type <exit> to exit from the chroot environment."
   mountcachedir
   setupresolv
-  chroot "${rootfsdir}" bash <&1
+  dochroot bash <&1
   rm -vrf "${rootfsdir}/var/lib/apt/lists/partial"
   restoreresolv
 }
@@ -460,9 +460,16 @@ function ctrl_c() {
   exit
 }
 
+function dochroot() {
+  hostname "${target}"
+  set -a; source "${rootfsdir}/etc/environment"; set +a
+  chroot "${rootfsdir}" "$@"
+}
+
 function unsharefunction() {
   [[ "$optn_n" = true ]] && local becomeroot="--map-root-user --map-auto" || local becomeroot=""
-  unshare $becomeroot --mount --fork --kill-child --pid --uts <<< "$(echo '#!/bin/bash'; type $1)" &
+#  unshare $becomeroot --mount --fork --kill-child --pid --uts <<< "$(echo '#!/bin/bash'; type $1)" &
+  unshare $becomeroot --mount --fork --kill-child --pid --uts bash -lc "$(type $1)" &
   unsharedpid=$! ; wait -f $unsharedpid ; local rc=$?; kill_children $unsharedpid; unset unsharedpid
   [[ $rc != 0 ]] && exit 1
 }
@@ -479,7 +486,6 @@ function removeallroot() {
 }
 
 function setuproot() {
-  hostname "${target}"
   mountrootboot
   if [[ "$optn_b" = true ]] ; then backuprootfs ; exit 1; fi
   if [[ "$optn_B" = true ]] ; then restorerootfs; exit 1; fi
