@@ -366,6 +366,24 @@ case ${target} in
     default_ddrsize=4
     nandtype="spim-nand"
     ;;
+  bpir4l)
+    default_linuxpkg="linux-bpir4-git"
+    default_dtb="mt7987a-bananapi-bpi-r4-lite"
+    default_ddrsize=2
+    nandtype="spim-nand"
+    ;;
+  bpir4p4e)
+    default_linuxpkg="linux-bpir4-git"
+    default_dtb="mt7988a-bananapi-bpi-r4-pro-4e"
+    default_ddrsize=4
+    nandtype="spim-nand"
+    ;;
+  bpir4p8x)
+    default_linuxpkg="linux-bpir4-git"
+    default_dtb="mt7988a-bananapi-bpi-r4-pro-8x"
+    default_ddrsize=8
+    nandtype="spim-nand"
+    ;;
   *)
     echo "Unknown target ${target}"
     exit 1
