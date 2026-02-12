@@ -34,12 +34,13 @@ SCRIPT_PACKAGES="curl ca-certificates parted gzip btrfs-progs dosfstools deboots
 SCRIPT_PACKAGES_ALARM=" qemu-user-static qemu-user-static-binfmt inetutils"
 SCRIPT_PACKAGES_DEBIAN="qemu-user        qemu-user-binfmt        hostname"
 
-TARGETS=("bpir64 Bananapi-R64"
-         "bpir3  Bananapi-R3"
-         "bpir3m Bananapi-R3-Mini"
-         "bpir4  Bananapi-R4"
-		 "bpir4l Bananapi-R4 Lite (wip untested)"
-         "bpir4p Bananapi-R4 Pro  (wip untested)")
+TARGETS=("bpir64   Bananapi-R64"
+         "bpir3    Bananapi-R3"
+         "bpir3m   Bananapi-R3-Mini"
+         "bpir4    Bananapi-R4"
+		 "bpir4l   Bananapi-R4 Lite (wip untested)"
+         "bpir4p4e Bananapi-R4 Pro 4E (wip untested)"
+		 "bpir4p8x Bananapi-R4 Pro 8X (wip untested)")
 
 DISTROS=("alarm    ArchLinuxARM"
          "ubuntu   Ubuntu (experimental with bugs)")
