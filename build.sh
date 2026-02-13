@@ -36,10 +36,11 @@ SCRIPT_PACKAGES_DEBIAN="qemu-user        qemu-user-binfmt        hostname"
 
 TARGETS=("bpir64   Bananapi-R64"
          "bpir3    Bananapi-R3"
-         "bpir3m   Bananapi-R3-Mini"
+         "bpir3m   Bananapi-R3 Mini"
          "bpir4    Bananapi-R4"
+		 "bpir4m   Bananapi-R4 Mini (not yet)"
 		 "bpir4l   Bananapi-R4 Lite (wip untested)"
-         "bpir4p4e Bananapi-R4 Pro 4E (wip untested)"
+		 "bpir4p4e Bananapi-R4 Pro 4E (wip untested)"
 		 "bpir4p8x Bananapi-R4 Pro 8X (wip untested)")
 
 DISTROS=("alarm    ArchLinuxARM"
