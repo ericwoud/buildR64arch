@@ -17,10 +17,34 @@
 		};
 };
 
-&spi_nand {
-    spi-cs-setup-delay-ns = <15>;
+&spi2 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	spi_nand: flash@0 {
+		compatible = "spi-nand";
+		reg = <0>;
+		spi-max-frequency = <10000000>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+		spi-cs-setup-delay-ns = <15>;
     spi-cs-hold-delay-ns = <15>;
-    /* remove from main .dtb as overlay file cannot delete a property */
-    //fdt___put -d /soc/spi@11009800/flash@0/partitions/partition@0 read-only
-    // disabled for now, it is not set to read-only
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "bl2";
+				reg = <0x0 0x200000>;
+			};
+
+			partition@200000 {
+				label = "ubi";
+				reg = <0x200000 0xfe00000>;
+			};
+		};
+	};
 };
