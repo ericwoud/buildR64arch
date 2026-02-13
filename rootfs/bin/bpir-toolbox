@@ -688,7 +688,7 @@ fi
 ###########################################
 # Functions below need fip/boot partition #
 ###########################################
-if [ -z "${rootdev}" ] && [ ! -f "/etc/bpir-is-initrd" ]; then
+if [ -z "${rootdev}" ]; then
   if [ -n "$create_parts" ]; then
     echo "Root filesystem not mounted on block device."
   fi
