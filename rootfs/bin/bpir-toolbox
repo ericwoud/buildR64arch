@@ -326,6 +326,8 @@ mkdir -p /etc/rootcfg
 mv -vf /boot/bootcfg/ddrsize /etc/rootcfg/ddrsize 2>/dev/null
 
 rootdev="$(lsblk -pilno name,type,mountpoint 2>/dev/null | grep -G 'part /$' | head -n1 | cut -d " " -f1)"
+rootmount="$(cat /proc/self/mountinfo | cut -d' ' -f4-5 | grep -e ' /$' | cut -d' ' -f1)"
+[[ "${rootmount}" != "/" ]] && rootdev=""
 
 [ -z "${target}" ] && target="$(getconf root r target)"
 [ -z "${device}" ] && device="$(getconf root r device)"
@@ -396,21 +398,19 @@ esac
 
 default_cmdline="console=ttyS0,115200 debug=7 rw rootwait audit=0"
 
-if [ -z "${rootdev}" ]; then
-  if [ -f "/etc/bpir-is-initrd" ]; then  # Writing NAND while running from initrd
-    device="${nandtype}"
-    if  [ -n "$nand_update" ] || [ -n "$download2root" ]; then
-      mkdir -p "${tmp}/ericwoud"
-      repo="ftp://ftp.woudstra.mywire.org/repo/aarch64"
-      until curl -L "${repo}/ericwoud.db" | tar -xz -mC "${tmp}/ericwoud"
-      do sleep 2; done
-      download "${default_linuxpkg}"
-      download mkinitcpio-bpir
-      download bpir-atf-git
-      download bpir-uboot-git
-      echo -n "${default_linuxpkg}" >"$(echo /lib/modules/*/kernel | head -n1 | xargs dirname)/pkgbase"
-      bpir-initrd -P
-    fi
+if [ -f "/etc/bpir-is-initrd" ]; then  # Writing NAND while running from initrd
+  device="${nandtype}"
+  if  [ -n "$nand_update" ] || [ -n "$download2root" ]; then
+    mkdir -p "${tmp}/ericwoud"
+    repo="ftp://ftp.woudstra.mywire.org/repo/aarch64"
+    until curl -L "${repo}/ericwoud.db" | tar -xz -mC "${tmp}/ericwoud"
+    do sleep 2; done
+    download "${default_linuxpkg}"
+    download mkinitcpio-bpir
+    download bpir-atf-git
+    download bpir-uboot-git
+    echo -n "${default_linuxpkg}" >"$(echo /lib/modules/*/kernel | head -n1 | xargs dirname)/pkgbase"
+    bpir-initrd -P
   fi
 fi
 
