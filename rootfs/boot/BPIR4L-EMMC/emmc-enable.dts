@@ -1,0 +1,22 @@
+/dts-v1/;
+/plugin/;
+
+&mmc0 {
+  pinctrl-names = "default", "state_uhs";
+	pinctrl-0 = <&mmc_pins_default>;
+	pinctrl-1 = <&mmc_pins_uhs>;
+	bus-width = <4>; //due to dat5 = sdmmc cd pin
+	max-frequency = <52000000>;
+	cap-mmc-highspeed;
+	//mmc-hs200-1_8v;
+	//mmc-hs400-1_8v;
+	//hs400-ds-delay = <0x12814>;
+	vqmmc-supply = <&reg_1p8v>;
+	vmmc-supply = <&reg_3p3v>;
+	non-removable;
+	no-sd;
+	no-sdio;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+};

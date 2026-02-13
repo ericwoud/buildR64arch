@@ -1,0 +1,8 @@
+/dts-v1/;
+/plugin/;
+
+&{/} {
+  chosen {
+    bootargs = "earlycon=uart8250,mmio32,0x11000000";
+  };
+};

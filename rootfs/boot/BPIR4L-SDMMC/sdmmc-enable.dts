@@ -1,0 +1,20 @@
+/dts-v1/;
+/plugin/;
+
+#define GPIO_ACTIVE_LOW 1
+
+&mmc0 {
+	max-frequency = <52000000>;
+	pinctrl-names = "default", "state_uhs";
+	pinctrl-0 = <&sd_pins_default>;
+	pinctrl-1 = <&sd_pins_uhs>;
+	cd-gpios = <&pio 20 GPIO_ACTIVE_LOW>;
+	bus-width = <4>;
+	cap-sd-highspeed;
+	vmmc-supply = <&reg_3p3v>;
+	vqmmc-supply = <&reg_3p3v>;
+//	no-mmc;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+};
