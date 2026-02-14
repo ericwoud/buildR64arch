@@ -312,7 +312,7 @@ function chrootfs() {
   echo "Type <exit> to exit from the chroot environment."
   mountcachedir
   setupresolv
-  dochroot bash <&1
+  dochroot bash -li <&1
   rm -vrf "${rootfsdir}/var/lib/apt/lists/partial"
   restoreresolv
 }
@@ -792,4 +792,3 @@ fi
 exit
 
 # gpg --export DD73724DCA27796790D33E98798137154FE1474C | gpg --dearmour -o /tmp/ericwoud.gpg
-
