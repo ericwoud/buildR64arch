@@ -312,7 +312,9 @@ function chrootfs() {
   echo "Type <exit> to exit from the chroot environment."
   mountcachedir
   setupresolv
-  dochroot bash -li <&1
+  export PS1='[\u@\h CHROOT \W]\$ '
+  [ -f "${rootfsdir}/bin/bash-static" ] && dobash="/bin/bash-static" || dobash="/bin/bash"
+  dochroot ${dobash} --noprofile --norc -li <&1
   rm -vrf "${rootfsdir}/var/lib/apt/lists/partial"
   restoreresolv
 }
