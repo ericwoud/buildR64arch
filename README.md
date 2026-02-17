@@ -331,7 +331,7 @@ Usage: build.sh [OPTION]...
   -d --cachedir            store packages in cachedir
   -R --clearrootfs         empty rootfs
   -N --removenoroot        remove directories created with --noroot
-  -S --disable-sandbox     disable sandbox for kernels not supporting landlock
+  -S --enable-sandbox      enable sandbox for kernels not supporting landlock
   --imagefile [FILENAME]   image file name, default bpir.img
   --imagesize [FILESIZE]   image file size in Mib, default 7456
   --rootstart [ROOTSTART]  sd/emmc: root partition start in MiB, default 256

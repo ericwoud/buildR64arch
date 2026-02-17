@@ -232,6 +232,18 @@ function restoreresolv() {
   mv -vf "${rootfsdir}/etc/resolv.conf.backup" "${rootfsdir}/etc/resolv.conf" 2>/dev/null
 }
 
+function pacman() {
+  local opts=()
+  [[ "$optn_S" != true ]] && opts+=(--disable-sandbox)
+  /bin/pacman "${opts[@]}" "$@"
+}
+
+function pacman-static() {
+  local opts=()
+  [[ "$optn_S" != true ]] && opts+=(--disable-sandbox)
+  /bin/pacman-static "${opts[@]}" "$@"
+}
+
 function bootstrap() {
   mountcachedir
   if [[ "$distro" == "ubuntu" ]]; then
@@ -261,7 +273,7 @@ function bootstrap() {
     setupresolv
     local opts=(--noconfirm --overwrite="*")
     [[ "$optn_d" = true ]] && opts+=(--cachedir=/cachedir)
-    [[ "$optn_S" = true ]] && opts+=(--disable-sandbox)
+    [[ "$optn_S" != true ]] && opts+=(--disable-sandbox)
     until dochroot pacman-static -Syu "${opts[@]}" $STRAP_PACKAGES_ALARM
     do sleep 2; done
     rootcfg
@@ -362,7 +374,6 @@ function mountcachedir() {
     [[ $? != 0 ]] && exit 1
   fi
 }
-
 
 function domount() {
   if ! mountpoint -q "${2}"; then
@@ -549,7 +560,7 @@ function usage() {
 	  -d --cachedir            store packages in cachedir
 	  -R --clearrootfs         empty rootfs
 	  -N --removenoroot        remove directories created with --noroot
-	  -S --disable-sandbox     disable sandbox for kernels not supporting landlock
+	  -S --enable-sandbox      enable sandbox for kernels not supporting landlock
 	  --imagefile [FILENAME]   image file name, default bpir.img
 	  --imagesize [FILESIZE]   image file size in Mib, default ${IMAGE_SIZE_MB}
 	  --rootstart [ROOTSTART]  sd/emmc: root partition start in MiB, default ${ROOT_START_MB}
@@ -591,7 +602,7 @@ while getopts ":rlcbxzudniRFBISN-:" opt $args; do
       cachedir) opt=d ;;
       clearrootfs) opt=R ;;
       format) opt=F ;;
-      disable-sandbox) opt=S ;;
+      enable-sandbox) opt=S ;;
       distro)             distro="${!OPTIND}"; ((OPTIND++));;
       distro=*)           distro="${OPTARG#*=}";;
       brlanip)            brlanip="${!OPTIND}"; ((OPTIND++));;
@@ -666,7 +677,7 @@ if [[ "$initrd" != true ]]; then
   else
     for package in $SCRIPT_PACKAGES $SCRIPT_PACKAGES_ALARM; do
       [[ "${hostarch}" == "aarch64" ]] && [[ "${package}" =~ "qemu-user" ]] && continue
-      if ! pacman -Qi $package >/dev/null; then missing+=" ${package}"; fi
+      if ! /bin/pacman -Qi $package >/dev/null; then missing+=" ${package}"; fi
     done
     instcmd="sudo pacman -Syu $missing"
   fi
