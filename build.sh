@@ -560,7 +560,7 @@ function usage() {
 	  -d --cachedir            store packages in cachedir
 	  -R --clearrootfs         empty rootfs
 	  -N --removenoroot        remove directories created with --noroot
-	  -S --enable-sandbox      enable sandbox for kernels not supporting landlock
+	  -S --enable-sandbox      enable sandbox for kernels supporting landlock
 	  --imagefile [FILENAME]   image file name, default bpir.img
 	  --imagesize [FILESIZE]   image file size in Mib, default ${IMAGE_SIZE_MB}
 	  --rootstart [ROOTSTART]  sd/emmc: root partition start in MiB, default ${ROOT_START_MB}
