@@ -308,7 +308,9 @@ function bpirrootfs() {
 }
 
 function chrootfs() {
-  echo "Entering chroot on image. Enter commands as if running on the target:"
+  echo "Entering chroot on image. Enter commands as if running on the target."
+  echo "On images with glibc 2.42+, line-editing may not function. Use qemu 10.2.1+"
+  echo "on the host, or install and use the bash-static-git package on the image."
   echo "Type <exit> to exit from the chroot environment."
   mountcachedir
   setupresolv
