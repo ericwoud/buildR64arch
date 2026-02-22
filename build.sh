@@ -430,7 +430,7 @@ function mountrootboot() {
       umount "${bootdev}" 2>/dev/null
       mkdir -p "${rootfsdir}/boot"
       mountoptions="rw,nosuid,nodev,noexec,relatime,nosymfollow,fmask=0077,dmask=0077,codepage=437"
-      mountoptions+=",iocharset=ascii,shortname=mixed,utf8,errors=remount-ro"
+      mountoptions+=",shortname=mixed,utf8,errors=remount-ro"
       mount -t vfat "${bootdev}" "${rootfsdir}/boot" -o "${mountoptions}"
       [[ $? != 0 ]] && exit 1
     fi
