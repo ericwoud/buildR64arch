@@ -781,7 +781,7 @@ if [ -n "$fip2boot" ] || [ -n "$boot2fip" ]; then
     rm -rf "/boot"; mkdir "/boot"; chmod 0700 "/boot"
     sync
     mountoptions="rw,nosuid,nodev,noexec,relatime,nosymfollow,fmask=0077,dmask=0077,codepage=437"
-    mountoptions+=",iocharset=ascii,shortname=mixed,utf8,errors=remount-ro"
+    mountoptions+=",shortname=mixed,utf8,errors=remount-ro"
     while mount "${fipbootdevice}" /boot -o "${mountoptions}" 2>/dev/null; ! mountpoint -q /boot
     do echo "Waiting for /boot being mounted..."; sleep 0.1; done
     typefipboot="boot"
