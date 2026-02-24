@@ -703,11 +703,6 @@ nrrootdev=$(cat "/sys/block/${pkrootdev}/$(basename ${rootdev})/partition" 2>/de
 strootdev=$(cat "/sys/block/${pkrootdev}/$(basename ${rootdev})/start" 2>/dev/null)
 [ -z "${strootdev}" ] && exit 1
 
-if [ -n "$create_parts" ]; then
-  parted -s -- "/dev/${pkrootdev}" name ${nrrootdev} "${target}-${device}-root"
-  sync
-fi
-
 if [[ "${device}" != "sdmmc" ]] && [[ "${device}" != "emmc" ]]; then
   # When root is mounted on blkdev, but target is nvme or sata,
   #  then only set boot flag on rootdev and exit
@@ -726,33 +721,19 @@ fi
 
 ATF_END_MB=1
 atfdevice=$(getdev atf)
-if [ -z "${atfdevice}" ]; then
-  if [ -n "$create_parts" ]; then
-    parted -s -- "/dev/${pkrootdev}" unit MiB mkpart "${target}-${device}-atf" 34s "${ATF_END_MB}"
-    sync
-    atfdevice="$(getdev atf)"
-  fi
-  [ -z "${atfdevice}" ] && exit 1
-fi
+[ -z "${atfdevice}" ] && exit 1
 pkatfdevice=$(lsblk -rno pkname ${atfdevice} 2>/dev/null)
 [ -z "${pkatfdevice}" ] && exit 1
 nratfdevice=$(cat "/sys/block/${pkatfdevice}/$(basename ${atfdevice})/partition" 2>/dev/null)
 [ -z "${nratfdevice}" ] && exit 1
-if [ -n "$create_parts" ]; then
-    parted -s -- "/dev/${pkatfdevice}" set ${nratfdevice} legacy_boot on
-    sync
+if [[ "${nratfdevice}" != "1" ]]; then
+  echo "ATF partition needs to be the first partition!"
+  exit 1
 fi
 
 fipbootdevice="$(getdev fip)"
 [ -z "${fipbootdevice}" ] && fipbootdevice="$(getdev boot)"
-if [ -z "${fipbootdevice}" ]; then
-  if [ -n "$create_parts" ]; then
-    parted -s -- "/dev/${pkrootdev}" unit MiB mkpart fip "${ATF_END_MB}" "$((strootdev-1))s"
-    sync
-    fipbootdevice="$(getdev fip)"
-  fi
-  [ -z "${fipbootdevice}" ] && exit 1
-fi
+[ -z "${fipbootdevice}" ] && exit 1
 
 pkfipboot=$(lsblk -rno pkname ${fipbootdevice} 2>/dev/null)
 [ -z "${pkfipboot}" ] && exit 1

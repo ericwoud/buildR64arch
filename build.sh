@@ -21,6 +21,8 @@ export DEBOOTSTR_COMPNS="main,restricted,universe,multiverse"
 #export DEBOOTSTR_SOURCE="http://ftp.debian.org/debian/"
 #export DEBOOTSTR_COMPNS="main,contrib,non-free"
 
+export ATF_END_MB=1
+
 export ROOT_START_MB=256              # Start of root partition in MiB
 export ROOT_END_MB=100%               # End of root partition in MiB or %
 #export ROOT_END_MB=4GiB              # Size 4GiB
@@ -80,7 +82,6 @@ function checknumber() {
 
 function createimage() {
   echo "Creating image from noroot directory..."
-  ATF_END_MB=1
   atf_end_s="$((ATF_END_MB*1024*1024/512))"
   checknumber ROOT_START_MB
   checknumber IMAGE_SIZE_MB
@@ -100,11 +101,11 @@ function createimage() {
   rm "${IMAGE_FILE}.root"
   parted -s -- "${IMAGE_FILE}" unit MiB                                                   \
       mklabel gpt                                                                         \
-      mkpart "${target}-${device}-root" btrfs "${ROOT_START_MB}" "$((IMAGE_SIZE_MB - 1))" \
       mkpart "${target}-${device}-atf"        "34s"              "${ATF_END_MB}MiB"       \
       mkpart boot                       fat32 "${ATF_END_MB}MiB" "${ROOT_START_MB}"       \
-      set 2 legacy_boot on                                                                \
-      set 3        boot on                                                                \
+      mkpart "${target}-${device}-root" btrfs "${ROOT_START_MB}" "$((IMAGE_SIZE_MB - 1))" \
+      set 1 legacy_boot on                                                                \
+      set 2        boot on                                                                \
       print
   echo "Imagesize: $(du -h --apparent-size ${IMAGE_FILE}|cut -d$'\t' -f1)," \
       "disk usage: $(du -h                 ${IMAGE_FILE}|cut -d$'\t' -f1)"
@@ -150,6 +151,13 @@ function formatimage() {
     fi
     [[ -z "${rootstart}" ]] && rootstart="${ROOT_START_MB}"
     [[ -z "${rootend}"   ]] && rootend="${ROOT_END_MB}"
+    if [[ "${device}" == "sdmmc" ]] || [[ "${device}" == "emmc" ]]; then
+      if [[ "${prompt}" == "wipeall" ]]; then
+        parted -s -- "${dev}" unit MiB mkpart "${target}-${device}-atf" 34s "${ATF_END_MB}" \
+                              set 1 ${nratfdevice} legacy_boot on
+        parted -s -- "${dev}" unit MiB mkpart "fip" "${ATF_END_MB}" $rootstart
+      fi
+    fi
     parted -s -- "${dev}" unit MiB mkpart "${target}-${device}-root" btrfs $rootstart $rootend
     [[ $? != 0 ]] && exit 1
     partprobe "${dev}"; udevadm settle 2>/dev/null
@@ -168,6 +176,7 @@ function formatimage() {
   waitdev "${mountdev}"
   mkfs.btrfs -f -L "${target^^}-ROOT" "${mountdev}"
   sync
+  parted -s "${dev}" unit MiB print
 }
 
 function downloadpkg() {
