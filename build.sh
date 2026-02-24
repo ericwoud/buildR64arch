@@ -110,13 +110,19 @@ function createimage() {
   echo "Imagesize: $(du -h --apparent-size ${IMAGE_FILE}|cut -d$'\t' -f1)," \
       "disk usage: $(du -h                 ${IMAGE_FILE}|cut -d$'\t' -f1)"
 }
+function umountall() {
+  local part
+  for part in $(parts "${1}"); do
+    umount "${part}" 2>/dev/null
+  done
+}
 
 function formatimage() {
   if [[ "$optn_n" = true ]]; then
     removeallnoroot
     return
   fi
-  for part in $(parts "${dev}"); do umount "${part}" 2>/dev/null; done
+  umountall "${dev}"
   if [[ "$optn_l" == true ]]; then
     prompt="wipeall"
   else
@@ -154,8 +160,8 @@ function formatimage() {
     if [[ "${device}" == "sdmmc" ]] || [[ "${device}" == "emmc" ]]; then
       if [[ "${prompt}" == "wipeall" ]]; then
         parted -s -- "${dev}" unit MiB mkpart "${target}-${device}-atf" 34s "${ATF_END_MB}" \
-                              set 1 ${nratfdevice} legacy_boot on
-        parted -s -- "${dev}" unit MiB mkpart "fip" "${ATF_END_MB}" $rootstart
+                                       set 1 ${nratfdevice} legacy_boot on \
+                                       mkpart "fip" "${ATF_END_MB}" $rootstart
       fi
     fi
     parted -s -- "${dev}" unit MiB mkpart "${target}-${device}-root" btrfs $rootstart $rootend
@@ -775,7 +781,8 @@ if [[ -n "${target}" ]] && [[ -n "${device}" ]]; then
   if [[ "$initrd" != true ]] && [[ "$optn_n" != true ]]; then
     mkdir -p "/run/udev/rules.d"
     noautomountrule="/run/udev/rules.d/10-no-automount-bpir.rules"
-    echo 'KERNELS=="'${dev/'/dev/'/}'", ENV{UDISKS_IGNORE}="1"' > "${noautomountrule}"
+    echo 'KERNELS=="'${dev/\/dev/\/}'", ENV{UDISKS_IGNORE}="1"' > "${noautomountrule}"
+    umountall "${dev}"
   fi
   if [[ -z "${rootfsdir}" ]]; then
     if [[ "$optn_n" = true ]]; then

@@ -103,7 +103,7 @@ function checkextlinux {
     [[ "${option}" != "$(echo ${files} | cut -d' ' -f1)" ]] && continue
     for files in $(echo ${files} | cut -d' ' -f2-); do
       for file in ${files}; do
-        file="$(dirname ${1})/..${file/'/boot/'/'/'}"
+        file="$(dirname ${1})/..${file/\/boot\//\/}"
         [ ! -f "${file}" ] && echo -e "\nWARNING: extlinux.conf ${option} $(realpath ${file}) missing! :WARNING\n"
       done
     done
@@ -171,9 +171,9 @@ function fix_emmcbootpart {
       set_emmcbootpart ${1} 7
     else
       echo -e "ATF needs boot from ${1}boot0, copying..."
-      echo 0 > /sys/block/${1/'/dev/'/}boot0/force_ro
+      echo 0 > /sys/block/${1/\/dev/\/}boot0/force_ro
       dd bs=4M if="${atfdevice}" of="${1}boot0" conv=fsync
-      echo 1 > /sys/block/${1/'/dev/'/}boot0/force_ro
+      echo 1 > /sys/block/${1/\/dev/\/}boot0/force_ro
       set_emmcbootpart ${1} 1
     fi
   fi
@@ -283,9 +283,10 @@ function write_dtb {
   fi
   origargs="$(fdtget -ts "$1" "/chosen" "bootargs")"
   bootargs="$2 ${origargs} ${cmdline}"
-  echo BOOTARGS = "${bootargs}"
+  echo "BOOTARGS = ${bootargs}"
   fdtput -ts "$1" "/chosen" "bootargs" "${bootargs}"
   fdtput -ts "$1" "/memory" "device_type" "memory"
+  echo "Editing dtb memory node for ${ddrsize} GB"
   d1=$(printf "%x" $((ddrsize >> 2)) )
   d2=$(printf "%x" $(( $((ddrsize << 2)) & 15 )) )
   fdtput -tx "$1" "/memory" "reg" 00 40000000 0${d1} ${d2}0000000
