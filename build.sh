@@ -1,36 +1,16 @@
 #!/bin/bash
 
-[[ -f "/etc/bpir-is-initrd" ]] && initrd=true
-[[ -z "$SUDO_USER" ]] && SUDO_USER="$USER"
-
 # Set default configuration values
 # These can be overridden by entering them into config.sh
 
-export PACKAGES="build-r64-arch-utils-git hostapd-launch ssh-fix-reboot bpir-initrd ethtool-static-git hostapd-static-git"
-
-export ALARM_MIRROR="http://mirror.archlinuxarm.org"
-export DEBIANKEYSERVER="hkps://keyserver.ubuntu.com:443"
-
-export ALARMREPOURL='ftp://ftp.woudstra.mywire.org/repo/$arch'
-
-export DEBOOTSTR_RELEASE="noble"
-#export DEBOOTSTR_SOURCE="https://ports.ubuntu.com/ubuntu-ports"
-export DEBOOTSTR_SOURCE="https://mirror.gofoss.xyz/ubuntu-ports"
-export DEBOOTSTR_COMPNS="main,restricted,universe,multiverse"
-#export DEBOOTSTR_RELEASE="bullseye"
-#export DEBOOTSTR_SOURCE="http://ftp.debian.org/debian/"
-#export DEBOOTSTR_COMPNS="main,contrib,non-free"
-
 export ATF_END_MB=1
-
 export ROOT_START_MB=256              # Start of root partition in MiB
 export ROOT_END_MB=100%               # End of root partition in MiB or %
 #export ROOT_END_MB=4GiB              # Size 4GiB
 export IMAGE_SIZE_MB=7456             # Size of image
 export IMAGE_FILE="bpir.img"          # Name of image
 
-export STRAP_PACKAGES_ALARM="pacman archlinuxarm-keyring"
-export STRAP_PACKAGES_DEBIAN="apt-utils ca-certificates gnupg"
+export PACKAGES="build-r64-arch-utils-git hostapd-launch ssh-fix-reboot bpir-initrd ethtool-static-git hostapd-static-git"
 
 SCRIPT_PACKAGES="curl ca-certificates parted gzip btrfs-progs dosfstools debootstrap zstd"
 SCRIPT_PACKAGES_ALARM=" qemu-user-static qemu-user-static-binfmt inetutils"
@@ -46,6 +26,7 @@ TARGETS=("bpir64   Bananapi-R64"
 		 "bpir4p8x Bananapi-R4 Pro 8X (wip untested)")
 
 DISTROS=("alarm    ArchLinuxARM"
+         "debian   Debian (untested)"
          "ubuntu   Ubuntu (experimental with bugs)")
 
 function setupenv {
@@ -58,6 +39,31 @@ devices=()
                              devices+=("emmc  EMMC onboard")
 [[ $target == "bpir64" ]] && devices+=("sata  SATA onboard")
 [[ $target != "bpir64" ]] && devices+=("nvme  NVME onboard")
+[[ -z "${distro}" ]] && return
+case ${distro} in
+  alarm)
+    export ALARM_MIRROR="http://mirror.archlinuxarm.org"
+    export ALARMREPOURL='ftp://ftp.woudstra.mywire.org/repo/$arch'
+    export STRAP_PACKAGES="pacman archlinuxarm-keyring"
+    ;;
+  ubuntu)
+    export DEBOOTSTR_RELEASE="noble"
+    #export DEBOOTSTR_SOURCE="https://ports.ubuntu.com/ubuntu-ports"
+    export DEBOOTSTR_SOURCE="https://mirror.gofoss.xyz/ubuntu-ports"
+    export DEBOOTSTR_COMPNS="main,restricted,universe,multiverse"
+    export STRAP_PACKAGES="apt-utils ca-certificates gnupg"
+    ;;
+  debian)
+    export DEBOOTSTR_RELEASE="trixie"
+    export DEBOOTSTR_SOURCE="http://ftp.debian.org/debian/"
+    export DEBOOTSTR_COMPNS="main,contrib,non-free,non-free-firmware"
+    export STRAP_PACKAGES="apt-utils ca-certificates gnupg"
+    ;;
+  *)
+    echo "Unknown distro ${distro}"
+    exit 1
+    ;;
+esac
 }
 
 # End of default configuration values
@@ -261,10 +267,10 @@ function pacman-static() {
 
 function bootstrap() {
   mountcachedir
-  if [[ "$distro" == "ubuntu" ]]; then
+  if [[ "$distro" == "ubuntu" ]] || [[ "$distro" == "debian" ]]; then
     local opts=(--arch=arm64 --no-check-gpg --variant=minbase
                 --components="${DEBOOTSTR_COMPNS}"
-                --include="${STRAP_PACKAGES_DEBIAN// /,}")
+                --include="${STRAP_PACKAGES// /,}")
     [[ "$optn_d" = true ]] && opts+=(--cache-dir="$(realpath ./cachedir)")
     until debootstrap "${opts[@]}" "${DEBOOTSTR_RELEASE}" "${rootfsdir}" "${DEBOOTSTR_SOURCE}"
     do sleep 2; done
@@ -289,7 +295,7 @@ function bootstrap() {
     local opts=(--noconfirm --overwrite="*")
     [[ "$optn_d" = true ]] && opts+=(--cachedir=/cachedir)
     [[ "$optn_S" != true ]] && opts+=(--disable-sandbox)
-    until dochroot pacman-static -Syu "${opts[@]}" $STRAP_PACKAGES_ALARM
+    until dochroot pacman-static -Syu "${opts[@]}" $STRAP_PACKAGES
     do sleep 2; done
     rootcfg
     dochroot pacman-key --init
@@ -593,6 +599,9 @@ export LC_ALL=C
 export LANG=C
 export LANGUAGE=C
 
+[[ -f "/etc/bpir-is-initrd" ]] && initrd=true
+[[ -z "$SUDO_USER" ]] && SUDO_USER="$USER"
+
 [ -f "config.sh" ] && source config.sh
 
 cd "$(dirname -- "$(realpath -- "${BASH_SOURCE[0]}")")"
@@ -764,7 +773,6 @@ export -f $(typeset -F | cut -d' ' -f 3)
 export arch target device dev
 
 if [[ -n "${target}" ]] && [[ -n "${device}" ]]; then
-  setupenv # Now that target and device are known.
   if [[ "$optn_r" = true ]]; then
     if [[ "$optn_F" = true ]]; then
       ask distro DISTROS "Choose distro to create root for:"
@@ -772,6 +780,7 @@ if [[ -n "${target}" ]] && [[ -n "${device}" ]]; then
     fi
     bpirrootfs "--menuonly"
   fi
+  setupenv # Now that target, device and distro are known.
   # Check if 'config.sh' exists.  If so, source that to override default values.
   [[ -f "config.sh" ]] && source config.sh
   if [[ "$optn_l" = true ]] && [[ $(stat --printf="%s" $IMAGE_FILE) -eq 0 ]]; then
