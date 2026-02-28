@@ -16,6 +16,17 @@ SCRIPT_PACKAGES="curl ca-certificates parted gzip btrfs-progs dosfstools deboots
 SCRIPT_PACKAGES_ALARM=" qemu-user-static qemu-user-static-binfmt inetutils"
 SCRIPT_PACKAGES_DEBIAN="qemu-user        qemu-user-binfmt        hostname"
 
+CHOICES=("-dF      Format SD-CARD and build, all in one"
+         "-ndF     Create non-root folders containing image"
+         "-ndc     Chroot into non-root folders"
+         "-niz     Create bpir.img.gz from the preveously built non-root folders"
+         "-ndFiz   Create bpir.img.gz using non-root folders, all in one"
+         "-ldFz    Create bpir.img.gz using loopdev, all in one"
+         "-c       Chroot SD-CARD"
+         "-cl      Chroot bpir.img using loopdev"
+         "-z       Create bpir.img.gz from bpir.img"
+         )
+
 TARGETS=("bpir64   Bananapi-R64"
          "bpir3    Bananapi-R3"
          "bpir3m   Bananapi-R3 Mini"
@@ -656,23 +667,33 @@ while getopts ":rlcbxzudniRFBISN-:" opt $args; do
   [[ "${opt}" != "-" ]] && declare "optn_${opt}=true" && export "optn_${opt}"
   ((argcnt++))
 done
-
 if [[ "$optn_N" = true ]]; then
   export optn_n=true
   ((argcnt++))
-fi
-if [[ "$optn_n" != true ]]; then
-  if [[ $USER != "root" ]] && [[ "$initrd" != true ]]; then
-    echo "Running as root user!"
-    sudo $0 "${@:1}"
-    exit
-  fi
 fi
 
 [[ "$optn_l" = true ]] && ((argcnt--))
 [[ "$optn_n" = true ]] && ((argcnt--))
 [[ "$optn_d" = true ]] && ((argcnt--))
-[ $argcnt -eq 0 ] && export optn_c=true
+if [ $argcnt -eq 0 ]; then
+    echo "Use this menu or use arguments to choose what to do:"
+    ask choice CHOICES "What do you want to do:"
+    [[ "${choice}" =~ "d" ]] && export optn_d=true
+    [[ "${choice}" =~ "l" ]] && export optn_l=true
+    [[ "${choice}" =~ "c" ]] && export optn_c=true
+    [[ "${choice}" =~ "F" ]] && export optn_F=true
+    [[ "${choice}" =~ "n" ]] && export optn_n=true
+    [[ "${choice}" =~ "i" ]] && export optn_i=true
+    [[ "${choice}" =~ "z" ]] && export optn_z=true
+fi
+if [[ "$optn_n" != true ]]; then
+  if [[ $USER != "root" ]] && [[ "$initrd" != true ]]; then
+    echo "Running as root user!"
+    export choice
+    sudo --preserve-env=choice $0 "${@:1}"
+    exit
+  fi
+fi
 if [[ "$optn_l" = true ]]; then
   if [[ "$initrd" = true ]]; then
     echo "Loopdev not supported in initrd!"
