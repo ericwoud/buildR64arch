@@ -56,26 +56,15 @@ Change directory
 cd buildR64arch
 ```
 
-Format your SD card with:
+Start `./build.sh` and choose option `Format SD-CARD and build, all in one`
 
-```text
-./build.sh -F
-```
-After formatting the rootfs gets build.
-
-Use for `./build.sh -F --erasesize=XX` if using a cardreader with naming /dev/sdX. Using a reader with /dev/mmcblkX the script will automatically read the erase size. For readers with /dev/sdX the default value of 4MiB is ok for most cards. If you do not know the erase size, later you can read it when the sd-card is inserted in a running bpir64/3. `cat /sys/block/mmcblk0/device/preferred_erase_size` will show it in bytes.
-
-Optionally enter chroot environment on the SD card:
-
-```text
-./build.sh
-```
+Optionally enter chroot environment on the SD card wit option `Chroot SD-CARD`
 
 This script is also available when running linux on the board. It is also available from the initramdisk.
 
 ## Deployment
 
-Insert the SD card,, powerup, connect to the R64/R3 wireless, SSID: WIFI24, password: justsomepassword. To start ssh to R64/R3, password admin
+Insert the SD card, powerup, connect to the R64/R3 wireless, SSID: WIFI24, password: justsomepassword. To start ssh to R64/R3, password admin
 ```text
 ssh root@192.168.5.1
 ```
@@ -93,48 +82,31 @@ Using the `-l | --loopdev` option uses a loopdevice instead of the real device, 
 
 Now with the `-n | --noroot` option, the script builds an image- root directory, no root access is needed. The user is mapped to the root user in a namespace.
 
-Adding `-F | --format` the image is formatted, or the directories cleared.
+Start `./build.sh` with option `Create bpir.img.gz using non-root folders, all in one`
 
-Adding `-i | --createimage` an image is created from them.
-
-Adding `-z | --creategz` the image file is compressed.
-
-So:
-
+Or:
 ```text
-./build.sh --noroot --format --createimage --creategz
-```
-Or in short:
-```text
-./build.sh -nFiz
+./build.sh -ndFiz
 ```
 You can use the menu to choose the rest of the options.
+
 Or choose all options from commandline:
 ```text
-./build.sh -nFiz --target=bpir3 --device=sdmmc --ddrsize=default --setup=RT --distro=alarm --brlanip=default --cachedir --disable-sandbox
+./build.sh -nFiz --target=bpir3 --device=sdmmc --ddrsize=default --setup=RT --distro=alarm --brlanip=default --cachedir
 ```
-Deleting the image- root directory, without using sudo, may run into permission issues. Use:
+Deleting the image- root directory, without using sudo, may run into permission issues. You can then use the following to remove it:
 ```text
 ./build.sh -N
 ```
-To remove them.
 
 ## Using chroot to change image before final creation
 
-First create root filesystem:
-```text
-./build.sh -nF
-```
-Then:
-```text
-./build.sh -n --chroot
-```
-To enter it with chroot and mapped to the root user, make some changes, exit with `exit` command.
+First create root filesystem wit option `Create non-root folders containing image`
 
-Then create bpir.img.gz
-```text
-./build.sh -niz
-```
+Then use `Chroot into non-root folders` to enter it with chroot and mapped to the root user, make some changes, exit with `exit` command.
+
+Then create bpir.img.gz with `Create bpir.img.gz from the preveously built non-root folders`
+
 
 ## Ubuntu instead of ArchLinuxARM (EXPERIMENTAL)
 
