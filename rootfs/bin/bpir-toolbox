@@ -410,6 +410,7 @@ if [ -f "/etc/bpir-is-initrd" ]; then  # Writing NAND while running from initrd
     download mkinitcpio-bpir
     download bpir-atf-git
     download bpir-uboot-git
+    download linux-firmware-mediatek
     echo -n "${default_linuxpkg}" >"$(echo /lib/modules/*/kernel | head -n1 | xargs dirname)/pkgbase"
     bpir-initrd -P
   fi
