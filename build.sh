@@ -98,6 +98,7 @@ function checknumber() {
 }
 
 function createimage() {
+  trap ctrl_c_unshared INT
   echo "Creating image from noroot directory..."
   atf_end_s="$((ATF_END_MB*1024*1024/512))"
   checknumber ROOT_START_MB
@@ -135,6 +136,7 @@ function umountall() {
 }
 
 function formatimage() {
+  trap ctrl_c_unshared INT
   if [[ "$optn_n" = true ]]; then
     removeallnoroot
     return
@@ -146,7 +148,7 @@ function formatimage() {
     parted -s "${dev}" unit MiB print
     echo -e "\nDo you want to wipe all partitions from ${dev} and create GPT???"
     echo -e "This may require a reboot..."
-    read -p "Type <wipeall> to wipe all: " prompt <&1
+    read -p "Type <wipeall> to wipe all: " prompt
   fi
   if [[ "${prompt}" == "wipeall" ]]; then
     wipefs --all --force "${dev}"
@@ -169,8 +171,8 @@ function formatimage() {
       echo "To enter MiB: Enter the number of MiB's, no appending needed."
       echo "To enter GiB: Append the number with 'GiB' without space (e.g. 256GiB)."
       echo "To enter %:   Append the number with a '%' without space (e.g. 100%)."
-      read -p "Enter the start of the root partition (default ${ROOT_START_MB}): " rootstart <&1
-      read -p "Enter the  end  of the root partition (default ${ROOT_END_MB}): "   rootend <&1
+      read -p "Enter the start of the root partition (default ${ROOT_START_MB}): " rootstart
+      read -p "Enter the  end  of the root partition (default ${ROOT_END_MB}): "   rootend
     fi
     [[ -z "${rootstart}" ]] && rootstart="${ROOT_START_MB}"
     [[ -z "${rootend}"   ]] && rootend="${ROOT_END_MB}"
@@ -191,7 +193,7 @@ function formatimage() {
   elif [[ "$optn_l" != true ]]; then
     parted -s "${dev}" unit MiB print
     echo -e "\nAre you sure you want to format "${mountdev}"???"
-    read -p "Type <format> to format: " prompt <&1
+    read -p "Type <format> to format: " prompt
     [[ "${prompt}" != "format" ]] && exit 1
   fi
   waitdev "${mountdev}"
@@ -360,7 +362,7 @@ function chrootfs() {
   setupresolv
   export PS1='[\u@\h CHROOT \W]\$ '
   [ -f "${rootfsdir}/bin/bash-static" ] && dobash="/bin/bash-static" || dobash="/bin/bash"
-  dochroot ${dobash} --noprofile --norc -li <&1
+  dochroot ${dobash} --noprofile --norc -li
   rm -vrf "${rootfsdir}/var/lib/apt/lists/partial"
   restoreresolv
 }
@@ -486,29 +488,22 @@ function ask() {
   fi
 }
 
-function add_children() {
-  [[ -z "$1" ]] && return
-  echo $1
-  local p; for p in $(pgrep -P $1 2>/dev/null) ; do add_children $p; done
-}
-
-function kill_children() {
-  if [[ ! -z "$1" ]]; then
-    local p q
-    for q in 1 2; do
-      for p in $(add_children $1); do
-        kill -s SIGKILL $p &>/dev/null
-        wait -f $p 2>/dev/null
-        tail --pid=$p -f /dev/null # wait for all, even not a child
-      done
-    done
-  fi
-}
-
 function ctrl_c() {
-  echo "** Trapped CTRL-C, unshare PID=$unsharedpid **"
-  kill_children "$unsharedpid"
+  echo "** Trapped CTRL-C **"
   exit
+}
+
+function ctrl_c_unshared() {
+  echo "** Trapped CTRL-C unshared **"
+  kill -s SIGKILL -$$ &>/dev/null
+  exit
+}
+
+# All functions called with this need to start with 'trap ctrl_c_unshared INT'
+function unsharefunction() {
+  [[ "$optn_n" = true ]] && local becomeroot="--map-root-user --map-auto" || local becomeroot=""
+  unshare $becomeroot --mount --fork --kill-child --pid --uts bash -lc "$(type $1)"
+  [[ $? != 0 ]] && exit 1
 }
 
 function dochroot() {
@@ -517,33 +512,27 @@ function dochroot() {
   chroot "${rootfsdir}" "$@"
 }
 
-function unsharefunction() {
-  [[ "$optn_n" = true ]] && local becomeroot="--map-root-user --map-auto" || local becomeroot=""
-#  unshare $becomeroot --mount --fork --kill-child --pid --uts <<< "$(echo '#!/bin/bash'; type $1)" &
-  unshare $becomeroot --mount --fork --kill-child --pid --uts bash -lc "$(type $1)" &
-  unsharedpid=$! ; wait -f $unsharedpid ; local rc=$?; kill_children $unsharedpid; unset unsharedpid
-  [[ $rc != 0 ]] && exit 1
-}
-
 function removeallnoroot() {
+  trap ctrl_c_unshared INT
   [[ -z "${rootfsdir}" ]] && return
   [[ -d "${rootfsdir}" ]] && rm -rf "${rootfsdir}"
 }
 
 function removeallroot() {
-  read -p "Type <remove> to delete everything from the card: " prompt <&1
+  read -p "Type <remove> to delete everything from the card: " prompt
   [[ "${prompt}" != "remove" ]] && exit 1
   (shopt -s dotglob; rm -rf "${rootfsdir}/"*)
 }
 
 function setuproot() {
+  trap ctrl_c_unshared INT
   mountrootboot
   if [[ "$optn_b" = true ]] ; then backuprootfs ; exit 1; fi
   if [[ "$optn_B" = true ]] ; then restorerootfs; exit 1; fi
   [[ "$optn_R" = true ]] && removeallroot
   mountdevrunprocsys
-  [[ ! -d "${rootfsdir}/etc" ]] && bootstrap || bpirrootfs "--noask"
-  [[ "$optn_u" = true ]] && uartbootbuild
+  [[ ! -d "${rootfsdir}/etc" ]] && bootstrap </dev/null || bpirrootfs "--noask" </dev/null
+  [[ "$optn_u" = true ]] && uartbootbuild </dev/null
   [[ "$optn_c" = true ]] && chrootfs
   if [[ "$optn_i" = true ]] || [[ "$optn_x" = true ]] || [[ "$optn_z" = true ]]; then
     cleanupimage
@@ -609,6 +598,7 @@ function usage() {
 export LC_ALL=C
 export LANG=C
 export LANGUAGE=C
+
 
 [[ -f "/etc/bpir-is-initrd" ]] && initrd=true
 [[ -z "$SUDO_USER" ]] && SUDO_USER="$USER"
