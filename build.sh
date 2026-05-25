@@ -599,7 +599,6 @@ export LC_ALL=C
 export LANG=C
 export LANGUAGE=C
 
-
 [[ -f "/etc/bpir-is-initrd" ]] && initrd=true
 [[ -z "$SUDO_USER" ]] && SUDO_USER="$USER"
 

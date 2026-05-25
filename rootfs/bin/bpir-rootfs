@@ -148,7 +148,6 @@ if [ -z "$brlanip" ]; then
   echo "IP=$brlanip"
 fi
 
-
 if [ -n "$menuonly" ]; then
   mkdir -p /tmp/bpir-rootfs
   echo -n "${setup}"   > /tmp/bpir-rootfs/setup

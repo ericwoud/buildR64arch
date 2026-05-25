@@ -691,8 +691,6 @@ if [ -n "$clean_boot" ]; then
   rm -vfr "/boot/dtbs/mediatek/${pkgbase}" 2>/dev/null
 fi
 
-
-
 ###########################################
 # Functions below need fip/boot partition #
 ###########################################
