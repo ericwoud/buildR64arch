@@ -2,31 +2,33 @@
 
 while [ "${1:-}" != '' ]; do
   case "$1" in
-  '--default-bootcfg')               default_bootcfg=1    ;;
-  '--fip2boot')                      fip2boot=1           ;;
-  '--boot2fip')                      boot2fip=1           ;;
-  '--download2root')                 download2root=1      ;;
-  '--nand-force-erase')              nand_force_erase=1   ;;
-  '--nand-format')                   nand_format=1        ;;
-  '--nand-image')                    nand_image=1         ;;
-  '--nand-update')                   nand_update=1        ;;
-  '--write2dtb' | '--dtb')           write2dtb=1          ;;
-  '--write2atf' | '--atf')           write2atf=1          ;;
-  '--write2fip' | '--fip')           write2fip=1          ;;
-  '--write2extlinux' | '--extlinux') write2extlinux=1     ;;
-  '--uboot-install')                 uboot_install=1      ;;
-  '--uboot-remove')                  uboot_remove=1       ;;
-  '--uartboot')                      uartboot=1           ;;
-  '--remove-dtb')                    remove_dtb=1         ;;
-  '--clean-boot')                    clean_boot=1         ;;
-  '--create-parts')                  create_parts=1       ;;
-  '--target')                 shift; target="${1}"        ;;
-  '--target'=*)                      target="${1#*=}"     ;;
-  '--device')                 shift; device="${1}"        ;;
-  '--device'=*)                      device="${1#*=}"     ;;
-  '--pkgbase')                shift; pkgbase="${1}"       ;;
-  '--pkgbase'=*)                     pkgbase="${1#*=}"    ;;
-  '--set-atf-linuxpkg')              set_atf_linuxpkg=1   ;;
+  '--default-bootcfg')               default_bootcfg=1            ;;
+  '--fip2boot')                      fip2boot=1                   ;;
+  '--boot2fip')                      boot2fip=1                   ;;
+  '--download2root')                 download2root=1              ;;
+  '--download2root-pkgs')     shift; download2root_pkgs="${1}"    ;;
+  '--download2root-pkgs'=*)          download2root_pkgs="${1#*=}" ;;
+  '--nand-force-erase')              nand_force_erase=1           ;;
+  '--nand-format')                   nand_format=1                ;;
+  '--nand-image')                    nand_image=1                 ;;
+  '--nand-update')                   nand_update=1                ;;
+  '--write2dtb' | '--dtb')           write2dtb=1                  ;;
+  '--write2atf' | '--atf')           write2atf=1                  ;;
+  '--write2fip' | '--fip')           write2fip=1                  ;;
+  '--write2extlinux' | '--extlinux') write2extlinux=1             ;;
+  '--uboot-install')                 uboot_install=1              ;;
+  '--uboot-remove')                  uboot_remove=1               ;;
+  '--uartboot')                      uartboot=1                   ;;
+  '--remove-dtb')                    remove_dtb=1                 ;;
+  '--clean-boot')                    clean_boot=1                 ;;
+  '--create-parts')                  create_parts=1               ;;
+  '--target')                 shift; target="${1}"                ;;
+  '--target'=*)                      target="${1#*=}"             ;;
+  '--device')                 shift; device="${1}"                ;;
+  '--device'=*)                      device="${1#*=}"             ;;
+  '--pkgbase')                shift; pkgbase="${1}"               ;;
+  '--pkgbase'=*)                     pkgbase="${1#*=}"            ;;
+  '--set-atf-linuxpkg')              set_atf_linuxpkg=1           ;;
   *) [ -n "$1" ] && echo "Unknown option: $1"
      cat <<-EOF
 	Usage: $(basename "$0") [OPTION]...
@@ -34,6 +36,7 @@ while [ "${1:-}" != '' ]; do
 	  --fip2boot               Convert fip partition to boot partition bootchain (sd/emmc)
 	  --boot2fip               Convert boot partition to fip partition bootchain (sd/emmc)
 	  --download2root          Download files needed for nand-image (when started from initrd)
+	  --download2root-pkgs     Download extra packages              (when started from initrd)
 	  --nand-force-erase       Force erase nand, including bad blocks and wear history
 	  --nand-format            Format the nand, also runs update
 	  --nand-image             Create nand image, also runs update
@@ -80,7 +83,7 @@ function checkbootconf {
   local conf="$(cat "/boot/bootcfg/${1}" 2>/dev/null)"
   [ -z "${conf}" ] && return
   [ -f "${conf}" ] && return
-  echo "Error: ${conf} does not exist, setting /boot/bootcfg/${1} to default value."
+  echo "File '${conf}' does not exist, setting /boot/bootcfg/${1} to default value."
   rm -vf "/boot/bootcfg/${1}"
 }
 
@@ -411,6 +414,7 @@ if [ -f "/etc/bpir-is-initrd" ]; then  # Writing NAND while running from initrd
     download bpir-atf-git
     download bpir-uboot-git
     download linux-firmware-mediatek
+    for pkg in ${download2root_pkgs//,/ }; do download "${pkg}"; done
     echo -n "${default_linuxpkg}" >"$(echo /lib/modules/*/kernel | head -n1 | xargs dirname)/pkgbase"
     bpir-initrd -P
   fi
